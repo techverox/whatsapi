@@ -1,5 +1,4 @@
-import { useState, useEffect, useCallback } from 'react'
-import { Fragment } from 'react/jsx-runtime'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import { format } from 'date-fns'
 import {
   ArrowLeft,
@@ -24,6 +23,16 @@ import {
   Trash2,
   ExternalLink,
   PhoneCall,
+  Plus,
+  PanelRightClose,
+  PanelRightOpen,
+  Sparkles,
+  Building2,
+  Mail,
+  MapPin,
+  FileCheck,
+  Tag,
+  StickyNote,
 } from 'lucide-react'
 import { toast } from 'sonner'
 import { cn, getDisplayNameInitials } from '@/lib/utils'
@@ -47,6 +56,7 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog'
 import { veroxApi } from '@/lib/api'
+import { NewChat, type ContactOption } from './components/new-chat'
 
 export interface ChatMessage {
   sender: string
@@ -68,6 +78,10 @@ export interface ChatUserItem {
   tags: string[]
   unreadCount: number
   assignedAgent?: string
+  status?: string // 'Hot Lead' | 'Qualified' | 'Proposal' | 'Active Customer' | 'Archived'
+  location?: string
+  notes?: string
+  email?: string
   messages: ChatMessage[]
 }
 
@@ -81,6 +95,10 @@ const DEFAULT_CHATS: ChatUserItem[] = [
     tags: ['GPS', 'hot-lead'],
     unreadCount: 3,
     assignedAgent: 'Agent Bhavik',
+    status: 'Hot Lead',
+    location: 'Surat, Gujarat',
+    email: 'fleetlead2901@gmail.com',
+    notes: 'Inquired for 6 10-wheeler trucks AIS-140 GPS fitment. Ahmedabad-Surat route.',
     messages: [
       {
         sender: 'Contact',
@@ -108,6 +126,10 @@ const DEFAULT_CHATS: ChatUserItem[] = [
     tags: ['GPS', 'hot-lead', 'Hinglish IN'],
     unreadCount: 2,
     assignedAgent: 'Agent Bhavik',
+    status: 'Proposal Sent',
+    location: 'Ahmedabad, Gujarat',
+    email: 'rajesh@gujaratlogistics.in',
+    notes: 'Quotation sent for 5 GPS trackers. Follow-up on pricing discount.',
     messages: [
       {
         sender: 'Contact',
@@ -135,6 +157,10 @@ const DEFAULT_CHATS: ChatUserItem[] = [
     tags: ['FASTAG', 'Fleet Mgmt', 'hot-lead'],
     unreadCount: 1,
     assignedAgent: 'Agent Anjali',
+    status: 'Qualified',
+    location: 'Vadodara, Gujarat',
+    email: 'vikram.patel@patellogistics.com',
+    notes: 'Awaiting RC documents for 12 commercial Fastags.',
     messages: [
       {
         sender: 'Contact',
@@ -157,6 +183,10 @@ const DEFAULT_CHATS: ChatUserItem[] = [
     tags: ['FASTAG', 'Fleet Mgmt', 'English GB'],
     unreadCount: 0,
     assignedAgent: 'Support Desk',
+    status: 'Active Customer',
+    location: 'Mumbai, Maharashtra',
+    email: 'alex.john@enterprisefleet.co',
+    notes: 'Monthly automated Fastag toll reconciliation enabled.',
     messages: [
       {
         sender: 'Contact',
@@ -179,6 +209,10 @@ const DEFAULT_CHATS: ChatUserItem[] = [
     tags: ['GPS', 'hot-lead'],
     unreadCount: 0,
     assignedAgent: 'Agent Bhavik',
+    status: 'Qualified',
+    location: 'Rajkot, Gujarat',
+    email: 'taylor@grandefleet.in',
+    notes: 'Scheduled live tracking geofence alert demo call.',
     messages: [
       {
         sender: 'Contact',
@@ -196,6 +230,10 @@ const DEFAULT_CHATS: ChatUserItem[] = [
     tags: ['FASTAG', 'Fleet Mgmt'],
     unreadCount: 0,
     assignedAgent: 'Agent Anjali',
+    status: 'Active Customer',
+    location: 'Ahmedabad, Gujarat',
+    email: 'johndoe@fleetlogistics.in',
+    notes: 'Fleet onboarding training scheduled.',
     messages: [
       {
         sender: 'Contact',
@@ -213,6 +251,10 @@ const DEFAULT_CHATS: ChatUserItem[] = [
     tags: ['GPS', 'hot-lead', 'INSURANCE'],
     unreadCount: 1,
     assignedAgent: 'Insurance Specialist',
+    status: 'Hot Lead',
+    location: 'Gandhinagar, Gujarat',
+    email: 'megan@fluxtransit.com',
+    notes: 'Requested commercial fleet transit insurance quote for 14-wheelers.',
     messages: [
       {
         sender: 'Contact',
@@ -230,6 +272,10 @@ const DEFAULT_CHATS: ChatUserItem[] = [
     tags: ['Hinglish IN', 'GPS', 'Fleet Mgmt'],
     unreadCount: 0,
     assignedAgent: 'Agent Bhavik',
+    status: 'Active Customer',
+    location: 'Ahmedabad, Gujarat',
+    email: 'david.brown@abdfleet.com',
+    notes: 'Geofencing active on Ahmedabad-Rajkot highway.',
     messages: [
       {
         sender: 'Contact',
@@ -290,10 +336,53 @@ const PRESET_ATTACHMENTS = [
   },
 ]
 
+const OFFICIAL_META_TEMPLATES = [
+  {
+    id: 'ais140_festive_quote',
+    name: 'ais140_festive_quote_v1',
+    label: 'AIS-140 GPS Festive Quote',
+    category: 'MARKETING',
+    language: 'Hindi (IN)',
+    text: 'Namaste {{name}} ji! VEROX Automation me aapka swagat hai. Gujarat RTO approved AIS-140 4G GPS tracker par 30% festive discount chal raha hai. Free live tracking software aur 1-year replacement warranty shamil hai. Kripya reply karein quotation dekhne ke liye.',
+  },
+  {
+    id: 'fastag_kyc_verification',
+    name: 'fastag_commercial_kyc_v2',
+    label: 'Fastag Commercial KYC Verification',
+    category: 'UTILITY',
+    language: 'English (US)',
+    text: 'Dear {{name}}, your commercial fleet Fastag onboarding request is being processed. Please share a clear photo of the Vehicle Registration Certificate (RC) to complete automated RFID tag activation.',
+  },
+  {
+    id: 'installation_service_scheduled',
+    name: 'fleet_gps_fitment_scheduled',
+    label: 'GPS Installation Appointment',
+    category: 'UTILITY',
+    language: 'Hindi (IN)',
+    text: 'Namaste {{name}} ji! Aapki gaadiyon ke liye AIS-140 GPS fitment appointment schedule ho gaya hai. Hamare certified RTO technician kal subah 10:00 AM aapke depot par visit karenge.',
+  },
+  {
+    id: 'payment_reminder_fleet',
+    name: 'fleet_subscription_renewal_v1',
+    label: 'Fleet Renewal Reminder',
+    category: 'UTILITY',
+    language: 'English (US)',
+    text: 'Hi {{name}}, your annual fleet tracking SIM & cloud platform subscription for your commercial vehicles expires in 3 days. Please renew to ensure uninterrupted GPS alerts.',
+  },
+  {
+    id: 'welcome_onboard',
+    name: 'fleet_sathi_welcome_onboard',
+    label: 'Customer Welcome & App Credentials',
+    category: 'MARKETING',
+    language: 'Hindi (IN)',
+    text: 'Welcome to VEROX Fleet Sathi, {{name}}! Aapke live tracking mobile app credentials active hain. Download link aur user guide ke liye is message ka reply karein.',
+  },
+]
+
 const QUICK_CANNED_REPLIES = [
   {
     title: 'GPS Inquiry Welcome',
-    text: 'Namaste Rajesh ji! VEROX Automation me aapka swagat hai. Hamare paas 4G Fleet GPS Trackers available hain. Aapke paas kitni gaadiyan hain?',
+    text: 'Namaste! VEROX Automation me aapka swagat hai. Hamare paas 4G Fleet GPS Trackers available hain. Aapke paas kitni gaadiyan hain?',
   },
   {
     title: 'Quotation Dispatch',
@@ -325,14 +414,32 @@ export function Chats() {
   const [inputMessage, setInputMessage] = useState('')
   const [isSending, setIsSending] = useState(false)
   const [apiOnline, setApiOnline] = useState(true)
+  const [showInspector, setShowInspector] = useState(true)
 
   // Dialog Controls
+  const [newChatModalOpen, setNewChatModalOpen] = useState(false)
   const [attachModalOpen, setAttachModalOpen] = useState(false)
   const [quickReplyModalOpen, setQuickReplyModalOpen] = useState(false)
+  const [templateModalOpen, setTemplateModalOpen] = useState(false)
   const [callModalOpen, setCallModalOpen] = useState(false)
   const [moreModalOpen, setMoreModalOpen] = useState(false)
 
-  // Fetch real-time conversations from API Gateway on mount & periodic poll
+  // CRM Note Editor State
+  const [crmNoteDraft, setCrmNoteDraft] = useState(selectedUser?.notes || '')
+
+  // Ref for auto-scrolling to the bottom of the conversation
+  const messagesEndRef = useRef<HTMLDivElement | null>(null)
+
+  const scrollToBottom = (behavior: ScrollBehavior = 'smooth') => {
+    messagesEndRef.current?.scrollIntoView({ behavior })
+  }
+
+  // Auto-scroll when messages change or conversation switches
+  useEffect(() => {
+    scrollToBottom('smooth')
+  }, [selectedUser?.messages?.length, selectedUser?.id])
+
+  // Fetch real-time conversations from API Gateway
   const syncConversations = useCallback(async () => {
     try {
       const res = await veroxApi.getConversations()
@@ -356,6 +463,9 @@ export function Chats() {
               : ['GPS', 'hot-lead'],
           unreadCount: typeof c.unreadCount === 'number' ? c.unreadCount : 0,
           assignedAgent: String(c.assignedToName || 'Agent Bhavik'),
+          status: 'Hot Lead',
+          location: 'Gujarat, India',
+          notes: '',
           messages: Array.isArray(c.messages)
             ? (c.messages as Array<Record<string, unknown>>).map((m) => ({
                 sender: m.senderType === 'agent' ? 'You' : String(c.contactName || 'Contact'),
@@ -419,7 +529,7 @@ export function Chats() {
     }
   }, [syncConversations])
 
-  // Calculate dynamic tag counts
+  // Dynamic tag counts
   const getTagCount = (tag: string) => {
     if (tag === 'All') return chatList.length
     return chatList.filter((c) => c.tags.includes(tag)).length
@@ -427,13 +537,8 @@ export function Chats() {
 
   // Filtered list based on active tag, unread tab, and search query
   const filteredChatList = chatList.filter((chat) => {
-    // 1. Tag Filter
     const matchesTag = activeTag === 'All' || chat.tags.includes(activeTag)
-
-    // 2. Unread Tab Filter
     const matchesTab = activeTab === 'all' || chat.unreadCount > 0
-
-    // 3. Search Query Filter
     const q = search.trim().toLowerCase()
     const matchesSearch =
       !q ||
@@ -444,6 +549,17 @@ export function Chats() {
 
     return matchesTag && matchesTab && matchesSearch
   })
+
+  // Select a user and mark as read
+  const handleSelectUser = (chatUsr: ChatUserItem) => {
+    const updatedUser = { ...chatUsr, unreadCount: 0 }
+    setSelectedUser(updatedUser)
+    setMobileSelectedUser(updatedUser)
+    setCrmNoteDraft(chatUsr.notes || '')
+    setChatList((prev) =>
+      prev.map((c) => (c.id === chatUsr.id ? { ...c, unreadCount: 0 } : c))
+    )
+  }
 
   // Group messages by date
   const currentMessageGroups = selectedUser?.messages.reduce(
@@ -462,13 +578,14 @@ export function Chats() {
     {}
   )
 
+  // Send outbound message
   const handleSendMessage = async (customText?: string) => {
     const textToSend = (customText || inputMessage).trim()
     if (!textToSend || !selectedUser) return
     setInputMessage('')
     setIsSending(true)
 
-    // 1. Optimistic UI update
+    // 1. Optimistic UI update & bump to top of conversation list
     const newMsg: ChatMessage = {
       sender: 'You',
       message: textToSend,
@@ -476,10 +593,11 @@ export function Chats() {
     }
     const updatedUser: ChatUserItem = {
       ...selectedUser,
+      unreadCount: 0,
       messages: [...selectedUser.messages, newMsg],
     }
     setSelectedUser(updatedUser)
-    setChatList((prev) => prev.map((c) => (c.id === selectedUser.id ? updatedUser : c)))
+    setChatList((prev) => [updatedUser, ...prev.filter((c) => c.id !== selectedUser.id)])
 
     // 2. Real API dispatch to backend port 4000
     try {
@@ -489,7 +607,7 @@ export function Chats() {
         text: textToSend,
         conversationId: selectedUser.id,
       })
-      toast.success('Official WhatsApp message dispatched via Meta API!')
+      toast.success('Official WhatsApp message dispatched via Meta Cloud API!')
     } catch (_err) {
       toast.info('Message recorded in CRM conversation.')
     } finally {
@@ -528,7 +646,7 @@ export function Chats() {
       messages: [...selectedUser.messages, newMsg],
     }
     setSelectedUser(updatedUser)
-    setChatList((prev) => prev.map((c) => (c.id === selectedUser.id ? updatedUser : c)))
+    setChatList((prev) => [updatedUser, ...prev.filter((c) => c.id !== selectedUser.id)])
     setAttachModalOpen(false)
 
     const cleanPhone = selectedUser.username.replace(/[^0-9]/g, '') || '919825100001'
@@ -540,6 +658,88 @@ export function Chats() {
     toast.success(`Sent ${attachment.label} to ${selectedUser.fullName}!`)
   }
 
+  // Send an official Meta WhatsApp template
+  const handleSendTemplate = (template: typeof OFFICIAL_META_TEMPLATES[0]) => {
+    if (!selectedUser) return
+    const personalizedText = template.text.replace(/\{\{name\}\}/g, selectedUser.fullName)
+    const newMsg: ChatMessage = {
+      sender: 'You',
+      message: `[Meta Template: ${template.name}]\n\n${personalizedText}`,
+      timestamp: new Date().toISOString(),
+    }
+    const updatedUser: ChatUserItem = {
+      ...selectedUser,
+      messages: [...selectedUser.messages, newMsg],
+    }
+    setSelectedUser(updatedUser)
+    setChatList((prev) => [updatedUser, ...prev.filter((c) => c.id !== selectedUser.id)])
+    setTemplateModalOpen(false)
+
+    const cleanPhone = selectedUser.username.replace(/[^0-9]/g, '') || '919825100001'
+    veroxApi.sendMessage({
+      to: cleanPhone,
+      text: personalizedText,
+      template: {
+        name: template.name,
+        language: { code: template.language.includes('Hindi') ? 'hi' : 'en_US' },
+      },
+      conversationId: selectedUser.id,
+    })
+    toast.success(`Meta Template "${template.label}" dispatched!`)
+  }
+
+  // Start new conversation from NewChat dialog
+  const handleStartNewChat = (data: { name: string; phone: string; initialMessage?: string }) => {
+    const existing = chatList.find((c) => c.username === data.phone)
+    if (existing) {
+      handleSelectUser(existing)
+      if (data.initialMessage) {
+        handleSendMessage(data.initialMessage)
+      }
+      toast.info(`Opened existing chat with ${existing.fullName}`)
+      return
+    }
+
+    const newChatId = `conv-${Date.now()}`
+    const newChat: ChatUserItem = {
+      id: newChatId,
+      profile: `https://api.dicebear.com/7.x/initials/svg?seed=${encodeURIComponent(data.name)}`,
+      username: data.phone,
+      fullName: data.name,
+      title: 'WHATSAPP CLOUD API • Direct Lead',
+      tags: ['GPS', 'hot-lead'],
+      unreadCount: 0,
+      assignedAgent: 'Agent Bhavik',
+      status: 'Hot Lead',
+      location: 'Gujarat, India',
+      notes: 'New conversation initiated by agent.',
+      messages: data.initialMessage
+        ? [
+            {
+              sender: 'You',
+              message: data.initialMessage,
+              timestamp: new Date().toISOString(),
+            },
+          ]
+        : [],
+    }
+
+    setChatList((prev) => [newChat, ...prev])
+    setSelectedUser(newChat)
+    setMobileSelectedUser(newChat)
+    setCrmNoteDraft(newChat.notes || '')
+
+    if (data.initialMessage) {
+      const cleanPhone = data.phone.replace(/[^0-9]/g, '')
+      veroxApi.sendMessage({
+        to: cleanPhone,
+        text: data.initialMessage,
+        conversationId: newChatId,
+      })
+    }
+    toast.success(`Started new WhatsApp conversation with ${data.name}!`)
+  }
+
   // Export conversation transcript
   const handleExportTranscript = () => {
     if (!selectedUser) return
@@ -547,6 +747,9 @@ export function Chats() {
       `VEROX CRM WhatsApp Transcript`,
       `Client: ${selectedUser.fullName} (${selectedUser.username})`,
       `Title: ${selectedUser.title}`,
+      `Assigned Agent: ${selectedUser.assignedAgent || 'None'}`,
+      `Status: ${selectedUser.status || 'Active'}`,
+      `Location: ${selectedUser.location || 'Gujarat'}`,
       `Exported At: ${new Date().toLocaleString()}`,
       `-------------------------------------------------------`,
       ...selectedUser.messages.map(
@@ -592,6 +795,42 @@ export function Chats() {
     toast.success(`Updated tags for ${selectedUser.fullName}`)
   }
 
+  // Update lead status
+  const handleUpdateStatus = (status: string) => {
+    if (!selectedUser) return
+    const updatedUser: ChatUserItem = { ...selectedUser, status }
+    setSelectedUser(updatedUser)
+    setChatList((prev) => prev.map((c) => (c.id === selectedUser.id ? updatedUser : c)))
+    toast.success(`Lead stage set to "${status}"`)
+  }
+
+  // Update assigned agent
+  const handleUpdateAgent = (agent: string) => {
+    if (!selectedUser) return
+    const updatedUser: ChatUserItem = { ...selectedUser, assignedAgent: agent }
+    setSelectedUser(updatedUser)
+    setChatList((prev) => prev.map((c) => (c.id === selectedUser.id ? updatedUser : c)))
+    toast.success(`Assigned to ${agent}`)
+  }
+
+  // Save CRM Note
+  const handleSaveNote = () => {
+    if (!selectedUser) return
+    const updatedUser: ChatUserItem = { ...selectedUser, notes: crmNoteDraft }
+    setSelectedUser(updatedUser)
+    setChatList((prev) => prev.map((c) => (c.id === selectedUser.id ? updatedUser : c)))
+    toast.success('CRM notes saved successfully!')
+  }
+
+  // Build contact options for NewChat dialog
+  const contactOptions: ContactOption[] = chatList.map((c) => ({
+    id: c.id,
+    name: c.fullName,
+    phone: c.username,
+    tags: c.tags,
+    avatar: c.profile,
+  }))
+
   return (
     <>
       {/* ===== Top Header ===== */}
@@ -612,9 +851,10 @@ export function Chats() {
         <ProfileDropdown />
       </Header>
 
-      <Main fixed className='flex flex-col gap-3 p-4'>
+      {/* Main Container - Pinned Height to Viewport to Prevent Hidden Bottom Input Bar */}
+      <Main fixed fluid className='flex flex-col h-[calc(100vh-3.5rem)] p-3 overflow-hidden gap-2.5'>
         {/* Top Tag Pills Filter Bar */}
-        <div className='flex items-center gap-2 overflow-x-auto pb-1 pt-0.5 border-b border-border/40 scrollbar-none'>
+        <div className='flex items-center gap-1.5 overflow-x-auto pb-0.5 shrink-0 scrollbar-none'>
           {TAG_FILTER_LIST.map((tag) => {
             const isActive = activeTag === tag
             const count = getTagCount(tag)
@@ -643,79 +883,92 @@ export function Chats() {
           })}
         </div>
 
-        {/* Main Inbox Layout */}
-        <section className='flex h-[calc(100vh-165px)] gap-4'>
-          {/* Left Side: Conversation List */}
-          <div className='flex w-full flex-col gap-2 sm:w-72 lg:w-80 2xl:w-96 rounded-lg border border-border/60 bg-card p-3 shadow-xs'>
-            {/* Header & Sub-Tab Switcher */}
-            <div className='flex items-center justify-between pb-1'>
+        {/* 3-Column Inbox Grid Layout */}
+        <section className='flex flex-1 min-h-0 gap-3 overflow-hidden'>
+          {/* ========================================================= */}
+          {/* COLUMN 1: Conversation List */}
+          {/* ========================================================= */}
+          <div className='flex flex-col w-72 lg:w-80 shrink-0 h-full rounded-xl border border-border/60 bg-card p-3 shadow-xs overflow-hidden'>
+            {/* Header, Count & New Chat Button */}
+            <div className='flex items-center justify-between pb-2 shrink-0'>
               <div className='flex items-center gap-2'>
-                <h1 className='text-lg font-bold'>Inbox</h1>
+                <h1 className='text-base font-bold tracking-tight'>Inbox</h1>
                 <Badge variant='outline' className='text-[10px] px-1.5 bg-muted/60'>
-                  {filteredChatList.length} Total
+                  {filteredChatList.length}
                 </Badge>
               </div>
-              <div className='flex gap-1 text-xs'>
-                <button
-                  onClick={() => setActiveTab('all')}
-                  className={cn(
-                    'px-2 py-0.5 rounded text-xs font-medium cursor-pointer',
-                    activeTab === 'all'
-                      ? 'bg-orange-500/15 text-orange-600 font-semibold'
-                      : 'text-muted-foreground hover:text-foreground'
-                  )}
+
+              <div className='flex items-center gap-1.5'>
+                {/* All / Unread Switcher */}
+                <div className='flex gap-0.5 bg-muted/60 p-0.5 rounded-md text-[11px]'>
+                  <button
+                    onClick={() => setActiveTab('all')}
+                    className={cn(
+                      'px-2 py-0.5 rounded font-medium cursor-pointer transition-all',
+                      activeTab === 'all'
+                        ? 'bg-background text-foreground shadow-2xs font-bold'
+                        : 'text-muted-foreground hover:text-foreground'
+                    )}
+                  >
+                    All
+                  </button>
+                  <button
+                    onClick={() => setActiveTab('unread')}
+                    className={cn(
+                      'px-2 py-0.5 rounded font-medium cursor-pointer transition-all',
+                      activeTab === 'unread'
+                        ? 'bg-background text-foreground shadow-2xs font-bold'
+                        : 'text-muted-foreground hover:text-foreground'
+                    )}
+                  >
+                    Unread
+                  </button>
+                </div>
+
+                {/* + New Chat Button */}
+                <Button
+                  size='sm'
+                  onClick={() => setNewChatModalOpen(true)}
+                  className='h-7 px-2 text-xs bg-orange-600 hover:bg-orange-700 text-white font-bold gap-1 cursor-pointer shrink-0'
+                  title='Start New WhatsApp Chat'
                 >
-                  All
-                </button>
-                <button
-                  onClick={() => setActiveTab('unread')}
-                  className={cn(
-                    'px-2 py-0.5 rounded text-xs font-medium cursor-pointer',
-                    activeTab === 'unread'
-                      ? 'bg-orange-500/15 text-orange-600 font-semibold'
-                      : 'text-muted-foreground hover:text-foreground'
-                  )}
-                >
-                  Unread
-                </button>
+                  <Plus className='h-3.5 w-3.5' />
+                  <span className='hidden sm:inline'>New</span>
+                </Button>
               </div>
             </div>
 
             {/* Search Input with Clear Button */}
-            <div className='relative'>
-              <SearchIcon className='absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground pointer-events-none' />
+            <div className='relative mb-2 shrink-0'>
+              <SearchIcon className='absolute left-2.5 top-2.5 h-3.5 w-3.5 text-muted-foreground pointer-events-none' />
               <input
                 type='search'
                 name='chat_filter_query'
                 id='chat_filter_query'
                 autoComplete='off'
-                autoCorrect='off'
-                spellCheck='false'
-                data-lpignore='true'
-                data-1p-ignore='true'
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
-                placeholder='Search conversations or phone...'
-                className='h-9 w-full rounded-md border border-border bg-background pl-8 pr-7 text-xs outline-hidden focus:border-orange-500 focus:ring-1 focus:ring-orange-500'
+                placeholder='Search contact, phone or tag...'
+                className='h-8 w-full rounded-md border border-border bg-background pl-8 pr-7 text-xs outline-hidden focus:border-orange-500 focus:ring-1 focus:ring-orange-500'
               />
               {search && (
                 <button
                   type='button'
                   onClick={() => setSearch('')}
-                  className='absolute right-2 top-2.5 h-4 w-4 text-muted-foreground hover:text-foreground cursor-pointer flex items-center justify-center'
+                  className='absolute right-2 top-2.5 h-3.5 w-3.5 text-muted-foreground hover:text-foreground cursor-pointer flex items-center justify-center'
                 >
-                  <X className='h-3.5 w-3.5' />
+                  <X className='h-3 w-3' />
                 </button>
               )}
             </div>
 
-            {/* Conversation List or Empty State */}
+            {/* Conversation List / Empty State */}
             {filteredChatList.length === 0 ? (
-              <div className='flex flex-col items-center justify-center flex-1 py-10 px-4 text-center bg-muted/20 rounded-lg border border-dashed border-border mt-1'>
-                <SearchX className='h-8 w-8 text-muted-foreground mb-2' />
+              <div className='flex flex-col items-center justify-center flex-1 py-8 px-4 text-center bg-muted/20 rounded-lg border border-dashed border-border'>
+                <SearchX className='h-7 w-7 text-muted-foreground mb-1.5' />
                 <h4 className='font-semibold text-xs text-foreground'>No conversations found</h4>
-                <p className='text-[11px] text-muted-foreground mt-1'>
-                  No chats match "{search || activeTag}".
+                <p className='text-[11px] text-muted-foreground mt-0.5'>
+                  No chats match &ldquo;{search || activeTag}&rdquo;.
                 </p>
                 <Button
                   variant='outline'
@@ -725,46 +978,44 @@ export function Chats() {
                     setActiveTag('All')
                     setActiveTab('all')
                   }}
-                  className='h-7 text-xs mt-3 cursor-pointer'
+                  className='h-7 text-xs mt-2.5 cursor-pointer'
                 >
                   Reset Filter
                 </Button>
               </div>
             ) : (
-              <ScrollArea className='-me-1 flex-1 pe-2 pt-1'>
-                {filteredChatList.map((chatUsr) => {
-                  const { id, profile, username, messages, fullName, tags, unreadCount } = chatUsr
-                  const lastConvo = messages[messages.length - 1]
-                  const isSelected = selectedUser?.id === id
+              <ScrollArea className='flex-1 pe-1'>
+                <div className='space-y-1'>
+                  {filteredChatList.map((chatUsr) => {
+                    const { id, profile, username, messages, fullName, tags, unreadCount } = chatUsr
+                    const lastConvo = messages[messages.length - 1]
+                    const isSelected = selectedUser?.id === id
 
-                  return (
-                    <Fragment key={id}>
+                    return (
                       <button
+                        key={id}
                         type='button'
-                        onClick={() => {
-                          setSelectedUser(chatUsr)
-                          setMobileSelectedUser(chatUsr)
-                        }}
+                        onClick={() => handleSelectUser(chatUsr)}
                         className={cn(
-                          'w-full rounded-lg p-2.5 text-start transition-all cursor-pointer',
+                          'w-full rounded-lg p-2.5 text-start transition-all cursor-pointer border',
                           isSelected
-                            ? 'bg-orange-500/10 border-l-4 border-orange-500'
-                            : 'hover:bg-muted/50'
+                            ? 'bg-orange-500/10 border-orange-500/40 shadow-2xs'
+                            : 'border-transparent hover:bg-muted/50 hover:border-border/40'
                         )}
                       >
                         <div className='flex items-start gap-2.5'>
-                          <Avatar className='h-9 w-9 border border-border/40'>
+                          <Avatar className='h-9 w-9 shrink-0 border border-border/40'>
                             <AvatarImage src={profile} alt={username} />
                             <AvatarFallback className='bg-orange-500/15 text-orange-600 font-bold text-xs'>
                               {getDisplayNameInitials(fullName)}
                             </AvatarFallback>
                           </Avatar>
-                          <div className='flex-1 overflow-hidden'>
-                            <div className='flex items-center justify-between'>
-                              <span className='font-semibold text-xs text-foreground truncate max-w-[130px]'>
+                          <div className='flex-1 overflow-hidden min-w-0'>
+                            <div className='flex items-center justify-between gap-1'>
+                              <span className='font-bold text-xs text-foreground truncate'>
                                 {fullName}
                               </span>
-                              <span className='text-[10px] text-muted-foreground'>
+                              <span className='text-[10px] text-muted-foreground shrink-0'>
                                 {lastConvo ? format(new Date(lastConvo.timestamp), 'hh:mm a') : ''}
                               </span>
                             </div>
@@ -773,7 +1024,7 @@ export function Chats() {
                             </p>
                             <div className='flex items-center justify-between mt-1.5'>
                               <div className='flex gap-1 flex-wrap'>
-                                {tags.map((t) => (
+                                {tags.slice(0, 2).map((t) => (
                                   <span
                                     key={t}
                                     className={cn(
@@ -788,7 +1039,7 @@ export function Chats() {
                                 ))}
                               </div>
                               {unreadCount > 0 && (
-                                <span className='h-4 min-w-4 px-1 rounded-full bg-rose-500 text-white text-[9px] font-bold flex items-center justify-center'>
+                                <span className='h-4 min-w-4 px-1 rounded-full bg-rose-500 text-white text-[9px] font-bold flex items-center justify-center shrink-0'>
                                   {unreadCount}
                                 </span>
                               )}
@@ -796,29 +1047,30 @@ export function Chats() {
                           </div>
                         </div>
                       </button>
-                      <Separator className='my-1 opacity-50' />
-                    </Fragment>
-                  )
-                })}
+                    )
+                  })}
+                </div>
               </ScrollArea>
             )}
           </div>
 
-          {/* Right Side: Conversation View */}
+          {/* ========================================================= */}
+          {/* COLUMN 2: Active Conversation Thread */}
+          {/* ========================================================= */}
           {selectedUser ? (
             <div
               className={cn(
-                'absolute inset-0 z-50 hidden flex-1 flex-col rounded-lg border border-border/60 bg-card shadow-xs sm:static sm:flex',
+                'absolute inset-0 z-50 hidden flex-1 flex-col rounded-xl border border-border/60 bg-card shadow-xs overflow-hidden sm:static sm:flex',
                 mobileSelectedUser && 'flex'
               )}
             >
               {/* Top Conversation Header */}
-              <div className='flex items-center justify-between border-b border-border/60 p-3 bg-muted/20'>
-                <div className='flex items-center gap-3'>
+              <div className='flex items-center justify-between border-b border-border/60 px-4 py-2.5 bg-muted/20 shrink-0'>
+                <div className='flex items-center gap-3 min-w-0'>
                   <Button
                     size='icon'
                     variant='ghost'
-                    className='h-8 w-8 sm:hidden'
+                    className='h-8 w-8 sm:hidden shrink-0'
                     onClick={() => {
                       setSelectedUser(null)
                       setMobileSelectedUser(null)
@@ -826,62 +1078,100 @@ export function Chats() {
                   >
                     <ArrowLeft className='h-4 w-4' />
                   </Button>
-                  <Avatar className='h-9 w-9'>
+                  <Avatar className='h-9 w-9 shrink-0 border border-border/40'>
                     <AvatarImage src={selectedUser.profile} alt={selectedUser.username} />
                     <AvatarFallback className='bg-orange-500/15 text-orange-600 font-bold text-xs'>
                       {getDisplayNameInitials(selectedUser.fullName)}
                     </AvatarFallback>
                   </Avatar>
-                  <div>
-                    <div className='flex items-center gap-2'>
-                      <span className='font-bold text-xs text-foreground'>{selectedUser.fullName}</span>
-                      <CheckCircle2 className='h-3.5 w-3.5 text-emerald-600 fill-emerald-500/20' />
+                  <div className='min-w-0'>
+                    <div className='flex items-center gap-1.5'>
+                      <span className='font-bold text-xs text-foreground truncate'>
+                        {selectedUser.fullName}
+                      </span>
+                      <CheckCircle2 className='h-3.5 w-3.5 text-emerald-600 fill-emerald-500/20 shrink-0' />
+                      {selectedUser.status && (
+                        <Badge
+                          variant='outline'
+                          className='text-[9px] px-1 py-0 border-orange-500/40 text-orange-600 bg-orange-500/10'
+                        >
+                          {selectedUser.status}
+                        </Badge>
+                      )}
                     </div>
-                    <span className='text-[10px] text-muted-foreground font-mono'>
-                      {selectedUser.username} • {selectedUser.title}
+                    <span className='text-[10px] text-muted-foreground font-mono block truncate'>
+                      {selectedUser.username} • {selectedUser.assignedAgent || 'Agent Bhavik'}
                     </span>
                   </div>
                 </div>
 
-                <div className='flex items-center gap-1.5'>
+                {/* Header Action Buttons */}
+                <div className='flex items-center gap-1.5 shrink-0'>
                   <Button
                     variant='outline'
                     size='sm'
                     onClick={handleTriggerSimulatedInbound}
-                    className='h-7 text-[11px] gap-1 cursor-pointer'
+                    className='h-7 text-[11px] gap-1 cursor-pointer bg-background hover:bg-muted'
+                    title='Simulate Inbound WhatsApp Webhook'
                   >
                     <Zap className='h-3 w-3 text-orange-600' />
-                    Simulate Inbound
+                    <span className='hidden md:inline'>Simulate Inbound</span>
+                  </Button>
+                  <Button
+                    variant='outline'
+                    size='sm'
+                    onClick={() => setTemplateModalOpen(true)}
+                    className='h-7 text-[11px] gap-1 cursor-pointer bg-background hover:bg-muted text-emerald-600'
+                    title='Send Official Meta WhatsApp Template'
+                  >
+                    <FileCheck className='h-3 w-3' />
+                    <span className='hidden lg:inline'>Templates</span>
                   </Button>
                   <Button
                     size='icon'
                     variant='ghost'
                     onClick={() => setCallModalOpen(true)}
-                    className='h-8 w-8 text-muted-foreground hover:text-foreground cursor-pointer'
+                    className='h-7 w-7 text-muted-foreground hover:text-foreground cursor-pointer'
                     title='Voice Call Client'
                   >
-                    <Phone className='h-4 w-4' />
+                    <Phone className='h-3.5 w-3.5' />
+                  </Button>
+                  <Button
+                    size='icon'
+                    variant='ghost'
+                    onClick={() => setShowInspector(!showInspector)}
+                    className={cn(
+                      'h-7 w-7 text-muted-foreground hover:text-foreground cursor-pointer hidden xl:flex',
+                      showInspector && 'text-orange-600 bg-orange-500/10'
+                    )}
+                    title={showInspector ? 'Hide CRM Details' : 'Show CRM Details'}
+                  >
+                    {showInspector ? (
+                      <PanelRightClose className='h-3.5 w-3.5' />
+                    ) : (
+                      <PanelRightOpen className='h-3.5 w-3.5' />
+                    )}
                   </Button>
                   <Button
                     size='icon'
                     variant='ghost'
                     onClick={() => setMoreModalOpen(true)}
-                    className='h-8 w-8 text-muted-foreground hover:text-foreground cursor-pointer'
+                    className='h-7 w-7 text-muted-foreground hover:text-foreground cursor-pointer'
                     title='More Options'
                   >
-                    <MoreVertical className='h-4 w-4' />
+                    <MoreVertical className='h-3.5 w-3.5' />
                   </Button>
                 </div>
               </div>
 
-              {/* Chat Messages Body */}
-              <ScrollArea className='flex-1 p-4 bg-muted/10'>
+              {/* Chat Messages Body - Scrollable */}
+              <ScrollArea className='flex-1 p-4 bg-muted/10 overflow-y-auto'>
                 <div className='space-y-4'>
                   {currentMessageGroups &&
                     Object.entries(currentMessageGroups).map(([dateKey, msgs]) => (
                       <div key={dateKey} className='space-y-3'>
                         <div className='text-center my-2'>
-                          <span className='text-[10px] bg-muted/60 text-muted-foreground px-2 py-0.5 rounded-full font-medium'>
+                          <span className='text-[10px] bg-muted/60 text-muted-foreground px-2.5 py-0.5 rounded-full font-medium'>
                             {dateKey}
                           </span>
                         </div>
@@ -894,7 +1184,7 @@ export function Chats() {
                             >
                               <div
                                 className={cn(
-                                  'max-w-[80%] rounded-2xl px-3.5 py-2 text-xs shadow-2xs leading-relaxed',
+                                  'max-w-[82%] rounded-2xl px-3.5 py-2.5 text-xs shadow-2xs leading-relaxed',
                                   isMe
                                     ? 'bg-orange-600 text-white rounded-br-xs'
                                     : 'bg-card border border-border/60 text-foreground rounded-bl-xs'
@@ -910,7 +1200,7 @@ export function Chats() {
                                     )}
                                   >
                                     <FileText className='h-4 w-4 shrink-0' />
-                                    <div className='flex-1 overflow-hidden'>
+                                    <div className='flex-1 overflow-hidden min-w-0'>
                                       <p className='font-bold truncate'>{m.attachment.name}</p>
                                       <p className='text-[10px] opacity-80'>{m.attachment.size || 'Attachment'}</p>
                                     </div>
@@ -932,11 +1222,13 @@ export function Chats() {
                         })}
                       </div>
                     ))}
+                  {/* Invisible anchor for smooth auto-scroll to latest message */}
+                  <div ref={messagesEndRef} />
                 </div>
               </ScrollArea>
 
-              {/* Chat Input Bar */}
-              <div className='p-3 border-t border-border/60 bg-card'>
+              {/* Chat Input Bar - Pinned at the Bottom */}
+              <div className='p-3 border-t border-border/60 bg-card shrink-0'>
                 <div className='flex items-center gap-2'>
                   <Button
                     size='icon'
@@ -956,6 +1248,16 @@ export function Chats() {
                   >
                     <Smile className='h-4 w-4' />
                   </Button>
+                  <Button
+                    size='icon'
+                    variant='ghost'
+                    onClick={() => setTemplateModalOpen(true)}
+                    className='h-8 w-8 text-muted-foreground hover:text-emerald-600 shrink-0 cursor-pointer'
+                    title='Send Official Meta WhatsApp Template'
+                  >
+                    <Sparkles className='h-4 w-4' />
+                  </Button>
+
                   <input
                     type='text'
                     autoComplete='off'
@@ -974,16 +1276,17 @@ export function Chats() {
                     size='sm'
                     onClick={() => handleSendMessage()}
                     disabled={isSending || !inputMessage.trim()}
-                    className='bg-orange-600 hover:bg-orange-700 text-white text-xs h-9 gap-1 font-bold shrink-0 cursor-pointer'
+                    className='bg-orange-600 hover:bg-orange-700 text-white text-xs h-9 px-3 gap-1 font-bold shrink-0 cursor-pointer'
                   >
-                    <Send className={`h-3.5 w-3.5 ${isSending ? 'animate-bounce' : ''}`} /> Send
+                    <Send className={`h-3.5 w-3.5 ${isSending ? 'animate-bounce' : ''}`} />
+                    <span>Send</span>
                   </Button>
                 </div>
               </div>
             </div>
           ) : (
             /* Welcome Screen when no conversation selected */
-            <div className='hidden flex-1 flex-col items-center justify-center rounded-lg border border-border/60 bg-card p-8 text-center sm:flex shadow-xs'>
+            <div className='hidden flex-1 flex-col items-center justify-center rounded-xl border border-border/60 bg-card p-8 text-center sm:flex shadow-xs'>
               <div className='flex h-16 w-16 items-center justify-center rounded-full bg-emerald-500/15 text-emerald-600 mb-4 shadow-xs'>
                 <MessagesSquare className='h-8 w-8' />
               </div>
@@ -1028,14 +1331,292 @@ export function Chats() {
               </div>
             </div>
           )}
+
+          {/* ========================================================= */}
+          {/* COLUMN 3: Contact Details & CRM Inspector (Right Panel) */}
+          {/* ========================================================= */}
+          {showInspector && selectedUser && (
+            <div className='hidden xl:flex flex-col w-72 2xl:w-80 shrink-0 h-full rounded-xl border border-border/60 bg-card p-3 shadow-xs overflow-hidden'>
+              <div className='flex items-center justify-between pb-2 border-b border-border/50 shrink-0'>
+                <span className='font-bold text-xs text-foreground flex items-center gap-1.5'>
+                  <Building2 className='h-3.5 w-3.5 text-orange-600' /> Contact CRM Profile
+                </span>
+                <Button
+                  size='icon'
+                  variant='ghost'
+                  onClick={() => setShowInspector(false)}
+                  className='h-6 w-6 text-muted-foreground hover:text-foreground cursor-pointer'
+                  title='Close Details'
+                >
+                  <X className='h-3.5 w-3.5' />
+                </Button>
+              </div>
+
+              <ScrollArea className='flex-1 pe-1 pt-2'>
+                <div className='space-y-4 text-xs'>
+                  {/* Profile Card */}
+                  <div className='flex flex-col items-center text-center p-3 rounded-lg bg-muted/30 border border-border/40'>
+                    <Avatar className='h-12 w-12 border border-border/60 shadow-xs mb-2'>
+                      <AvatarImage src={selectedUser.profile} />
+                      <AvatarFallback className='bg-orange-500/15 text-orange-600 font-bold text-sm'>
+                        {getDisplayNameInitials(selectedUser.fullName)}
+                      </AvatarFallback>
+                    </Avatar>
+                    <div className='flex items-center gap-1'>
+                      <h3 className='font-bold text-sm text-foreground'>{selectedUser.fullName}</h3>
+                      <CheckCircle2 className='h-3.5 w-3.5 text-emerald-600 fill-emerald-500/20' />
+                    </div>
+                    <p className='font-mono text-[11px] text-muted-foreground mt-0.5'>{selectedUser.username}</p>
+
+                    <div className='flex items-center gap-1.5 mt-2.5 w-full'>
+                      <Button
+                        size='sm'
+                        variant='outline'
+                        onClick={() => {
+                          navigator.clipboard.writeText(selectedUser.username)
+                          toast.success('Phone copied!')
+                        }}
+                        className='flex-1 h-7 text-[10px] gap-1 cursor-pointer'
+                      >
+                        <Copy className='h-3 w-3' /> Copy
+                      </Button>
+                      <Button
+                        size='sm'
+                        className='flex-1 h-7 text-[10px] gap-1 bg-emerald-600 hover:bg-emerald-700 text-white cursor-pointer'
+                        asChild
+                      >
+                        <a
+                          href={`https://wa.me/${selectedUser.username.replace(/[^0-9]/g, '')}`}
+                          target='_blank'
+                          rel='noreferrer'
+                        >
+                          <ExternalLink className='h-3 w-3' /> WhatsApp
+                        </a>
+                      </Button>
+                    </div>
+                  </div>
+
+                  {/* CRM Status & Stage */}
+                  <div className='space-y-1.5'>
+                    <label className='text-[10px] font-bold text-muted-foreground uppercase tracking-wider block'>
+                      Lead Stage
+                    </label>
+                    <div className='grid grid-cols-2 gap-1'>
+                      {['Hot Lead', 'Qualified', 'Proposal Sent', 'Active Customer'].map((st) => (
+                        <button
+                          key={st}
+                          type='button'
+                          onClick={() => handleUpdateStatus(st)}
+                          className={cn(
+                            'px-2 py-1 rounded text-[10px] font-medium border text-center cursor-pointer transition-all',
+                            selectedUser.status === st
+                              ? 'bg-orange-600 text-white border-orange-600 font-bold'
+                              : 'bg-muted/40 border-border/50 text-muted-foreground hover:bg-muted hover:text-foreground'
+                          )}
+                        >
+                          {st}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Assigned Agent */}
+                  <div className='space-y-1.5'>
+                    <label className='text-[10px] font-bold text-muted-foreground uppercase tracking-wider block'>
+                      Assigned Agent
+                    </label>
+                    <div className='grid grid-cols-2 gap-1'>
+                      {['Agent Bhavik', 'Agent Anjali', 'VEROX AI Bot', 'Support Desk'].map((ag) => (
+                        <button
+                          key={ag}
+                          type='button'
+                          onClick={() => handleUpdateAgent(ag)}
+                          className={cn(
+                            'px-2 py-1 rounded text-[10px] font-medium border text-center cursor-pointer transition-all',
+                            selectedUser.assignedAgent === ag
+                              ? 'bg-orange-500/15 border-orange-500 text-orange-600 font-bold'
+                              : 'bg-muted/40 border-border/50 text-muted-foreground hover:bg-muted hover:text-foreground'
+                          )}
+                        >
+                          {ag}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Contact Meta Details */}
+                  <div className='space-y-2 p-2.5 rounded-lg bg-muted/20 border border-border/40 text-[11px]'>
+                    <div className='flex items-center gap-2 text-muted-foreground'>
+                      <MapPin className='h-3.5 w-3.5 text-orange-600 shrink-0' />
+                      <span className='truncate'>{selectedUser.location || 'Gujarat, India'}</span>
+                    </div>
+                    <div className='flex items-center gap-2 text-muted-foreground'>
+                      <Mail className='h-3.5 w-3.5 text-orange-600 shrink-0' />
+                      <span className='truncate'>{selectedUser.email || 'lead@gujaratfleet.com'}</span>
+                    </div>
+                  </div>
+
+                  {/* Tags Management */}
+                  <div className='space-y-1.5'>
+                    <label className='text-[10px] font-bold text-muted-foreground uppercase tracking-wider flex items-center gap-1'>
+                      <Tag className='h-3 w-3' /> CRM Tags
+                    </label>
+                    <div className='flex flex-wrap gap-1'>
+                      {['GPS', 'FASTAG', 'Fleet Mgmt', 'hot-lead', 'Hinglish IN', 'INSURANCE'].map((tag) => {
+                        const hasTag = selectedUser.tags.includes(tag)
+                        return (
+                          <button
+                            key={tag}
+                            type='button'
+                            onClick={() => handleToggleTag(tag)}
+                            className={cn(
+                              'px-2 py-0.5 rounded text-[10px] font-semibold border cursor-pointer transition-all',
+                              hasTag
+                                ? 'bg-orange-600 text-white border-orange-600'
+                                : 'bg-muted/40 border-border/60 text-muted-foreground hover:bg-muted hover:text-foreground'
+                            )}
+                          >
+                            {hasTag ? '✓ ' : '+ '}
+                            {tag}
+                          </button>
+                        )
+                      })}
+                    </div>
+                  </div>
+
+                  {/* Internal CRM Notes */}
+                  <div className='space-y-1.5'>
+                    <label className='text-[10px] font-bold text-muted-foreground uppercase tracking-wider flex items-center gap-1'>
+                      <StickyNote className='h-3 w-3' /> Agent Internal Notes
+                    </label>
+                    <textarea
+                      rows={3}
+                      value={crmNoteDraft}
+                      onChange={(e) => setCrmNoteDraft(e.target.value)}
+                      placeholder='Add follow-up notes, vehicle count, price quotes...'
+                      className='w-full p-2 text-[11px] rounded-md border border-border bg-background outline-hidden focus:border-orange-500 focus:ring-1 focus:ring-orange-500 resize-none'
+                    />
+                    <Button
+                      size='sm'
+                      onClick={handleSaveNote}
+                      className='w-full h-7 text-[10px] bg-orange-600 hover:bg-orange-700 text-white font-bold cursor-pointer'
+                    >
+                      Save CRM Note
+                    </Button>
+                  </div>
+
+                  {/* Quick Action PDF Brochure Dispatches */}
+                  <div className='space-y-1.5 pt-1'>
+                    <label className='text-[10px] font-bold text-muted-foreground uppercase tracking-wider block'>
+                      Quick Catalog Dispatch
+                    </label>
+                    <div className='space-y-1'>
+                      {PRESET_ATTACHMENTS.slice(0, 2).map((att) => (
+                        <button
+                          key={att.id}
+                          type='button'
+                          onClick={() => handleSendAttachment(att)}
+                          className='w-full flex items-center justify-between p-2 rounded-md border border-border/50 bg-muted/20 hover:bg-muted/40 text-left cursor-pointer transition-all'
+                        >
+                          <div className='flex items-center gap-2 overflow-hidden'>
+                            <FileText className='h-3.5 w-3.5 text-orange-600 shrink-0' />
+                            <span className='font-medium text-[11px] truncate'>{att.label}</span>
+                          </div>
+                          <span className='text-[9px] text-orange-600 font-bold shrink-0'>Send</span>
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              </ScrollArea>
+            </div>
+          )}
         </section>
       </Main>
 
-      {/* 1. ATTACHMENT MODAL */}
+      {/* ========================================================= */}
+      {/* 1. NEW CHAT DIALOG */}
+      {/* ========================================================= */}
+      <NewChat
+        open={newChatModalOpen}
+        onOpenChange={setNewChatModalOpen}
+        contacts={contactOptions}
+        onStartChat={handleStartNewChat}
+      />
+
+      {/* ========================================================= */}
+      {/* 2. OFFICIAL META TEMPLATES MODAL */}
+      {/* ========================================================= */}
+      <Dialog open={templateModalOpen} onOpenChange={setTemplateModalOpen}>
+        <DialogContent className='sm:max-w-lg'>
+          <DialogHeader>
+            <DialogTitle className='flex items-center gap-2 text-base font-bold'>
+              <FileCheck className='h-4 w-4 text-emerald-600' />
+              Official Meta WhatsApp Templates
+            </DialogTitle>
+            <DialogDescription className='text-xs'>
+              Send pre-approved WhatsApp templates directly to {selectedUser?.fullName}.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className='space-y-2.5 py-2 max-h-80 overflow-y-auto pr-1'>
+            {OFFICIAL_META_TEMPLATES.map((tpl) => (
+              <div
+                key={tpl.id}
+                className='p-3 rounded-lg border border-border/60 bg-card hover:border-emerald-500/50 hover:bg-muted/20 transition-all shadow-xs'
+              >
+                <div className='flex items-center justify-between mb-1.5'>
+                  <div className='flex items-center gap-2'>
+                    <h4 className='font-bold text-xs text-foreground'>{tpl.label}</h4>
+                    <Badge variant='outline' className='text-[9px] px-1 py-0 border-emerald-500/40 text-emerald-600 bg-emerald-500/10'>
+                      {tpl.category}
+                    </Badge>
+                  </div>
+                  <span className='text-[10px] text-muted-foreground font-mono'>{tpl.language}</span>
+                </div>
+                <p className='text-xs text-muted-foreground leading-relaxed whitespace-pre-wrap bg-muted/40 p-2 rounded-md border border-border/40'>
+                  {tpl.text.replace(/\{\{name\}\}/g, selectedUser?.fullName || 'Client')}
+                </p>
+                <div className='flex justify-end gap-2 mt-2'>
+                  <Button
+                    variant='ghost'
+                    size='sm'
+                    onClick={() => {
+                      setInputMessage(tpl.text.replace(/\{\{name\}\}/g, selectedUser?.fullName || 'Client'))
+                      setTemplateModalOpen(false)
+                      toast.success('Template loaded into message input.')
+                    }}
+                    className='h-7 text-xs cursor-pointer'
+                  >
+                    Edit in Box
+                  </Button>
+                  <Button
+                    size='sm'
+                    onClick={() => handleSendTemplate(tpl)}
+                    className='h-7 text-xs bg-emerald-600 hover:bg-emerald-700 text-white font-bold gap-1 cursor-pointer'
+                  >
+                    <Send className='h-3 w-3' /> Send Template
+                  </Button>
+                </div>
+              </div>
+            ))}
+          </div>
+
+          <DialogFooter>
+            <Button variant='outline' size='sm' onClick={() => setTemplateModalOpen(false)} className='h-8 text-xs cursor-pointer'>
+              Close
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* ========================================================= */}
+      {/* 3. ATTACHMENT MODAL */}
+      {/* ========================================================= */}
       <Dialog open={attachModalOpen} onOpenChange={setAttachModalOpen}>
         <DialogContent className='sm:max-w-md'>
           <DialogHeader>
-            <DialogTitle className='flex items-center gap-2'>
+            <DialogTitle className='flex items-center gap-2 text-base font-bold'>
               <Paperclip className='h-4 w-4 text-orange-600' />
               Attach Brochure, Catalog, or Document
             </DialogTitle>
@@ -1069,18 +1650,20 @@ export function Chats() {
           </div>
 
           <DialogFooter>
-            <Button variant='outline' size='sm' onClick={() => setAttachModalOpen(false)}>
+            <Button variant='outline' size='sm' onClick={() => setAttachModalOpen(false)} className='h-8 text-xs cursor-pointer'>
               Cancel
             </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
 
-      {/* 2. QUICK REPLIES & EMOJIS MODAL */}
+      {/* ========================================================= */}
+      {/* 4. QUICK REPLIES & EMOJIS MODAL */}
+      {/* ========================================================= */}
       <Dialog open={quickReplyModalOpen} onOpenChange={setQuickReplyModalOpen}>
         <DialogContent className='sm:max-w-lg'>
           <DialogHeader>
-            <DialogTitle className='flex items-center gap-2'>
+            <DialogTitle className='flex items-center gap-2 text-base font-bold'>
               <Smile className='h-4 w-4 text-orange-600' />
               Quick Canned Replies & Emojis
             </DialogTitle>
@@ -1146,18 +1729,20 @@ export function Chats() {
           </div>
 
           <DialogFooter>
-            <Button variant='outline' size='sm' onClick={() => setQuickReplyModalOpen(false)}>
+            <Button variant='outline' size='sm' onClick={() => setQuickReplyModalOpen(false)} className='h-8 text-xs cursor-pointer'>
               Close
             </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
 
-      {/* 3. VOICE CALL DIALOG */}
+      {/* ========================================================= */}
+      {/* 5. VOICE CALL DIALOG */}
+      {/* ========================================================= */}
       <Dialog open={callModalOpen} onOpenChange={setCallModalOpen}>
         <DialogContent className='sm:max-w-md'>
           <DialogHeader>
-            <DialogTitle className='flex items-center gap-2'>
+            <DialogTitle className='flex items-center gap-2 text-base font-bold'>
               <Phone className='h-4 w-4 text-emerald-600' />
               Call {selectedUser?.fullName}
             </DialogTitle>
@@ -1188,7 +1773,7 @@ export function Chats() {
             <div className='grid grid-cols-2 gap-2 pt-1'>
               <Button
                 variant='default'
-                className='bg-emerald-600 hover:bg-emerald-700 text-white text-xs h-9 gap-1.5 cursor-pointer'
+                className='bg-emerald-600 hover:bg-emerald-700 text-white text-xs h-9 gap-1.5 cursor-pointer font-bold'
                 asChild
               >
                 <a href={`tel:${selectedUser?.username}`}>
@@ -1197,7 +1782,7 @@ export function Chats() {
               </Button>
               <Button
                 variant='outline'
-                className='border-emerald-600/30 text-emerald-600 hover:bg-emerald-500/10 text-xs h-9 gap-1.5 cursor-pointer'
+                className='border-emerald-600/30 text-emerald-600 hover:bg-emerald-500/10 text-xs h-9 gap-1.5 cursor-pointer font-bold'
                 asChild
               >
                 <a
@@ -1212,18 +1797,20 @@ export function Chats() {
           </div>
 
           <DialogFooter>
-            <Button variant='outline' size='sm' onClick={() => setCallModalOpen(false)}>
+            <Button variant='outline' size='sm' onClick={() => setCallModalOpen(false)} className='h-8 text-xs cursor-pointer'>
               Close
             </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
 
-      {/* 4. MORE OPTIONS DIALOG */}
+      {/* ========================================================= */}
+      {/* 6. MORE OPTIONS DIALOG */}
+      {/* ========================================================= */}
       <Dialog open={moreModalOpen} onOpenChange={setMoreModalOpen}>
         <DialogContent className='sm:max-w-md'>
           <DialogHeader>
-            <DialogTitle className='flex items-center gap-2'>
+            <DialogTitle className='flex items-center gap-2 text-base font-bold'>
               <MoreVertical className='h-4 w-4 text-orange-600' />
               Conversation Actions & Settings
             </DialogTitle>
@@ -1237,17 +1824,11 @@ export function Chats() {
             <div>
               <label className='font-bold text-foreground block mb-1'>Assigned Team Agent</label>
               <div className='flex gap-1.5'>
-                {['Agent Bhavik', 'Agent Anjali', 'VEROX AI Bot'].map((ag) => (
+                {['Agent Bhavik', 'Agent Anjali', 'VEROX AI Bot', 'Support Desk'].map((ag) => (
                   <button
                     key={ag}
                     type='button'
-                    onClick={() => {
-                      if (selectedUser) {
-                        selectedUser.assignedAgent = ag
-                        setChatList([...chatList])
-                        toast.success(`Assigned to ${ag}`)
-                      }
-                    }}
+                    onClick={() => handleUpdateAgent(ag)}
                     className={cn(
                       'px-2.5 py-1 rounded text-xs font-medium border cursor-pointer transition-all',
                       selectedUser?.assignedAgent === ag
@@ -1311,7 +1892,7 @@ export function Chats() {
           </div>
 
           <DialogFooter>
-            <Button variant='outline' size='sm' onClick={() => setMoreModalOpen(false)}>
+            <Button variant='outline' size='sm' onClick={() => setMoreModalOpen(false)} className='h-8 text-xs cursor-pointer'>
               Done
             </Button>
           </DialogFooter>
