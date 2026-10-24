@@ -10,8 +10,8 @@
     "dev:gateway": "cd apps/api-gateway && npm run dev",
     "dev:web": "cd apps/web && npm run dev",
     "build:gateway": "cd apps/api-gateway && npm run build",
-    "build:web": "cd apps/web && npm install && npm run build",
-    "build": "cd apps/web && npm install && npm run build",
+    "build:web": "npm --prefix apps/web install && npm --prefix apps/web run build",
+    "build": "npm --prefix apps/web install && npm --prefix apps/web run build",
     "start:gateway": "cd apps/api-gateway && npm run start",
     "preview:web": "cd apps/web && npm run preview -- --port 3000 --host",
     "start": "npm run start:gateway"
