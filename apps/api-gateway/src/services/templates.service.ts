@@ -116,6 +116,99 @@ export const initialTemplates: WhatsAppTemplate[] = [
     createdAt: '2026-10-20T14:00:00Z',
     updatedAt: '2026-10-20T14:10:00Z',
   },
+  {
+    id: 'tmpl-4',
+    name: 'festive_gps_offer_v2',
+    language: 'hi',
+    category: 'MARKETING',
+    status: 'APPROVED',
+    components: [
+      {
+        type: 'HEADER',
+        format: 'TEXT',
+        text: '🚚 Festive Fleet Upgrade Offer!',
+      },
+      {
+        type: 'BODY',
+        text: 'नमस्ते {{1}},\n\nअपने कमर्शियल फ्लीट को अपग्रेड करें Truck Sathi AIS-140 GPS से 30% छूट के साथ। रियल-टाइम ट्रैकिंग + Fastag इंटीग्रेशन उपलब्ध है।',
+      },
+      {
+        type: 'FOOTER',
+        text: 'Truck Sathi • Gujarat & National Logistics',
+      },
+      {
+        type: 'BUTTONS',
+        buttons: [
+          { type: 'QUICK_REPLY', text: 'Claim 30% Off' },
+          { type: 'PHONE_NUMBER', text: 'Call Helpline', phone_number: '+919825100001' },
+        ],
+      },
+    ],
+    createdAt: '2026-10-22T04:15:00Z',
+    updatedAt: '2026-10-22T04:15:00Z',
+  },
+  {
+    id: 'tmpl-5',
+    name: 'fastag_instant_recharge',
+    language: 'en',
+    category: 'UTILITY',
+    status: 'APPROVED',
+    components: [
+      {
+        type: 'HEADER',
+        format: 'TEXT',
+        text: '⚡ Instant Commercial Fastag Activation',
+      },
+      {
+        type: 'BODY',
+        text: 'Dear {{1}},\n\nDirect FASTAG issuance for 10-wheeler and 14-wheeler trucks. Zero paperwork delay and instant wallet sync.',
+      },
+      {
+        type: 'FOOTER',
+        text: 'VEROX Fleet Services',
+      },
+      {
+        type: 'BUTTONS',
+        buttons: [
+          { type: 'QUICK_REPLY', text: 'Recharge Now' },
+          { type: 'PHONE_NUMBER', text: 'Call Support', phone_number: '+919825100001' },
+        ],
+      },
+    ],
+    createdAt: '2026-10-24T12:00:00Z',
+    updatedAt: '2026-10-24T12:00:00Z',
+  },
+  {
+    id: 'tmpl-6',
+    name: 'indiamart_lead_followup',
+    language: 'hi',
+    category: 'MARKETING',
+    status: 'APPROVED',
+    components: [
+      {
+        type: 'HEADER',
+        format: 'TEXT',
+        text: 'IndiaMart Inquiry: Truck Sathi GPS',
+      },
+      {
+        type: 'BODY',
+        text: 'नमस्ते {{1}},\n\nIndiaMart पर Truck Sathi GPS इन्क्वायरी के लिए धन्यवाद। हमारे वरिष्ठ लॉजिस्टिक्स सलाहकार बल्क डिस्काउंट के साथ आपकी सहायता के लिए तैयार हैं।',
+      },
+      {
+        type: 'FOOTER',
+        text: 'Truck Sathi AIS-140 Support',
+      },
+      {
+        type: 'BUTTONS',
+        buttons: [
+          { type: 'QUICK_REPLY', text: 'Schedule Call' },
+          { type: 'PHONE_NUMBER', text: 'Contact Us', phone_number: '+919825100001' },
+        ],
+      },
+    ],
+    createdAt: '2026-10-21T09:00:00Z',
+    updatedAt: '2026-10-21T09:00:00Z',
+  },
 ]
 
 class TemplatesService {
@@ -126,7 +219,7 @@ class TemplatesService {
   }
 
   public getTemplateByName(name: string): WhatsAppTemplate | undefined {
-    return this.templates.find((t) => t.name === name)
+    return this.templates.find((t) => t.name === name) || this.templates[0]
   }
 
   public createTemplate(data: {

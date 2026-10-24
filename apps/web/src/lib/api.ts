@@ -162,6 +162,10 @@ export const whatsapiApi = {
     request(`/api/campaigns/${campaignId}/dispatch`, {
       method: 'POST',
     }),
+  deleteCampaign: (campaignId: string) =>
+    request(`/api/campaigns/${campaignId}`, {
+      method: 'DELETE',
+    }),
 
   // Message Templates
   getTemplates: () => request('/api/templates'),

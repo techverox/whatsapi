@@ -162,6 +162,13 @@ class DatabaseService {
     return newCampaign
   }
 
+  public deleteCampaign(id: string): boolean {
+    const index = this.campaigns.findIndex((c) => c.id === id)
+    if (index === -1) return false
+    this.campaigns.splice(index, 1)
+    return true
+  }
+
   // --- Tags ---
   public getTags() {
     return this.tags

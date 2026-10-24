@@ -59,3 +59,13 @@ campaignsRouter.post('/:id/dispatch', async (req: Request, res: Response) => {
     })
   }
 })
+
+// DELETE /api/v1/campaigns/:id - Delete broadcast campaign
+campaignsRouter.delete('/:id', (req: Request, res: Response) => {
+  const campaignId = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id
+  const deleted = dbService.deleteCampaign(campaignId)
+  if (!deleted) {
+    return res.status(404).json({ success: false, message: 'Campaign not found.' })
+  }
+  res.json({ success: true, message: 'Campaign deleted successfully.' })
+})

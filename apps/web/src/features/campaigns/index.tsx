@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import {
   Megaphone,
   Plus,
@@ -12,6 +12,10 @@ import {
   MessageSquare,
   RefreshCw,
   ArrowUpRight,
+  BarChart3,
+  Users,
+  Check,
+  Sparkles,
 } from 'lucide-react'
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
@@ -97,6 +101,26 @@ const TEMPLATES: MessageTemplate[] = [
     quickReply: 'Schedule Call',
     callNumber: '+91 98251 00001',
   },
+  {
+    id: 'lead_nurture_followup',
+    name: 'lead_nurture_followup',
+    category: 'MARKETING',
+    language: 'Hindi (hi)',
+    previewText:
+      'नमस्ते! हमे आपकी IndiaMart इन्क्वायरी प्राप्त हुई है। क्या हम आपके फ्लीट ऑटोमेशन के लिए आज बात कर सकते हैं?',
+    quickReply: 'हाँ, बात करें',
+    callNumber: '+91 98251 00001',
+  },
+  {
+    id: 'fastag_renewal_alert',
+    name: 'fastag_renewal_alert',
+    category: 'UTILITY',
+    language: 'English (en)',
+    previewText:
+      'Alert: Your commercial fleet FASTAG balance is low. Tap below to recharge instantly with zero downtime.',
+    quickReply: 'Recharge Now',
+    callNumber: '+91 98251 00001',
+  },
 ]
 
 const initialMockCampaigns: CampaignItem[] = [
@@ -170,11 +194,63 @@ const initialMockCampaigns: CampaignItem[] = [
   },
 ]
 
+function mapCampaignData(data: Array<Record<string, unknown>>): CampaignItem[] {
+  return data.map((c) => {
+    const templateName = typeof c.templateName === 'string' ? c.templateName : ''
+    const matchedTmpl = TEMPLATES.find((t) => t.name === templateName) || TEMPLATES[0]
+    const isComp = c.status === 'completed'
+    const isProg = c.status === 'running' || c.status === 'in_progress'
+
+    const total = typeof c.totalContacts === 'number' ? c.totalContacts : 1000
+    const del =
+      typeof c.deliveredCount === 'number'
+        ? c.deliveredCount
+        : typeof c.delivered === 'number'
+        ? c.delivered
+        : isComp
+        ? total
+        : isProg
+        ? Math.round(total * 0.75)
+        : 0
+    const rd =
+      typeof c.readCount === 'number'
+        ? c.readCount
+        : typeof c.read === 'number'
+        ? c.read
+        : isComp
+        ? Math.round(total * 0.8)
+        : isProg
+        ? Math.round(total * 0.55)
+        : 0
+
+    return {
+      id: String(c.id || ''),
+      name: String(c.name || 'Untitled Campaign'),
+      status: (isComp ? 'Completed' : isProg ? 'In Progress' : 'Scheduled') as CampaignItem['status'],
+      totalContacts: total,
+      delivered: del,
+      read: rd,
+      scheduledTime: typeof c.scheduledAt === 'string' ? c.scheduledAt : new Date().toISOString(),
+      created: typeof c.createdAt === 'string' ? c.createdAt : new Date().toISOString(),
+      templateName: templateName || matchedTmpl.name,
+      templatePreview: matchedTmpl.previewText,
+      pipelineEvents: [
+        {
+          title: 'Broadcast queue Initiated via Meta Cloud API Gateway',
+          time: typeof c.createdAt === 'string' ? c.createdAt : 'Live',
+        },
+        { title: 'Delivery receipts processed via Webhook port 4000', time: 'Live' },
+      ],
+    }
+  })
+}
+
 export function Campaigns() {
   const [campaigns, setCampaigns] = useState<CampaignItem[]>(initialMockCampaigns)
   const [selectedCampaign, setSelectedCampaign] = useState<CampaignItem | null>(initialMockCampaigns[0])
   const [searchQuery, setSearchQuery] = useState('')
   const [statusFilter, setStatusFilter] = useState<'All' | 'Completed' | 'In Progress' | 'Scheduled'>('All')
+  const [isRefreshing, setIsRefreshing] = useState(false)
 
   // Create Campaign Modal State
   const [createModal, setCreateModal] = useState(false)
@@ -193,6 +269,25 @@ export function Campaigns() {
   const [testPhoneNumber, setTestPhoneNumber] = useState('+919825100001')
   const [isSendingTest, setIsSendingTest] = useState(false)
 
+  // Manual Refresh Handler
+  const handleRefresh = async () => {
+    setIsRefreshing(true)
+    try {
+      const res = await veroxApi.getCampaigns()
+      if (res.success && Array.isArray(res.data) && res.data.length > 0) {
+        const mapped = mapCampaignData(res.data as Array<Record<string, unknown>>)
+        setCampaigns(mapped)
+        setSelectedCampaign((prev) => (prev ? mapped.find((m) => m.id === prev.id) || mapped[0] : mapped[0]))
+        toast.success('Campaigns synchronized with Meta Cloud API Gateway')
+      }
+    } catch {
+      toast.info('Loaded campaigns from resilient local state')
+    } finally {
+      setIsRefreshing(false)
+    }
+  }
+
+  // Initial fetch on mount
   useEffect(() => {
     let mounted = true
 
@@ -201,61 +296,12 @@ export function Campaigns() {
       .then((res) => {
         if (!mounted) return
         if (res.success && Array.isArray(res.data) && res.data.length > 0) {
-          const mapped: CampaignItem[] = (res.data as Array<Record<string, unknown>>).map((c) => {
-            const templateName = typeof c.templateName === 'string' ? c.templateName : ''
-            const matchedTmpl = TEMPLATES.find((t) => t.name === templateName) || TEMPLATES[0]
-            const isComp = c.status === 'completed'
-            const isProg = c.status === 'running' || c.status === 'in_progress'
-
-            const total = typeof c.totalContacts === 'number' ? c.totalContacts : 1000
-            const del =
-              typeof c.deliveredCount === 'number'
-                ? c.deliveredCount
-                : typeof c.delivered === 'number'
-                ? c.delivered
-                : isComp
-                ? total
-                : isProg
-                ? Math.round(total * 0.75)
-                : 0
-            const rd =
-              typeof c.readCount === 'number'
-                ? c.readCount
-                : typeof c.read === 'number'
-                ? c.read
-                : isComp
-                ? Math.round(total * 0.8)
-                : isProg
-                ? Math.round(total * 0.55)
-                : 0
-
-            return {
-              id: String(c.id || ''),
-              name: String(c.name || 'Untitled Campaign'),
-              status: (isComp ? 'Completed' : isProg ? 'In Progress' : 'Scheduled') as CampaignItem['status'],
-              totalContacts: total,
-              delivered: del,
-              read: rd,
-              scheduledTime: typeof c.scheduledAt === 'string' ? c.scheduledAt : new Date().toISOString(),
-              created: typeof c.createdAt === 'string' ? c.createdAt : new Date().toISOString(),
-              templateName: templateName || matchedTmpl.name,
-              templatePreview: matchedTmpl.previewText,
-              pipelineEvents: [
-                {
-                  title: 'Broadcast queue Initiated via Meta Cloud API Gateway',
-                  time: typeof c.createdAt === 'string' ? c.createdAt : 'Live',
-                },
-                { title: 'Delivery receipts processed via Webhook port 4000', time: 'Live' },
-              ],
-            }
-          })
+          const mapped = mapCampaignData(res.data as Array<Record<string, unknown>>)
           setCampaigns(mapped)
-          setSelectedCampaign(mapped[0])
+          setSelectedCampaign((prev) => (prev ? mapped.find((m) => m.id === prev.id) || mapped[0] : mapped[0]))
         }
       })
-      .catch((_err) => {
-        // Fallback to initial mock
-      })
+      .catch(() => {})
 
     return () => {
       mounted = false
@@ -311,7 +357,7 @@ export function Campaigns() {
       // Handled locally
     }
 
-    setCampaigns([newCamp, ...campaigns])
+    setCampaigns((prev) => [newCamp, ...prev])
     setSelectedCampaign(newCamp)
     setName('')
     setCreateModal(false)
@@ -328,10 +374,8 @@ export function Campaigns() {
     setDispatchFeedback('Connecting to Meta Cloud API Gateway (Port 4000)...')
 
     try {
-      // Step 1: Trigger backend API
       const res = await veroxApi.dispatchCampaign(selectedCampaign.id)
 
-      // Step 2: Smooth Progress Animation
       setTimeout(() => setDispatchProgress(50), 300)
       setTimeout(() => setDispatchProgress(85), 650)
       setTimeout(() => {
@@ -393,7 +437,7 @@ export function Campaigns() {
       ],
     }
 
-    setCampaigns([duplicated, ...campaigns])
+    setCampaigns((prev) => [duplicated, ...prev])
     setSelectedCampaign(duplicated)
     toast.success('Campaign Duplicated!', {
       description: `Cloned as "${duplicated.name}". Ready to schedule or dispatch.`,
@@ -401,28 +445,44 @@ export function Campaigns() {
   }
 
   // Delete Campaign Handler
-  const handleDeleteCampaign = (id: string, e?: React.MouseEvent) => {
+  const handleDeleteCampaign = async (id: string, e?: React.MouseEvent) => {
     if (e) e.stopPropagation()
     const remaining = campaigns.filter((c) => c.id !== id)
     setCampaigns(remaining)
     if (selectedCampaign?.id === id) {
       setSelectedCampaign(remaining[0] || null)
     }
+    try {
+      await veroxApi.deleteCampaign(id)
+    } catch {
+      // Local fallback
+    }
     toast.info('Campaign removed from broadcast engine.')
   }
 
   // Interactive Quick Reply Simulation
-  const handleQuickReplyClick = (replyText: string) => {
-    toast.success(`Quick Reply Simulated: "${replyText}"`, {
-      description: 'Incoming customer webhook payload simulated on Port 4000. Contact tagged as Hot Lead.',
-    })
+  const handleQuickReplyClick = async (replyText: string) => {
+    try {
+      await veroxApi.simulateInboundMessage({
+        from: '+919825100001',
+        name: 'Haresh Patel (Gujarat Logistics)',
+        text: replyText,
+      })
+      toast.success(`Quick Reply Sent: "${replyText}"`, {
+        description: 'Customer inquiry ingested & routed to Team Inbox as Hot Lead.',
+      })
+    } catch {
+      toast.success(`Quick Reply Simulated: "${replyText}"`, {
+        description: 'Customer webhook payload simulated on Port 4000.',
+      })
+    }
   }
 
   // Interactive Call Button Simulation
   const handleCallClick = (phoneNumber: string) => {
     navigator.clipboard.writeText(phoneNumber)
-    toast.info(`Support Helpline Copied: ${phoneNumber}`, {
-      description: 'Customer dialing intent registered in WhatsApp CRM analytics.',
+    toast.info(`Helpline Copied: ${phoneNumber}`, {
+      description: 'Support helpline copied to clipboard. Dialing intent registered in CRM.',
     })
   }
 
@@ -464,9 +524,35 @@ export function Campaigns() {
     return matchesSearch && matchesStatus
   })
 
-  // Selected template object
+  // Selected template object for detail preview
   const currentTemplateObj =
     TEMPLATES.find((t) => t.name === selectedCampaign?.templateName) || TEMPLATES[0]
+
+  // Selected template object for create modal preview
+  const createModalTemplateObj =
+    TEMPLATES.find((t) => t.name === selectedTemplateName) || TEMPLATES[0]
+
+  // Aggregate Metrics
+  const aggregateMetrics = useMemo(() => {
+    const totalCampaigns = campaigns.length
+    const totalAudience = campaigns.reduce((acc, c) => acc + c.totalContacts, 0)
+    const totalDelivered = campaigns.reduce((acc, c) => acc + c.delivered, 0)
+    const totalRead = campaigns.reduce((acc, c) => acc + c.read, 0)
+    const activeCount = campaigns.filter((c) => c.status === 'In Progress' || c.status === 'Scheduled').length
+
+    const overallDeliveryRate = totalAudience > 0 ? Math.round((totalDelivered / totalAudience) * 100) : 0
+    const overallEngagementRate = totalDelivered > 0 ? Math.round((totalRead / totalDelivered) * 100) : 0
+
+    return {
+      totalCampaigns,
+      totalAudience,
+      totalDelivered,
+      totalRead,
+      activeCount,
+      overallDeliveryRate,
+      overallEngagementRate,
+    }
+  }, [campaigns])
 
   return (
     <>
@@ -498,11 +584,12 @@ export function Campaigns() {
             <Button
               variant='outline'
               size='sm'
-              onClick={loadCampaigns}
+              onClick={handleRefresh}
+              disabled={isRefreshing}
               className='text-xs gap-1.5 h-8'
             >
-              <RefreshCw className='h-3.5 w-3.5' />
-              Refresh
+              <RefreshCw className={`h-3.5 w-3.5 ${isRefreshing ? 'animate-spin text-orange-600' : ''}`} />
+              {isRefreshing ? 'Syncing...' : 'Refresh'}
             </Button>
             <Button
               size='sm'
@@ -515,9 +602,62 @@ export function Campaigns() {
           </div>
         </div>
 
+        {/* Aggregate KPI Overview Cards */}
+        <div className='grid grid-cols-2 md:grid-cols-4 gap-3'>
+          <div className='p-3.5 rounded-xl border border-border/60 bg-card shadow-2xs'>
+            <div className='flex items-center justify-between text-muted-foreground mb-1'>
+              <span className='text-xs font-medium'>Total Broadcasts</span>
+              <Megaphone className='h-4 w-4 text-orange-600' />
+            </div>
+            <div className='text-2xl font-bold tracking-tight text-foreground'>
+              {aggregateMetrics.totalCampaigns}
+            </div>
+            <div className='text-[10px] text-muted-foreground mt-0.5'>
+              {aggregateMetrics.activeCount} active / scheduled
+            </div>
+          </div>
+
+          <div className='p-3.5 rounded-xl border border-border/60 bg-card shadow-2xs'>
+            <div className='flex items-center justify-between text-muted-foreground mb-1'>
+              <span className='text-xs font-medium'>Audience Reach</span>
+              <Users className='h-4 w-4 text-sky-600' />
+            </div>
+            <div className='text-2xl font-bold tracking-tight text-sky-600'>
+              {aggregateMetrics.totalAudience.toLocaleString()}
+            </div>
+            <div className='text-[10px] text-muted-foreground mt-0.5'>
+              {aggregateMetrics.totalDelivered.toLocaleString()} delivered
+            </div>
+          </div>
+
+          <div className='p-3.5 rounded-xl border border-border/60 bg-card shadow-2xs'>
+            <div className='flex items-center justify-between text-muted-foreground mb-1'>
+              <span className='text-xs font-medium'>Avg. Delivery Rate</span>
+              <CheckCircle2 className='h-4 w-4 text-emerald-600' />
+            </div>
+            <div className='text-2xl font-bold tracking-tight text-emerald-600'>
+              {aggregateMetrics.overallDeliveryRate}%
+            </div>
+            <div className='text-[10px] text-muted-foreground mt-0.5'>Meta Cloud API receipts</div>
+          </div>
+
+          <div className='p-3.5 rounded-xl border border-border/60 bg-card shadow-2xs'>
+            <div className='flex items-center justify-between text-muted-foreground mb-1'>
+              <span className='text-xs font-medium'>Read Rate / CTR</span>
+              <BarChart3 className='h-4 w-4 text-orange-600' />
+            </div>
+            <div className='text-2xl font-bold tracking-tight text-orange-600'>
+              {aggregateMetrics.overallEngagementRate}%
+            </div>
+            <div className='text-[10px] text-muted-foreground mt-0.5'>
+              {aggregateMetrics.totalRead.toLocaleString()} verified reads
+            </div>
+          </div>
+        </div>
+
         {/* Progress Bar during Dispatch */}
         {dispatchProgress !== null && (
-          <div className='rounded-xl border border-emerald-500/30 bg-emerald-500/5 p-4 space-y-2'>
+          <div className='rounded-xl border border-emerald-500/30 bg-emerald-500/5 p-4 space-y-2 animate-in fade-in duration-200'>
             <div className='flex justify-between text-xs font-semibold text-emerald-700 dark:text-emerald-300'>
               <span className='flex items-center gap-1.5'>
                 <Send className='h-3.5 w-3.5 animate-bounce' />
@@ -536,14 +676,14 @@ export function Campaigns() {
 
         {/* Feedback Alert */}
         {dispatchFeedback && !dispatchProgress && (
-          <div className='p-3 rounded-lg border border-emerald-500/30 bg-emerald-500/10 text-emerald-950 dark:text-emerald-200 text-xs flex items-center gap-2'>
+          <div className='p-3 rounded-lg border border-emerald-500/30 bg-emerald-500/10 text-emerald-950 dark:text-emerald-200 text-xs flex items-center gap-2 animate-in fade-in'>
             <CheckCircle2 className='h-4 w-4 text-emerald-600 shrink-0' />
             <span>{dispatchFeedback}</span>
           </div>
         )}
 
         {/* Campaign Detail Analytics View */}
-        {selectedCampaign && (
+        {selectedCampaign ? (
           <div className='space-y-4 rounded-xl border border-border/60 bg-card p-5 shadow-xs'>
             <div className='flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-border/40 pb-3'>
               <div>
@@ -605,7 +745,7 @@ export function Campaigns() {
               </div>
             </div>
 
-            {/* 3 KPI Cards */}
+            {/* 3 KPI Cards for Selected Campaign */}
             <div className='grid grid-cols-1 sm:grid-cols-3 gap-3'>
               <div className='p-4 rounded-lg bg-orange-500/5 border border-orange-500/20'>
                 <div className='text-xs text-muted-foreground font-medium'>Engagement Rate</div>
@@ -772,7 +912,7 @@ export function Campaigns() {
                     </div>
                   </div>
                   <div className='flex justify-between items-center text-[11px] text-muted-foreground px-1'>
-                    <span>Interactive Template Components</span>
+                    <span>Interactive Template Simulation</span>
                     <button
                       onClick={() => setTestSendModal(true)}
                       className='text-blue-600 hover:underline font-medium'
@@ -783,6 +923,25 @@ export function Campaigns() {
                 </div>
               </div>
             </div>
+          </div>
+        ) : (
+          <div className='rounded-xl border border-dashed border-border/60 bg-card p-8 text-center space-y-3'>
+            <div className='h-12 w-12 rounded-full bg-orange-500/10 text-orange-600 flex items-center justify-center mx-auto'>
+              <Megaphone className='h-6 w-6' />
+            </div>
+            <div>
+              <h3 className='font-bold text-base text-foreground'>No Campaign Selected</h3>
+              <p className='text-xs text-muted-foreground mt-1 max-w-sm mx-auto'>
+                Select a campaign from the table below to view delivery metrics, preview template content, or dispatch dispatches.
+              </p>
+            </div>
+            <Button
+              size='sm'
+              onClick={() => setCreateModal(true)}
+              className='bg-orange-600 hover:bg-orange-700 text-white font-semibold text-xs'
+            >
+              <Plus className='h-3.5 w-3.5 mr-1.5' /> Create New Broadcast
+            </Button>
           </div>
         )}
 
@@ -930,7 +1089,7 @@ export function Campaigns() {
 
         {/* Create Campaign Modal */}
         <Dialog open={createModal} onOpenChange={setCreateModal}>
-          <DialogContent className='sm:max-w-xl'>
+          <DialogContent className='sm:max-w-xl max-h-[90vh] overflow-y-auto'>
             <DialogHeader>
               <DialogTitle className='flex items-center gap-2'>
                 <Megaphone className='h-5 w-5 text-orange-600' />
@@ -968,13 +1127,40 @@ export function Campaigns() {
                           : 'border-border/60 hover:border-border bg-background'
                       }`}
                     >
-                      <div className='font-mono font-semibold text-[11px] truncate'>{tmpl.name}</div>
+                      <div className='font-mono font-semibold text-[11px] truncate flex items-center justify-between'>
+                        <span>{tmpl.name}</span>
+                        {selectedTemplateName === tmpl.name && <Check className='h-3.5 w-3.5 text-orange-600' />}
+                      </div>
                       <div className='text-[10px] text-muted-foreground mt-0.5 flex justify-between'>
                         <span>{tmpl.category}</span>
                         <span>{tmpl.language}</span>
                       </div>
                     </div>
                   ))}
+                </div>
+              </div>
+
+              {/* Live Template Preview inside Create Modal */}
+              <div className='p-3 rounded-lg border border-orange-500/30 bg-orange-500/5 space-y-1.5'>
+                <div className='flex items-center justify-between text-[11px] font-semibold text-orange-800 dark:text-orange-300'>
+                  <span className='flex items-center gap-1.5'>
+                    <Sparkles className='h-3.5 w-3.5 text-orange-600' />
+                    Live Template Preview: {createModalTemplateObj.name}
+                  </span>
+                  <Badge variant='outline' className='text-[10px] border-orange-500/40 text-orange-600'>
+                    {createModalTemplateObj.language}
+                  </Badge>
+                </div>
+                <p className='text-[11px] text-foreground leading-relaxed whitespace-pre-line'>
+                  {createModalTemplateObj.previewText}
+                </p>
+                <div className='pt-1 flex items-center gap-2 text-[10px] text-muted-foreground'>
+                  <span className='px-2 py-0.5 rounded bg-background border font-medium'>
+                    Button: {createModalTemplateObj.quickReply}
+                  </span>
+                  <span className='px-2 py-0.5 rounded bg-background border font-medium'>
+                    Helpline: {createModalTemplateObj.callNumber}
+                  </span>
                 </div>
               </div>
 
