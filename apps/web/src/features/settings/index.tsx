@@ -121,7 +121,29 @@ export function Settings({
 }: {
   defaultTab?: 'profile' | 'team' | 'organisation' | 'billing' | 'waba' | 'appearance'
 }) {
-  const [activeTab, setActiveTab] = useState<string>(defaultTab)
+  const [activeTab, setActiveTabState] = useState<string>(() => {
+    if (typeof window !== 'undefined') {
+      const searchParam = new URLSearchParams(window.location.search).get('tab')
+      if (searchParam === 'whatsapp' || searchParam === 'waba') return 'waba'
+      if (
+        searchParam &&
+        ['profile', 'team', 'organisation', 'billing', 'waba', 'appearance'].includes(searchParam)
+      ) {
+        return searchParam
+      }
+    }
+    return defaultTab
+  })
+
+  const setActiveTab = (tab: string) => {
+    setActiveTabState(tab)
+    if (typeof window !== 'undefined') {
+      const url = new URL(window.location.href)
+      url.searchParams.set('tab', tab)
+      window.history.replaceState({}, '', url.toString())
+    }
+  }
+
   const [profileSubTab, setProfileSubTab] = useState<'profile' | 'password'>('profile')
 
   // Settings State from LocalStorage
