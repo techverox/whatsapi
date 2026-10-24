@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { Link } from '@tanstack/react-router'
 import { veroxApi } from '@/lib/api'
 import {
@@ -297,13 +297,11 @@ export function Users() {
 
   const [selectedContactForDetails, setSelectedContactForDetails] = useState<ContactRecord | null>(null)
 
-  useEffect(() => {
-    let mounted = true
-
+  const loadContacts = useCallback(() => {
+    setIsRefreshing(true)
     veroxApi
       .getContacts()
       .then((res) => {
-        if (!mounted) return
         if (res.success && Array.isArray(res.data) && res.data.length > 0) {
           const mapped: ContactRecord[] = (res.data as Array<Record<string, unknown>>).map((c) => ({
             id: String(c.id || ''),
@@ -342,8 +340,50 @@ export function Users() {
         // Fallback to offline store
       })
       .finally(() => {
-        if (mounted) setIsRefreshing(false)
+        setIsRefreshing(false)
       })
+  }, [])
+
+  useEffect(() => {
+    let mounted = true
+    veroxApi
+      .getContacts()
+      .then((res) => {
+        if (!mounted) return
+        if (res.success && Array.isArray(res.data) && res.data.length > 0) {
+          const mapped: ContactRecord[] = (res.data as Array<Record<string, unknown>>).map((c) => ({
+            id: String(c.id || ''),
+            created: c.createdAt ? new Date(String(c.createdAt)).toLocaleString() : new Date().toLocaleString(),
+            name: String(c.name || 'Unknown Contact'),
+            phone: String(c.phone || ''),
+            source: (typeof c.source === 'string' ? c.source : 'whatsapp') as ContactRecord['source'],
+            tags: Array.isArray(c.tags)
+              ? c.tags.map((t) =>
+                  typeof t === 'string'
+                    ? t
+                    : typeof t === 'object' && t !== null && 'name' in t
+                    ? String((t as { name: string }).name)
+                    : 'Lead'
+                )
+              : [],
+            optIn: typeof c.optIn === 'boolean' ? c.optIn : true,
+            assignedAt: c.assignedAt ? new Date(String(c.assignedAt)).toLocaleString() : '-',
+            assignedTo: String(c.assignedToName || 'Not Assigned'),
+            email: String(
+              c.email || `${String(c.name || '').toLowerCase().replace(/[^a-z0-9]/g, '')}@example.com`
+            ),
+            status: 'New',
+            wabaPhone: '+917698580043',
+            gpsClient: false,
+          }))
+
+          setContacts((prev) => {
+            const ids = new Set(mapped.map((m) => m.id))
+            return [...mapped, ...prev.filter((p) => !ids.has(p.id))]
+          })
+        }
+      })
+      .catch(() => {})
 
     return () => {
       mounted = false
