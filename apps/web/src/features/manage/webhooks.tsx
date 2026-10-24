@@ -16,7 +16,11 @@ interface WebhookLogItem {
   timestamp: string
   type: string
   status: '200 OK' | '201 Created' | '400 BAD' | '401 UNAUTHORIZED'
-  payload: any
+  payload: unknown
+}
+
+function generateWebhookLogId(): string {
+  return `log-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`
 }
 
 export function WebhookEvents() {
@@ -27,7 +31,7 @@ export function WebhookEvents() {
 
   // Handshake Ping State
   const [isPinging, setIsPinging] = useState(false)
-  const [pingResult, setPingResult] = useState<any | null>(null)
+  const [pingResult, setPingResult] = useState<Record<string, unknown> | null>(null)
 
   // Simulation Form State
   const [simPhone, setSimPhone] = useState('+919825100001')
@@ -40,19 +44,27 @@ export function WebhookEvents() {
   const [eventLogs, setEventLogs] = useState<WebhookLogItem[]>([])
 
   useEffect(() => {
+    let mounted = true
     veroxApi.getIntegrationLogs().then((res) => {
+      if (!mounted) return
       if (res.success && Array.isArray(res.data) && res.data.length > 0) {
         setEventLogs(
-          res.data.map((item: any) => ({
-            id: item.id,
-            timestamp: item.timestamp || new Date(item.createdAt).toLocaleTimeString(),
+          (res.data as Array<Record<string, unknown>>).map((item) => ({
+            id: String(item.id || ''),
+            timestamp: typeof item.timestamp === 'string' ? item.timestamp : new Date(String(item.createdAt || '')).toLocaleTimeString(),
             type: `${item.source} (${item.event})`,
-            status: item.status?.includes('20') ? '200 OK' : '400 BAD',
+            status: String(item.status || '').includes('20') ? '200 OK' : '400 BAD',
             payload: item.fullPayload || item.payloadPreview,
           }))
         )
       }
+    }).catch((_err) => {
+      // Ignore initial logs fetch failure
     })
+
+    return () => {
+      mounted = false
+    }
   }, [])
 
   const copyUrl = () => {
@@ -80,7 +92,7 @@ export function WebhookEvents() {
       })
       setEventLogs((prev) => [
         {
-          id: `log-${Date.now()}`,
+          id: generateWebhookLogId(),
           timestamp: new Date().toLocaleTimeString(),
           type: 'hub.challenge (GET Handshake)',
           status: '200 OK',
@@ -116,7 +128,7 @@ export function WebhookEvents() {
       })
       setEventLogs((prev) => [
         {
-          id: `log-${Date.now()}`,
+          id: generateWebhookLogId(),
           timestamp: new Date().toLocaleTimeString(),
           type: 'whatsapp.messages (Simulated Inbound)',
           status: '200 OK',
@@ -150,7 +162,7 @@ export function WebhookEvents() {
 
     setEventLogs((prev) => [
       {
-        id: `log-${Date.now()}`,
+        id: generateWebhookLogId(),
         timestamp: new Date().toLocaleTimeString(),
         type: 'indiamart.lead (Inbound Webhook)',
         status: res.success ? '200 OK' : '400 BAD',

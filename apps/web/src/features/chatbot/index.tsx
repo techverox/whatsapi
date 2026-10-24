@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect, useRef } from 'react'
+import { useState, useMemo } from 'react'
 import {
   MessageCircleCode,
   Zap,
@@ -7,7 +7,6 @@ import {
   Trash2,
   Edit3,
   RotateCcw,
-  Layers,
   Sparkles,
   Smartphone,
   Save,
@@ -19,20 +18,16 @@ import {
   Tag,
   UserCheck,
   Clock,
-  ArrowRight,
   SlidersHorizontal,
   FileText,
   HelpCircle,
   CheckCircle2,
-  X,
   Play,
   ZoomIn,
   ZoomOut,
   Maximize2,
   Copy,
-  FolderGit2,
   ShieldCheck,
-  Bot,
   FileSpreadsheet,
   MapPin,
   ShoppingBag,
@@ -40,19 +35,12 @@ import {
   GitFork,
   ArrowDown,
   ArrowUp,
-  RefreshCw,
   Download,
   Upload,
-  Eye,
   Radio,
   Database,
-  ExternalLink,
-  MoreVertical,
   Terminal,
   CheckCheck,
-  Paperclip,
-  Smile,
-  Mic,
 } from 'lucide-react'
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
@@ -452,6 +440,17 @@ const FLOW_PRESETS: { id: string; name: string; description: string; nodes: BotN
   },
 ]
 
+// Module-level ID counter & generator utilities
+let idCounter = 1000
+function generateNodeId(): string {
+  idCounter += 1
+  return `node-${Date.now()}-${idCounter}`
+}
+function generateSimMessageId(prefix: 'u' | 'b' | 'sys'): string {
+  idCounter += 1
+  return `${prefix}-${Date.now()}-${idCounter}`
+}
+
 // ============================================================================
 // COMPONENT PALETTE ITEMS (ALL 17 ACTIONS + 5 TRIGGERS)
 // ============================================================================
@@ -460,7 +459,7 @@ interface PaletteItem {
   name: string
   description: string
   category: 'Triggers' | 'Actions'
-  icon: any
+  icon: React.ComponentType<{ className?: string }>
   badgeColor: string
 }
 
@@ -657,7 +656,9 @@ export function Chatbot() {
     try {
       const saved = localStorage.getItem('whatsapi_chatbot_flows_v2')
       if (saved) return JSON.parse(saved)
-    } catch {}
+    } catch (_err) {
+      // Use fallback default nodes
+    }
     return FLOW_PRESETS[0].nodes
   })
 
@@ -798,9 +799,9 @@ export function Chatbot() {
   // Add Node from Palette (Supports all 17 actions + 5 triggers)
   const handleAddNodeFromPalette = (paletteItem: PaletteItem) => {
     const nextStep = nodes.length + 1
-    const newId = `node-${Date.now()}`
+    const newId = generateNodeId()
 
-    let defaultTitle = paletteItem.name
+    const defaultTitle = paletteItem.name
     let defaultSub = paletteItem.description
     const config: BotNode['config'] = {}
 
@@ -958,7 +959,7 @@ export function Chatbot() {
     const nextStep = nodes.length + 1
     const newNode: BotNode = {
       ...node,
-      id: `node-${Date.now()}`,
+      id: generateNodeId(),
       stepNumber: nextStep,
       title: `${node.title} (Copy)`,
     }
@@ -1105,7 +1106,7 @@ export function Chatbot() {
           setSimMessages((prev) => [
             ...prev,
             {
-              id: `b-${Date.now()}`,
+              id: generateSimMessageId('b'),
               sender: 'bot',
               text: node.config.messageText || 'Hello!',
               time: now,
@@ -1132,7 +1133,7 @@ export function Chatbot() {
           setSimMessages((prev) => [
             ...prev,
             {
-              id: `b-${Date.now()}`,
+              id: generateSimMessageId('b'),
               sender: 'bot',
               text: node.config.messageText || 'Please choose an option:',
               buttons: node.config.buttons || ['Option 1', 'Option 2'],
@@ -1161,7 +1162,7 @@ export function Chatbot() {
           setSimMessages((prev) => [
             ...prev,
             {
-              id: `b-${Date.now()}`,
+              id: generateSimMessageId('b'),
               sender: 'bot',
               text: `${node.config.messageText || 'Select an item:'}\n\n` + (node.config.listItems || []).map((i) => `• ${i}`).join('\n'),
               buttons: ['View Menu Options', 'Cancel'],
@@ -1189,7 +1190,7 @@ export function Chatbot() {
           setSimMessages((prev) => [
             ...prev,
             {
-              id: `b-${Date.now()}`,
+              id: generateSimMessageId('b'),
               sender: 'bot',
               text: `📎 Document Attached: ${node.config.mediaName || 'Brochure.pdf'}`,
               mediaType: node.config.mediaType || 'pdf',
@@ -1219,7 +1220,7 @@ export function Chatbot() {
           setSimMessages((prev) => [
             ...prev,
             {
-              id: `b-${Date.now()}`,
+              id: generateSimMessageId('b'),
               sender: 'bot',
               text: node.config.questionPrompt || 'Please enter your response:',
               time: now,
@@ -1247,7 +1248,7 @@ export function Chatbot() {
           setSimMessages((prev) => [
             ...prev,
             {
-              id: `b-${Date.now()}`,
+              id: generateSimMessageId('b'),
               sender: 'bot',
               text:
                 '🤖 [AI Agent Grounded Response]: Based on Gujarat Transport AIS-140 compliance, commercial multi-axle trucks require ARAI certified GPS with dual IP67 SIM failover and government live portal sync. We provide complete RTO clearance documentation.',
@@ -1272,7 +1273,7 @@ export function Chatbot() {
         setSimMessages((prev) => [
           ...prev,
           {
-            id: `sys-${Date.now()}`,
+            id: generateSimMessageId('sys'),
             sender: 'system',
             text: `🌐 Webhook Dispatched: ${node.config.httpMethod || 'POST'} ${node.config.httpUrl} (Status: 200 OK)`,
             time: now,
@@ -1296,7 +1297,7 @@ export function Chatbot() {
         setSimMessages((prev) => [
           ...prev,
           {
-            id: `sys-${Date.now()}`,
+            id: generateSimMessageId('sys'),
             sender: 'system',
             text: `🏷️ CRM Tag Applied: "${node.config.tag || 'hot-lead'}"`,
             time: now,
@@ -1320,7 +1321,7 @@ export function Chatbot() {
         setSimMessages((prev) => [
           ...prev,
           {
-            id: `sys-${Date.now()}`,
+            id: generateSimMessageId('sys'),
             sender: 'system',
             text: `👤 Conversation Routed to: ${node.config.assignee || 'Agent Bhavik'}`,
             time: now,
@@ -1353,7 +1354,7 @@ export function Chatbot() {
         executeSimulatorStep(nodeIndex + 1)
         break
 
-      case 'WAIT_DELAY':
+      case 'WAIT_DELAY': {
         setIsBotTyping(true)
         const delayMs = (node.config.delaySeconds || 2) * 800
         setTimeout(() => {
@@ -1371,6 +1372,7 @@ export function Chatbot() {
           executeSimulatorStep(nodeIndex + 1)
         }, delayMs)
         break
+      }
 
       case 'SET_ATTRIBUTE':
         if (node.config.attributeKey) {
@@ -1379,7 +1381,7 @@ export function Chatbot() {
         setSimMessages((prev) => [
           ...prev,
           {
-            id: `sys-${Date.now()}`,
+            id: generateSimMessageId('sys'),
             sender: 'system',
             text: `💾 Set Attribute: ${node.config.attributeKey} = "${node.config.attributeValue}"`,
             time: now,
@@ -1405,7 +1407,7 @@ export function Chatbot() {
           setSimMessages((prev) => [
             ...prev,
             {
-              id: `b-${Date.now()}`,
+              id: generateSimMessageId('b'),
               sender: 'bot',
               text: '🛍️ WhatsApp Product Catalog:',
               productCard: {
@@ -1438,7 +1440,7 @@ export function Chatbot() {
           setSimMessages((prev) => [
             ...prev,
             {
-              id: `b-${Date.now()}`,
+              id: generateSimMessageId('b'),
               sender: 'bot',
               text: node.config.locationPrompt || '📍 Please share your live GPS location for delivery hub calculation:',
               buttons: ['📍 Share Current Location (Ahmedabad Hub)', 'Enter Address Manually'],
@@ -1463,7 +1465,7 @@ export function Chatbot() {
         setSimMessages((prev) => [
           ...prev,
           {
-            id: `sys-${Date.now()}`,
+            id: generateSimMessageId('sys'),
             sender: 'system',
             text: `🔔 Bot paused. Chat transferred to ${node.config.handoverDepartment || 'Support Desk'} (Priority: ${node.config.handoverPriority || 'normal'}).`,
             time: now,
@@ -1486,7 +1488,7 @@ export function Chatbot() {
         setSimMessages((prev) => [
           ...prev,
           {
-            id: `sys-${Date.now()}`,
+            id: generateSimMessageId('sys'),
             sender: 'system',
             text: `📊 Appended Lead to Google Sheet: "${node.config.sheetName || 'Leads'}"`,
             time: now,
@@ -1509,7 +1511,7 @@ export function Chatbot() {
         setSimMessages((prev) => [
           ...prev,
           {
-            id: `sys-${Date.now()}`,
+            id: generateSimMessageId('sys'),
             sender: 'system',
             text: `🔀 Branching into Sub-Flow: "${node.config.targetFlowId || 'sub-flow'}"`,
             time: now,
@@ -1537,7 +1539,7 @@ export function Chatbot() {
   // Handle User Reply in Simulator (Button Click or Chat Input)
   const handleSimUserReply = (text: string) => {
     const userMsg: SimMessage = {
-      id: `u-${Date.now()}`,
+      id: generateSimMessageId('u'),
       sender: 'user',
       text,
       time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
@@ -1888,7 +1890,6 @@ export function Chatbot() {
                   const isExecuting = activeExecutingNodeId === node.id
                   const isTrigger = node.type.startsWith('TRIGGER')
                   const isAi = node.type === 'AI_AGENT'
-                  const isButtons = node.type === 'SEND_BUTTONS'
                   const isCondition = node.type === 'CONDITION_BRANCH'
 
                   // Border & Header Styling
@@ -2384,7 +2385,9 @@ export function Chatbot() {
                         value={selectedNode.config.questionValidation || 'text'}
                         onChange={(e) =>
                           handleUpdateSelectedNode({
-                            config: { questionValidation: e.target.value as any },
+                            config: {
+                              questionValidation: e.target.value as 'text' | 'number' | 'email' | 'phone',
+                            },
                           })
                         }
                         className='w-full h-8 text-xs rounded-md border border-input bg-background px-2'
@@ -2440,7 +2443,9 @@ export function Chatbot() {
                         value={selectedNode.config.httpMethod || 'POST'}
                         onChange={(e) =>
                           handleUpdateSelectedNode({
-                            config: { httpMethod: e.target.value as any },
+                            config: {
+                              httpMethod: e.target.value as 'GET' | 'POST' | 'PUT' | 'DELETE',
+                            },
                           })
                         }
                         className='w-full h-8 text-xs rounded-md border border-input bg-background px-2 font-mono font-bold'

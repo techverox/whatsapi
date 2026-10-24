@@ -33,13 +33,18 @@ import {
 } from '@/components/ui/dialog'
 import { veroxApi } from '@/lib/api'
 
+interface TemplateComponent {
+  type: string
+  text?: string
+}
+
 interface TemplateItem {
   id: string
   name: string
   language: string
   category: 'MARKETING' | 'UTILITY' | 'AUTHENTICATION'
   status: 'APPROVED' | 'PENDING' | 'REJECTED'
-  components: any[]
+  components: TemplateComponent[]
   quickReply?: string
   callNumber?: string
 }
@@ -131,22 +136,23 @@ export function WhatsappTemplates() {
   const [var1, setVar1] = useState('Rajesh Sharma')
   const [var2, setVar2] = useState('30% Special Festive Offer')
   const [testSending, setTestSending] = useState(false)
-  const [testSendResult, setTestSendResult] = useState<any | null>(null)
-
-  // Fetch templates from API
-  const loadTemplates = async () => {
-    try {
-      const res = await veroxApi.getTemplates()
-      if (res.success && Array.isArray(res.data) && res.data.length > 0) {
-        setTemplates(res.data)
-      }
-    } catch {
-      // Fallback to defaultTemplates
-    }
-  }
+  const [testSendResult, setTestSendResult] = useState<unknown | null>(null)
 
   useEffect(() => {
-    loadTemplates()
+    let mounted = true
+    veroxApi
+      .getTemplates()
+      .then((res) => {
+        if (mounted && res.success && Array.isArray(res.data) && res.data.length > 0) {
+          setTemplates(res.data)
+        }
+      })
+      .catch(() => {
+        // Fallback to defaultTemplates
+      })
+    return () => {
+      mounted = false
+    }
   }, [])
 
   // Sync with Meta Cloud API
@@ -157,10 +163,10 @@ export function WhatsappTemplates() {
       const res = await veroxApi.syncMetaTemplates()
       setIsSyncing(false)
 
-      const anyRes = res as any
-      if (anyRes.success && anyRes.templates) {
-        setTemplates(anyRes.templates)
-        setSyncFeedback(`✅ Successfully synced ${anyRes.count || anyRes.templates.length} templates from Meta Cloud API!`)
+      const syncRes = res as { success?: boolean; templates?: TemplateItem[]; count?: number }
+      if (syncRes.success && syncRes.templates) {
+        setTemplates(syncRes.templates)
+        setSyncFeedback(`✅ Successfully synced ${syncRes.count || syncRes.templates.length} templates from Meta Cloud API!`)
         toast.success('Meta Cloud API Templates Synced!')
       } else {
         setSyncFeedback(`✅ Meta WABA connected on Port 4000. Verified all active templates.`)
@@ -232,7 +238,7 @@ export function WhatsappTemplates() {
     setTestSendResult(null)
 
     // Substitute variables
-    const rawText = testSendModal.components?.find((c: any) => c.type === 'BODY')?.text || testSendModal.name
+    const rawText = testSendModal.components?.find((c) => c.type === 'BODY')?.text || testSendModal.name
     const renderedText = rawText.replace('{{1}}', var1).replace('{{2}}', var2)
 
     try {
@@ -271,7 +277,7 @@ export function WhatsappTemplates() {
 
   // Filter templates
   const filteredTemplates = templates.filter((tmpl) => {
-    const bodyComp = tmpl.components?.find((c: any) => c.type === 'BODY')
+    const bodyComp = tmpl.components?.find((c) => c.type === 'BODY')
     const bodyContent = bodyComp?.text || ''
     const matchesSearch =
       tmpl.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -441,7 +447,7 @@ export function WhatsappTemplates() {
           {/* Templates Cards Grid */}
           <div className='grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4'>
             {filteredTemplates.map((tmpl) => {
-              const bodyComp = tmpl.components?.find((c: any) => c.type === 'BODY')
+              const bodyComp = tmpl.components?.find((c) => c.type === 'BODY')
               const bodyContent = bodyComp?.text || 'Standard verified WhatsApp message template'
 
               return (
@@ -556,7 +562,7 @@ export function WhatsappTemplates() {
                   <label className='font-semibold text-foreground block mb-1'>Category</label>
                   <select
                     value={category}
-                    onChange={(e) => setCategory(e.target.value as any)}
+                    onChange={(e) => setCategory(e.target.value as 'MARKETING' | 'UTILITY')}
                     className='h-9 w-full rounded-md border border-border bg-background px-3 text-xs outline-hidden focus:border-orange-500'
                   >
                     <option value='MARKETING'>MARKETING</option>
@@ -700,7 +706,7 @@ export function WhatsappTemplates() {
               <div className='p-3 rounded-lg bg-muted/40 border border-border/50 space-y-1.5'>
                 <div className='font-semibold text-[11px] text-orange-600'>Live Message Rendered</div>
                 <p className='text-muted-foreground text-[11px] leading-relaxed whitespace-pre-line'>
-                  {(testSendModal?.components?.find((c: any) => c.type === 'BODY')?.text || '')
+                  {(testSendModal?.components?.find((c) => c.type === 'BODY')?.text || '')
                     .replace('{{1}}', var1)
                     .replace('{{2}}', var2)}
                 </p>

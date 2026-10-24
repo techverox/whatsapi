@@ -62,7 +62,9 @@ export interface IntegrationApp {
   }
 }
 
-export const initialApps: IntegrationApp[] = [
+const getNowMs = (): number => (typeof performance !== 'undefined' ? performance.now() : Date.now())
+
+const initialApps: IntegrationApp[] = [
   // 4 Featured Apps
   {
     id: 'whatsapp-business',
@@ -418,59 +420,67 @@ export function Apps() {
   const [logs, setLogs] = useState<WebhookLogItem[]>([])
 
   // Load connectors and configurations from API Gateway
-  const loadIntegrations = async () => {
-    try {
-      const res = await veroxApi.getIntegrations()
-      if (res.success && Array.isArray(res.data) && res.data.length > 0) {
-        const serverMap = new Map(res.data.map((item: any) => [item.id, item]))
-        setAppList((prev) =>
-          prev.map((app) => {
-            const serverItem: any = serverMap.get(app.id)
-            if (serverItem) {
-              return {
-                ...app,
-                connected: serverItem.connected ?? app.connected,
-                apiConfig: {
-                  ...app.apiConfig,
-                  ...(serverItem.apiConfig || {}),
-                },
-              }
-            }
-            return app
-          })
-        )
-      }
-    } catch {
-      // Fall back to initial list
-    }
-  }
-
-  // Load WhatsApp credentials for setup
-  const loadWhatsAppConfig = async () => {
-    try {
-      const res = await veroxApi.getWhatsAppConfig()
-      if (res.success && res.data) {
-        if (res.data.phoneNumberId) setWaPhoneId(res.data.phoneNumberId)
-        if (res.data.wabaId) setWaWabaId(res.data.wabaId)
-        if (res.data.webhookVerifyToken) setWaVerifyToken(res.data.webhookVerifyToken)
-        if (res.data.maskedToken) setWaToken(res.data.maskedToken)
-      }
-    } catch {}
-  }
-
-  // Load logs
   const loadWebhookLogs = async () => {
     try {
       const res = await veroxApi.getIntegrationLogs()
       if (res.success && Array.isArray(res.data)) {
         setLogs(res.data)
       }
-    } catch {}
+    } catch (_err) {
+      // Ignore log fetch error
+    }
   }
 
   useEffect(() => {
-    loadIntegrations()
-    loadWhatsAppConfig()
+    let mounted = true
+
+    veroxApi
+      .getIntegrations()
+      .then((res) => {
+        if (!mounted) return
+        if (res.success && Array.isArray(res.data) && res.data.length > 0) {
+          const serverMap = new Map((res.data as Array<Partial<IntegrationApp>>).map((item) => [item.id, item]))
+          setAppList((prev) =>
+            prev.map((app) => {
+              const serverItem = serverMap.get(app.id)
+              if (serverItem) {
+                return {
+                  ...app,
+                  connected: serverItem.connected ?? app.connected,
+                  apiConfig: {
+                    ...app.apiConfig,
+                    ...(serverItem.apiConfig || {}),
+                  },
+                }
+              }
+              return app
+            })
+          )
+        }
+      })
+      .catch((_err) => {
+        // Fall back to initial list
+      })
+
+    veroxApi
+      .getWhatsAppConfig()
+      .then((res) => {
+        if (!mounted) return
+        if (res.success && res.data) {
+          const cfg = res.data as Record<string, string>
+          if (cfg.phoneNumberId) setWaPhoneId(cfg.phoneNumberId)
+          if (cfg.wabaId) setWaWabaId(cfg.wabaId)
+          if (cfg.webhookVerifyToken) setWaVerifyToken(cfg.webhookVerifyToken)
+          if (cfg.maskedToken) setWaToken(cfg.maskedToken)
+        }
+      })
+      .catch((_err) => {
+        // Use default placeholders
+      })
+
+    return () => {
+      mounted = false
+    }
   }, [])
 
   const handleOpenConfig = (app: IntegrationApp) => {
@@ -535,7 +545,9 @@ export function Apps() {
           webhookUrl: webhookInput,
         },
       })
-    } catch {}
+    } catch (_err) {
+      // Configuration update fallback
+    }
 
     setAppList((prev) =>
       prev.map((a) =>
@@ -564,7 +576,9 @@ export function Apps() {
 
     try {
       await veroxApi.toggleIntegration(selectedApp.id, false)
-    } catch {}
+    } catch (_err) {
+      // Toggle integration fallback
+    }
 
     setAppList((prev) =>
       prev.map((a) => (a.id === selectedApp.id ? { ...a, connected: false } : a))
@@ -603,12 +617,12 @@ export function Apps() {
     setIsSendingTestMsg(true)
     setTestResult(null)
 
-    const startTime = performance.now()
+    const startTime = getNowMs()
     const res = await veroxApi.sendMessage({
       to: testSendPhone.trim(),
       text: testSendMessage.trim(),
     })
-    const duration = Math.round(performance.now() - startTime)
+    const duration = Math.round(getNowMs() - startTime)
     setIsSendingTestMsg(false)
 
     if (res.success) {
@@ -634,7 +648,7 @@ export function Apps() {
       } else {
         setTestResult(`⚠️ Gateway Simulated: ${res.message || 'Local endpoint acknowledged'}`)
       }
-    } catch (err: any) {
+    } catch (_err: unknown) {
       setIsTesting(false)
       setTestResult(`✅ 200 OK: Handshake active on port 4000.`)
     }

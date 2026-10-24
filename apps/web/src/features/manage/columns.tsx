@@ -35,6 +35,10 @@ const initialColumns: ColumnItem[] = [
   { id: 'col-6', name: 'Preferred RTO State', type: 'Select', options: 'Gujarat, Rajasthan, Maharashtra, Delhi' },
 ]
 
+function generateColId(): string {
+  return `col-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`
+}
+
 export function Columns() {
   const [columns, setColumns] = useState<ColumnItem[]>(initialColumns)
   const [isModalOpen, setIsModalOpen] = useState(false)
@@ -76,7 +80,7 @@ export function Columns() {
       toast.success(`Updated column "${columnName.trim()}"!`)
     } else {
       const newCol: ColumnItem = {
-        id: `col-${Date.now()}`,
+        id: generateColId(),
         name: columnName.trim(),
         type: columnType,
         options: columnOptions.trim() || '-',
@@ -182,7 +186,7 @@ export function Columns() {
               <Label className='text-xs font-semibold'>Field Data Type</Label>
               <select
                 value={columnType}
-                onChange={(e) => setColumnType(e.target.value as any)}
+                onChange={(e) => setColumnType(e.target.value as ColumnItem['type'])}
                 className='h-8 w-full rounded-md border border-border bg-background px-2.5 text-xs mt-1 outline-hidden'
               >
                 <option value='Text'>Text (Single-line string)</option>

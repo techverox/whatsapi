@@ -243,11 +243,15 @@ const initialMockContacts: ContactRecord[] = [
   },
 ]
 
+function generateContactId(): string {
+  return `c-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`
+}
+
 export function Users() {
   const [contacts, setContacts] = useState<ContactRecord[]>(initialMockContacts)
   const [search, setSearch] = useState('')
   const [selectedRows, setSelectedRows] = useState<string[]>([])
-  const [isRefreshing, setIsRefreshing] = useState(false)
+  const [isRefreshing, setIsRefreshing] = useState(true)
 
   // Filters State
   const [statusFilter, setStatusFilter] = useState<'All' | 'New' | 'Contacted' | 'Qualified' | 'Unqualified'>('All')
@@ -293,42 +297,57 @@ export function Users() {
 
   const [selectedContactForDetails, setSelectedContactForDetails] = useState<ContactRecord | null>(null)
 
-  // Fetch real contacts from backend API Gateway
-  const loadContacts = async () => {
-    setIsRefreshing(true)
-    try {
-      const res = await veroxApi.getContacts()
-      if (res.success && Array.isArray(res.data) && res.data.length > 0) {
-        const mapped: ContactRecord[] = res.data.map((c: any) => ({
-          id: c.id,
-          created: c.createdAt ? new Date(c.createdAt).toLocaleString() : new Date().toLocaleString(),
-          name: c.name,
-          phone: c.phone,
-          source: c.source || 'whatsapp',
-          tags: (c.tags || []).map((t: any) => (typeof t === 'string' ? t : t.name)),
-          optIn: c.optIn ?? true,
-          assignedAt: c.assignedAt ? new Date(c.assignedAt).toLocaleString() : '-',
-          assignedTo: c.assignedToName || 'Not Assigned',
-          email: c.email || `${c.name.toLowerCase().replace(/[^a-z0-9]/g, '')}@example.com`,
-          status: 'New',
-          wabaPhone: '+917698580043',
-          gpsClient: false,
-        }))
-        setContacts((prev) => {
-          const ids = new Set(mapped.map((m) => m.id))
-          return [...mapped, ...prev.filter((p) => !ids.has(p.id))]
-        })
-        toast.success(`Loaded ${mapped.length} contacts from API Gateway!`)
-      }
-    } catch {
-      toast.info('Using local offline contacts store.')
-    } finally {
-      setIsRefreshing(false)
-    }
-  }
-
   useEffect(() => {
-    loadContacts()
+    let mounted = true
+
+    veroxApi
+      .getContacts()
+      .then((res) => {
+        if (!mounted) return
+        if (res.success && Array.isArray(res.data) && res.data.length > 0) {
+          const mapped: ContactRecord[] = (res.data as Array<Record<string, unknown>>).map((c) => ({
+            id: String(c.id || ''),
+            created: c.createdAt ? new Date(String(c.createdAt)).toLocaleString() : new Date().toLocaleString(),
+            name: String(c.name || 'Unknown Contact'),
+            phone: String(c.phone || ''),
+            source: (typeof c.source === 'string' ? c.source : 'whatsapp') as ContactRecord['source'],
+            tags: Array.isArray(c.tags)
+              ? c.tags.map((t) =>
+                  typeof t === 'string'
+                    ? t
+                    : typeof t === 'object' && t !== null && 'name' in t
+                    ? String((t as { name: string }).name)
+                    : 'Lead'
+                )
+              : [],
+            optIn: typeof c.optIn === 'boolean' ? c.optIn : true,
+            assignedAt: c.assignedAt ? new Date(String(c.assignedAt)).toLocaleString() : '-',
+            assignedTo: String(c.assignedToName || 'Not Assigned'),
+            email: String(
+              c.email || `${String(c.name || '').toLowerCase().replace(/[^a-z0-9]/g, '')}@example.com`
+            ),
+            status: 'New',
+            wabaPhone: '+917698580043',
+            gpsClient: false,
+          }))
+
+          setContacts((prev) => {
+            const ids = new Set(mapped.map((m) => m.id))
+            return [...mapped, ...prev.filter((p) => !ids.has(p.id))]
+          })
+          toast.success(`Loaded ${mapped.length} contacts from API Gateway!`)
+        }
+      })
+      .catch((_err) => {
+        // Fallback to offline store
+      })
+      .finally(() => {
+        if (mounted) setIsRefreshing(false)
+      })
+
+    return () => {
+      mounted = false
+    }
   }, [])
 
   // Checkbox Selection
@@ -359,7 +378,7 @@ export function Users() {
       : `+91${newContactPhone.trim().replace(/^0/, '')}`
 
     const newRecord: ContactRecord = {
-      id: `c-${Date.now()}`,
+      id: generateContactId(),
       created: new Date().toLocaleString(),
       name: newContactName.trim(),
       phone: formattedPhone,
@@ -380,7 +399,9 @@ export function Users() {
         phone: formattedPhone,
         source: newContactSource,
       })
-    } catch {}
+    } catch (_err) {
+      // Sync fallback
+    }
 
     setContacts([newRecord, ...contacts])
     setNewContactName('')
@@ -1193,7 +1214,11 @@ export function Users() {
                 <Label className='text-xs font-semibold'>Acquisition Source</Label>
                 <select
                   value={sourceFilter}
-                  onChange={(e) => setSourceFilter(e.target.value as any)}
+                  onChange={(e) =>
+                    setSourceFilter(
+                      e.target.value as 'All' | 'whatsapp' | 'indiamart' | 'facebook' | 'manual'
+                    )
+                  }
                   className='h-8 w-full rounded-md border border-border bg-background px-2.5 text-xs mt-1 outline-hidden'
                 >
                   <option value='All'>All Sources (WhatsApp, IndiaMart, Facebook, Manual)</option>
@@ -1208,7 +1233,11 @@ export function Users() {
                 <Label className='text-xs font-semibold'>Qualification Status</Label>
                 <select
                   value={statusFilter}
-                  onChange={(e) => setStatusFilter(e.target.value as any)}
+                  onChange={(e) =>
+                    setStatusFilter(
+                      e.target.value as 'All' | 'New' | 'Contacted' | 'Qualified' | 'Unqualified'
+                    )
+                  }
                   className='h-8 w-full rounded-md border border-border bg-background px-2.5 text-xs mt-1 outline-hidden'
                 >
                   <option value='All'>All Statuses</option>

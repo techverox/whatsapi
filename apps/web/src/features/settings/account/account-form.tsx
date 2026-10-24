@@ -64,7 +64,9 @@ export function AccountForm() {
         if (parsed.dob) parsed.dob = new Date(parsed.dob)
         return parsed
       }
-    } catch {}
+    } catch (_err) {
+      // Fallback to defaultAccountValues
+    }
     return defaultAccountValues
   }
 

@@ -88,12 +88,18 @@ const initialDocs: KBDoc[] = [
   },
 ]
 
+function generateDocId(): string {
+  return `kb-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`
+}
+
 export function KnowledgeBase() {
   const [docs, setDocs] = useState<KBDoc[]>(() => {
     try {
       const saved = localStorage.getItem('verox_kb_docs_v1')
       if (saved) return JSON.parse(saved)
-    } catch {}
+    } catch (_err) {
+      // Use fallback
+    }
     return initialDocs
   })
   const [search, setSearch] = useState('')
@@ -111,7 +117,9 @@ export function KnowledgeBase() {
     setDocs(newDocs)
     try {
       localStorage.setItem('verox_kb_docs_v1', JSON.stringify(newDocs))
-    } catch {}
+    } catch (_err) {
+      // Storage fallback
+    }
   }
 
   const filteredDocs = docs.filter((d) => {
@@ -129,7 +137,7 @@ export function KnowledgeBase() {
     }
 
     const newDoc: KBDoc = {
-      id: `kb-${Date.now()}`,
+      id: generateDocId(),
       title: docTitle.trim(),
       category: docCategory,
       summary: docContent.slice(0, 140) + '...',
@@ -150,8 +158,8 @@ export function KnowledgeBase() {
           content: docContent.trim(),
         }),
       })
-    } catch (err) {
-      console.warn('API Gateway offline, saved locally to vector cache:', err)
+    } catch (_err) {
+      // API Gateway offline, saved locally to vector cache
     }
 
     saveDocs([newDoc, ...docs])
@@ -185,12 +193,20 @@ export function KnowledgeBase() {
         if (json.data && Array.isArray(json.data) && json.data.length > 0) {
           // Merge any backend docs
           const merged = [...docs]
-          for (const bDoc of json.data) {
-            if (!merged.some(m => m.title === bDoc.title)) {
+          for (const bDoc of json.data as Array<{ id?: string; title: string; category?: string; content?: string }>) {
+            if (!merged.some((m) => m.title === bDoc.title)) {
+              const validCategory: KBDoc['category'] =
+                bDoc.category === 'Compliance' ||
+                bDoc.category === 'Operations' ||
+                bDoc.category === 'Pricing' ||
+                bDoc.category === 'Support'
+                  ? bDoc.category
+                  : 'Operations'
+
               merged.push({
-                id: bDoc.id || `kb-${Date.now()}`,
+                id: bDoc.id || generateDocId(),
                 title: bDoc.title,
-                category: (bDoc.category as any) || 'Operations',
+                category: validCategory,
                 summary: bDoc.content ? bDoc.content.slice(0, 140) + '...' : 'Enterprise knowledge doc',
                 chunks: 8,
                 tokens: 2400,
@@ -202,7 +218,7 @@ export function KnowledgeBase() {
           saveDocs(merged)
         }
       }
-    } catch (e) {
+    } catch (_err) {
       // Local sync fallback
     }
 
@@ -394,7 +410,7 @@ export function KnowledgeBase() {
               <Label className='text-xs font-semibold'>Category</Label>
               <select
                 value={docCategory}
-                onChange={(e) => setDocCategory(e.target.value as any)}
+                onChange={(e) => setDocCategory(e.target.value as KBDoc['category'])}
                 className='w-full rounded-md border border-input bg-background px-3 py-1.5 text-xs shadow-2xs focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring'
               >
                 <option value='Compliance'>Compliance</option>

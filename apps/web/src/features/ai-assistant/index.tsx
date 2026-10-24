@@ -96,17 +96,40 @@ const initialKnowledgeFallback: KnowledgeDoc[] = [
   },
 ]
 
+interface StoredAiConfig {
+  model?: string
+  temperature?: string
+  prompt?: string
+  autoReply?: boolean
+  confidenceThreshold?: string
+}
+
+function getStoredAiConfig(): StoredAiConfig | null {
+  if (typeof window === 'undefined') return null
+  try {
+    const saved = localStorage.getItem('verox_ai_config')
+    return saved ? (JSON.parse(saved) as StoredAiConfig) : null
+  } catch (_err) {
+    return null
+  }
+}
+
+function generateKbId(): string {
+  return `kb-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`
+}
+
 export function AIAssistant() {
+  const [savedConfig] = useState<StoredAiConfig | null>(() => getStoredAiConfig())
   const [activeTab, setActiveTab] = useState<'personality' | 'rag'>('personality')
-  const [model, setModel] = useState('Gemini 1.5 Pro (Official Google AI)')
-  const [autoReply, setAutoReply] = useState(true)
-  const [temperature, setTemperature] = useState('0.3')
-  const [prompt, setPrompt] = useState(defaultPromptPresets.fleet)
-  const [confidenceThreshold, setConfidenceThreshold] = useState('65')
+  const [model, setModel] = useState(savedConfig?.model || 'Gemini 1.5 Pro (Official Google AI)')
+  const [autoReply, setAutoReply] = useState(savedConfig?.autoReply !== undefined ? savedConfig.autoReply : true)
+  const [temperature, setTemperature] = useState(savedConfig?.temperature || '0.3')
+  const [prompt, setPrompt] = useState(savedConfig?.prompt || defaultPromptPresets.fleet)
+  const [confidenceThreshold, setConfidenceThreshold] = useState(savedConfig?.confidenceThreshold || '65')
 
   // RAG Knowledge State
   const [knowledgeDocs, setKnowledgeDocs] = useState<KnowledgeDoc[]>(initialKnowledgeFallback)
-  const [isSyncingKnowledge, setIsSyncingKnowledge] = useState(false)
+  const [isSyncingKnowledge, setIsSyncingKnowledge] = useState(true)
   const [addDocModal, setAddDocModal] = useState(false)
   const [newDocTitle, setNewDocTitle] = useState('')
   const [newDocCategory, setNewDocCategory] = useState('Fleet Operations')
@@ -132,50 +155,42 @@ export function AIAssistant() {
   const [isGenerating, setIsGenerating] = useState(false)
   const chatBottomRef = useRef<HTMLDivElement>(null)
 
-  // Load saved config & remote knowledge docs
+  // Fetch knowledge documents from API Gateway on mount
   useEffect(() => {
-    try {
-      const saved = localStorage.getItem('verox_ai_config')
-      if (saved) {
-        const parsed = JSON.parse(saved)
-        if (parsed.model) setModel(parsed.model)
-        if (parsed.temperature) setTemperature(parsed.temperature)
-        if (parsed.prompt) setPrompt(parsed.prompt)
-        if (parsed.autoReply !== undefined) setAutoReply(parsed.autoReply)
-        if (parsed.confidenceThreshold) setConfidenceThreshold(parsed.confidenceThreshold)
-      }
-    } catch {}
+    let mounted = true
 
-    // Fetch knowledge documents from API Gateway
-    loadKnowledgeFromGateway()
+    veroxApi
+      .getAiKnowledge()
+      .then((res) => {
+        if (!mounted) return
+        if (res.success && res.data && Array.isArray(res.data)) {
+          setKnowledgeDocs(
+            res.data.map((d: Record<string, unknown>) => ({
+              id: (typeof d.id === 'string' ? d.id : undefined) || generateKbId(),
+              title: String(d.title || 'Untitled'),
+              category: String(d.category || 'General'),
+              content: String(d.content || ''),
+              chunks: Math.max(1, Math.round(String(d.content || '').length / 150)),
+              updatedAt: d.updatedAt ? new Date(String(d.updatedAt)).toLocaleDateString() : 'Active',
+            }))
+          )
+        }
+      })
+      .catch((_err) => {
+        // Fallback in memory is already set
+      })
+      .finally(() => {
+        if (mounted) setIsSyncingKnowledge(false)
+      })
+
+    return () => {
+      mounted = false
+    }
   }, [])
 
   useEffect(() => {
     chatBottomRef.current?.scrollIntoView({ behavior: 'smooth' })
   }, [chatMessages, isGenerating])
-
-  const loadKnowledgeFromGateway = async () => {
-    setIsSyncingKnowledge(true)
-    try {
-      const res = await veroxApi.getAiKnowledge()
-      if (res.success && res.data && Array.isArray(res.data)) {
-        setKnowledgeDocs(
-          res.data.map((d: any) => ({
-            id: d.id || `kb-${Date.now()}`,
-            title: d.title,
-            category: d.category || 'General',
-            content: d.content || '',
-            chunks: Math.max(1, Math.round((d.content?.length || 200) / 150)),
-            updatedAt: d.updatedAt ? new Date(d.updatedAt).toLocaleDateString() : 'Active',
-          }))
-        )
-      }
-    } catch {
-      // Fallback in memory is already set
-    } finally {
-      setIsSyncingKnowledge(false)
-    }
-  }
 
   const handleSaveConfig = () => {
     try {
@@ -217,10 +232,12 @@ export function AIAssistant() {
           description: `"${payload.title}" vector embeddings generated & synced with RAG pipeline.`,
         })
       }
-    } catch {}
+    } catch (_err) {
+      // Local fallback continues
+    }
 
     const newDoc: KnowledgeDoc = {
-      id: `kb-${Date.now()}`,
+      id: generateKbId(),
       title: payload.title,
       category: payload.category,
       content: payload.content,

@@ -3,7 +3,7 @@
  * Connects frontend UI components directly to API Gateway on port 4000
  */
 
-const API_BASE_URL = (import.meta as any).env?.VITE_API_URL || 'http://localhost:4000'
+const API_BASE_URL = (import.meta as unknown as { env?: { VITE_API_URL?: string } }).env?.VITE_API_URL || 'http://localhost:4000'
 
 export interface WhatsAppConfigPayload {
   accessToken?: string
@@ -23,7 +23,7 @@ export interface MetaConnectionResult {
   qualityRating: 'GREEN' | 'YELLOW' | 'RED' | 'UNKNOWN'
   messagingLimitTier: string
   codeVerificationStatus?: string
-  rawMetaResponse?: any
+  rawMetaResponse?: Record<string, unknown>
   message?: string
 }
 
@@ -34,14 +34,14 @@ export interface SendMessagePayload {
   template?: {
     name: string
     language?: { code: string }
-    components?: any[]
+    components?: Array<Record<string, unknown>>
   }
 }
 
-async function request<T = any>(
+async function request<T = unknown>(
   endpoint: string,
   options: RequestInit = {}
-): Promise<{ success: boolean; data?: T; message?: string; error?: any }> {
+): Promise<{ success: boolean; data?: T; message?: string; error?: unknown }> {
   const url = `${API_BASE_URL}${endpoint.startsWith('/') ? endpoint : `/${endpoint}`}`
   const headers = {
     'Content-Type': 'application/json',
@@ -55,7 +55,7 @@ async function request<T = any>(
     })
 
     const text = await res.text()
-    let json: any = null
+    let json: Record<string, unknown> | null = null
     try {
       json = JSON.parse(text)
     } catch {
@@ -65,18 +65,17 @@ async function request<T = any>(
     if (!res.ok) {
       return {
         success: false,
-        message: json?.message || `HTTP ${res.status}: ${res.statusText}`,
+        message: (typeof json?.message === 'string' ? json.message : undefined) || `HTTP ${res.status}: ${res.statusText}`,
         error: json,
       }
     }
 
     return {
       success: true,
-      data: json?.data !== undefined ? json.data : json,
-      message: json?.message,
+      data: (json?.data !== undefined ? json.data : json) as T,
+      message: typeof json?.message === 'string' ? json.message : undefined,
     }
-  } catch (err: any) {
-    console.warn(`[WhatsAPI Client] Network request to ${url} failed:`, err.message)
+  } catch (err: unknown) {
     return {
       success: false,
       message: `Failed to connect to Whatsapi Gateway at ${API_BASE_URL}. Ensure port 4000 is running.`,
@@ -126,7 +125,7 @@ export const whatsapiApi = {
 
   // Contacts
   getContacts: () => request('/api/contacts'),
-  createContact: (contact: { name: string; phone: string; tags?: any[]; source?: string }) =>
+  createContact: (contact: { name: string; phone: string; tags?: string[]; source?: string }) =>
     request('/api/contacts', {
       method: 'POST',
       body: JSON.stringify(contact),
@@ -152,7 +151,7 @@ export const whatsapiApi = {
 
   // Message Templates
   getTemplates: () => request('/api/templates'),
-  createTemplate: (template: any) =>
+  createTemplate: (template: Record<string, unknown>) =>
     request('/api/templates', {
       method: 'POST',
       body: JSON.stringify(template),
@@ -191,15 +190,15 @@ export const whatsapiApi = {
         status: res.status,
         challengeResponse: text,
       }
-    } catch (err: any) {
-      return { success: false, error: err.message }
+    } catch (err: unknown) {
+      return { success: false, error: err instanceof Error ? err.message : String(err) }
     }
   },
 
   // Integrations & Connected Apps
   getIntegrations: () => request('/api/integrations'),
   getIntegrationLogs: () => request('/api/integrations/logs'),
-  updateIntegration: (id: string, config: any) =>
+  updateIntegration: (id: string, config: Record<string, unknown>) =>
     request(`/api/integrations/${id}/config`, {
       method: 'POST',
       body: JSON.stringify(config),
@@ -209,7 +208,7 @@ export const whatsapiApi = {
       method: 'POST',
       body: JSON.stringify({ connected }),
     }),
-  testIntegration: (id: string, payload?: any) =>
+  testIntegration: (id: string, payload?: Record<string, unknown>) =>
     request(`/api/integrations/${id}/test`, {
       method: 'POST',
       body: JSON.stringify(payload || {}),

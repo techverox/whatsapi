@@ -193,47 +193,73 @@ export function Campaigns() {
   const [testPhoneNumber, setTestPhoneNumber] = useState('+919825100001')
   const [isSendingTest, setIsSendingTest] = useState(false)
 
-  // Load from API Gateway
-  const loadCampaigns = async () => {
-    try {
-      const res = await veroxApi.getCampaigns()
-      if (res.success && Array.isArray(res.data) && res.data.length > 0) {
-        const mapped = res.data.map((c: any) => {
-          const matchedTmpl = TEMPLATES.find((t) => t.name === c.templateName) || TEMPLATES[0]
-          const isComp = c.status === 'completed'
-          const isProg = c.status === 'running' || c.status === 'in_progress'
-
-          const total = c.totalContacts || 1000
-          const del = c.deliveredCount ?? c.delivered ?? (isComp ? total : isProg ? Math.round(total * 0.75) : 0)
-          const rd = c.readCount ?? c.read ?? (isComp ? Math.round(total * 0.8) : isProg ? Math.round(total * 0.55) : 0)
-
-          return {
-            id: c.id,
-            name: c.name,
-            status: (isComp ? 'Completed' : isProg ? 'In Progress' : 'Scheduled') as any,
-            totalContacts: total,
-            delivered: del,
-            read: rd,
-            scheduledTime: c.scheduledAt || new Date().toISOString(),
-            created: c.createdAt || new Date().toISOString(),
-            templateName: c.templateName || matchedTmpl.name,
-            templatePreview: matchedTmpl.previewText,
-            pipelineEvents: [
-              { title: 'Broadcast queue Initiated via Meta Cloud API Gateway', time: c.createdAt || 'Live' },
-              { title: 'Delivery receipts processed via Webhook port 4000', time: 'Live' },
-            ],
-          }
-        })
-        setCampaigns(mapped)
-        setSelectedCampaign(mapped[0])
-      }
-    } catch {
-      // Fallback to initial mock
-    }
-  }
-
   useEffect(() => {
-    loadCampaigns()
+    let mounted = true
+
+    veroxApi
+      .getCampaigns()
+      .then((res) => {
+        if (!mounted) return
+        if (res.success && Array.isArray(res.data) && res.data.length > 0) {
+          const mapped: CampaignItem[] = (res.data as Array<Record<string, unknown>>).map((c) => {
+            const templateName = typeof c.templateName === 'string' ? c.templateName : ''
+            const matchedTmpl = TEMPLATES.find((t) => t.name === templateName) || TEMPLATES[0]
+            const isComp = c.status === 'completed'
+            const isProg = c.status === 'running' || c.status === 'in_progress'
+
+            const total = typeof c.totalContacts === 'number' ? c.totalContacts : 1000
+            const del =
+              typeof c.deliveredCount === 'number'
+                ? c.deliveredCount
+                : typeof c.delivered === 'number'
+                ? c.delivered
+                : isComp
+                ? total
+                : isProg
+                ? Math.round(total * 0.75)
+                : 0
+            const rd =
+              typeof c.readCount === 'number'
+                ? c.readCount
+                : typeof c.read === 'number'
+                ? c.read
+                : isComp
+                ? Math.round(total * 0.8)
+                : isProg
+                ? Math.round(total * 0.55)
+                : 0
+
+            return {
+              id: String(c.id || ''),
+              name: String(c.name || 'Untitled Campaign'),
+              status: (isComp ? 'Completed' : isProg ? 'In Progress' : 'Scheduled') as CampaignItem['status'],
+              totalContacts: total,
+              delivered: del,
+              read: rd,
+              scheduledTime: typeof c.scheduledAt === 'string' ? c.scheduledAt : new Date().toISOString(),
+              created: typeof c.createdAt === 'string' ? c.createdAt : new Date().toISOString(),
+              templateName: templateName || matchedTmpl.name,
+              templatePreview: matchedTmpl.previewText,
+              pipelineEvents: [
+                {
+                  title: 'Broadcast queue Initiated via Meta Cloud API Gateway',
+                  time: typeof c.createdAt === 'string' ? c.createdAt : 'Live',
+                },
+                { title: 'Delivery receipts processed via Webhook port 4000', time: 'Live' },
+              ],
+            }
+          })
+          setCampaigns(mapped)
+          setSelectedCampaign(mapped[0])
+        }
+      })
+      .catch((_err) => {
+        // Fallback to initial mock
+      })
+
+    return () => {
+      mounted = false
+    }
   }, [])
 
   // Change audience preset
@@ -956,16 +982,18 @@ export function Campaigns() {
               <div>
                 <label className='font-semibold text-foreground block mb-1'>Target Audience Segment</label>
                 <div className='grid grid-cols-2 sm:grid-cols-4 gap-2'>
-                  {[
-                    { key: 'all', label: 'All Contacts', count: '14,500' },
-                    { key: 'hot-leads', label: 'Hot Leads', count: '2,850' },
-                    { key: 'gps', label: 'GPS Inquiries', count: '5,000' },
-                    { key: 'fastag', label: 'FASTAG Fleets', count: '3,450' },
-                  ].map((preset) => (
+                  {(
+                    [
+                      { key: 'all', label: 'All Contacts', count: '14,500' },
+                      { key: 'hot-leads', label: 'Hot Leads', count: '2,850' },
+                      { key: 'gps', label: 'GPS Inquiries', count: '5,000' },
+                      { key: 'fastag', label: 'FASTAG Fleets', count: '3,450' },
+                    ] as const
+                  ).map((preset) => (
                     <button
                       key={preset.key}
                       type='button'
-                      onClick={() => handleAudiencePresetChange(preset.key as any)}
+                      onClick={() => handleAudiencePresetChange(preset.key)}
                       className={`p-2 rounded-lg border text-left transition-all ${
                         audiencePreset === preset.key
                           ? 'border-orange-500 bg-orange-500/10 font-bold'

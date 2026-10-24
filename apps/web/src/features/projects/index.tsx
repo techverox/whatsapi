@@ -49,6 +49,14 @@ interface TaskItem {
   dueDate: string
 }
 
+function generateProjectId(): string {
+  return `p-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`
+}
+
+function generateTaskId(): string {
+  return `t-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`
+}
+
 const initialProjects: ProjectItem[] = [
   {
     id: 'p-1',
@@ -183,7 +191,7 @@ export function Projects() {
     }
 
     const newP: ProjectItem = {
-      id: `p-${Date.now()}`,
+      id: generateProjectId(),
       name: projName.trim(),
       client: projClient.trim(),
       status: 'In Progress',
@@ -211,7 +219,7 @@ export function Projects() {
     }
 
     const newT: TaskItem = {
-      id: `t-${Date.now()}`,
+      id: generateTaskId(),
       title: taskTitle.trim(),
       project: taskProject,
       assignee: taskAssignee,
@@ -252,7 +260,7 @@ export function Projects() {
     if (!selectedProject || !newMilestoneTitle.trim()) return
 
     const newT: TaskItem = {
-      id: `t-${Date.now()}`,
+      id: generateTaskId(),
       title: newMilestoneTitle.trim(),
       project: selectedProject.name,
       assignee: 'Antigravity Engineer',
@@ -767,7 +775,7 @@ export function Projects() {
                 <Label className='text-xs font-semibold'>Priority</Label>
                 <select
                   value={projPriority}
-                  onChange={(e) => setProjPriority(e.target.value as any)}
+                  onChange={(e) => setProjPriority(e.target.value as ProjectItem['priority'])}
                   className='w-full rounded-md border border-input bg-background px-3 py-1.5 text-xs shadow-2xs focus-visible:outline-none'
                 >
                   <option value='High'>High Priority</option>
@@ -851,7 +859,7 @@ export function Projects() {
                 <Label className='text-xs font-semibold'>Priority</Label>
                 <select
                   value={taskPriority}
-                  onChange={(e) => setTaskPriority(e.target.value as any)}
+                  onChange={(e) => setTaskPriority(e.target.value as TaskItem['priority'])}
                   className='w-full rounded-md border border-input bg-background px-3 py-1.5 text-xs shadow-2xs focus-visible:outline-none'
                 >
                   <option value='High'>High</option>

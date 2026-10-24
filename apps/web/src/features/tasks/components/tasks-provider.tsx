@@ -29,14 +29,18 @@ export function TasksProvider({ children }: { children: React.ReactNode }) {
         const parsed = JSON.parse(saved)
         if (Array.isArray(parsed) && parsed.length > 0) return parsed
       }
-    } catch {}
+    } catch (_err) {
+      // Storage read fallback
+    }
     return defaultTasks
   })
 
   useEffect(() => {
     try {
       localStorage.setItem('verox_tasks_data_v2', JSON.stringify(tasks))
-    } catch {}
+    } catch (_err) {
+      // Storage write fallback
+    }
   }, [tasks])
 
   const addTask = (newTask: Omit<Task, 'id'>) => {

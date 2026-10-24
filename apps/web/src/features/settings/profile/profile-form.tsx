@@ -57,7 +57,9 @@ export function ProfileForm() {
     try {
       const saved = localStorage.getItem('verox_user_profile')
       if (saved) return JSON.parse(saved)
-    } catch {}
+    } catch (_err) {
+      // Fallback to defaultProfileValues
+    }
     return defaultProfileValues
   }
 

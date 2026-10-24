@@ -62,7 +62,9 @@ export function DisplayForm() {
     try {
       const saved = localStorage.getItem('verox_display_settings')
       if (saved) return JSON.parse(saved)
-    } catch {}
+    } catch (_err) {
+      // Fallback to defaults
+    }
     return defaultDisplayValues
   }
 

@@ -89,7 +89,9 @@ export function FAQBot() {
     try {
       const saved = localStorage.getItem('verox_faq_rules_v1')
       if (saved) return JSON.parse(saved)
-    } catch {}
+    } catch (_err) {
+      // Use defaults
+    }
     return initialFAQs
   })
   const [search, setSearch] = useState('')
@@ -109,7 +111,9 @@ export function FAQBot() {
     setFaqs(updated)
     try {
       localStorage.setItem('verox_faq_rules_v1', JSON.stringify(updated))
-    } catch {}
+    } catch (_err) {
+      // Fallback
+    }
   }
 
   const handleOpenAdd = () => {
@@ -238,7 +242,7 @@ export function FAQBot() {
             return
           }
         }
-      } catch (e) {
+      } catch (_err) {
         // Fallback gracefully
       }
       setIsAiAnswering(false)

@@ -38,7 +38,11 @@ interface FlowFormItem {
   status: 'PUBLISHED' | 'DRAFT'
   description: string
   responses: number | string
-  jsonSchema: any
+  jsonSchema: Record<string, unknown>
+}
+
+function generateFlowId(): string {
+  return `f-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`
 }
 
 const initialFlows: FlowFormItem[] = [
@@ -218,7 +222,7 @@ export function WhatsappForms() {
       toast.success(`Flow "${flowTitle.trim()}" updated successfully!`)
     } else {
       const created: FlowFormItem = {
-        id: `f-${Date.now()}`,
+        id: generateFlowId(),
         flowId: `${Math.floor(100000 + Math.random() * 900000)}`,
         title: flowTitle.trim(),
         status: flowStatus,
@@ -255,7 +259,7 @@ export function WhatsappForms() {
     toast.success(`Removed "${title}".`)
   }
 
-  const handleCopySchema = (schema: any) => {
+  const handleCopySchema = (schema: unknown) => {
     navigator.clipboard.writeText(JSON.stringify(schema, null, 2))
     setCopied(true)
     toast.success('Meta Flows JSON schema copied to clipboard!')
@@ -426,7 +430,7 @@ export function WhatsappForms() {
               <Label className='text-xs font-semibold'>Status</Label>
               <select
                 value={flowStatus}
-                onChange={(e) => setFlowStatus(e.target.value as any)}
+                onChange={(e) => setFlowStatus(e.target.value as FlowFormItem['status'])}
                 className='h-9 w-full rounded-md border border-border bg-background px-3 text-xs mt-1 outline-hidden focus:border-orange-500'
               >
                 <option value='PUBLISHED'>PUBLISHED (Live on WhatsApp)</option>

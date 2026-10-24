@@ -88,7 +88,9 @@ export function Gallery() {
     try {
       const saved = localStorage.getItem('verox_media_gallery_v1')
       if (saved) return JSON.parse(saved)
-    } catch {}
+    } catch (_err) {
+      // Use fallback
+    }
     return initialMedia
   })
   const [copiedId, setCopiedId] = useState<string | null>(null)
@@ -110,7 +112,9 @@ export function Gallery() {
     setMedia(updated)
     try {
       localStorage.setItem('verox_media_gallery_v1', JSON.stringify(updated))
-    } catch {}
+    } catch (_err) {
+      // Storage fallback
+    }
   }
 
   const handleCopy = (id: string, mediaId: string) => {

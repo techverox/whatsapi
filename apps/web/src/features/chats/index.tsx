@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { Fragment } from 'react/jsx-runtime'
 import { format } from 'date-fns'
 import {
@@ -333,27 +333,36 @@ export function Chats() {
   const [moreModalOpen, setMoreModalOpen] = useState(false)
 
   // Fetch real-time conversations from API Gateway on mount & periodic poll
-  const syncConversations = async () => {
+  const syncConversations = useCallback(async () => {
     try {
       const res = await veroxApi.getConversations()
       if (res.success && Array.isArray(res.data) && res.data.length > 0) {
         setApiOnline(true)
-        const mappedFromBackend: ChatUserItem[] = res.data.map((c: any) => ({
-          id: c.id,
-          profile: `https://api.dicebear.com/7.x/initials/svg?seed=${encodeURIComponent(c.contactName || 'Client')}`,
-          username: c.contactPhone || 'whatsapp_user',
-          fullName: c.contactName || 'WhatsApp Contact',
-          title: c.channel?.toUpperCase() || 'WHATSAPP CLOUD API',
-          tags: (c.tags && c.tags.length > 0)
-            ? c.tags.map((t: any) => t.name)
-            : ['GPS', 'hot-lead'],
-          unreadCount: c.unreadCount ?? 0,
-          assignedAgent: c.assignedToName || 'Agent Bhavik',
-          messages: (c.messages || []).map((m: any) => ({
-            sender: m.senderType === 'agent' ? 'You' : c.contactName || 'Contact',
-            message: m.content || '',
-            timestamp: m.createdAt || new Date().toISOString(),
-          })),
+        const mappedFromBackend: ChatUserItem[] = (res.data as Array<Record<string, unknown>>).map((c) => ({
+          id: String(c.id || ''),
+          profile: `https://api.dicebear.com/7.x/initials/svg?seed=${encodeURIComponent(String(c.contactName || 'Client'))}`,
+          username: String(c.contactPhone || 'whatsapp_user'),
+          fullName: String(c.contactName || 'WhatsApp Contact'),
+          title: String(c.channel || 'WHATSAPP CLOUD API').toUpperCase(),
+          tags:
+            Array.isArray(c.tags) && c.tags.length > 0
+              ? c.tags.map((t: unknown) =>
+                  typeof t === 'string'
+                    ? t
+                    : typeof t === 'object' && t !== null && 'name' in t
+                    ? String((t as { name: string }).name)
+                    : 'Lead'
+                )
+              : ['GPS', 'hot-lead'],
+          unreadCount: typeof c.unreadCount === 'number' ? c.unreadCount : 0,
+          assignedAgent: String(c.assignedToName || 'Agent Bhavik'),
+          messages: Array.isArray(c.messages)
+            ? (c.messages as Array<Record<string, unknown>>).map((m) => ({
+                sender: m.senderType === 'agent' ? 'You' : String(c.contactName || 'Contact'),
+                message: String(m.content || ''),
+                timestamp: String(m.createdAt || new Date().toISOString()),
+              }))
+            : [],
         }))
 
         setChatList((prev) => {
@@ -362,37 +371,53 @@ export function Chats() {
           return [...mappedFromBackend, ...preserved]
         })
       }
-    } catch {
+    } catch (_err) {
       setApiOnline(false)
     }
-  }
+  }, [])
 
   useEffect(() => {
-    syncConversations()
-    const timer = setInterval(syncConversations, 5000)
+    let mounted = true
+    const initialTimer = setTimeout(() => {
+      if (mounted) syncConversations()
+    }, 0)
+
+    const timer = setInterval(() => {
+      if (mounted) syncConversations()
+    }, 5000)
 
     let ws: WebSocket | null = null
     try {
       ws = new WebSocket('ws://localhost:4000')
-      ws.onopen = () => setApiOnline(true)
+      ws.onopen = () => {
+        if (mounted) setApiOnline(true)
+      }
       ws.onmessage = (event) => {
         try {
           const data = JSON.parse(event.data)
           if (data.type === 'MESSAGE_SENT' || data.type === 'INBOUND_MESSAGE' || data.type === 'NEW_LEAD') {
-            syncConversations()
+            if (mounted) syncConversations()
           }
-        } catch {}
+        } catch (_err) {
+          // Ignore invalid WS payload
+        }
       }
-      ws.onerror = () => {}
-    } catch {}
+      ws.onerror = () => {
+        // Fallback to polling
+      }
+    } catch (_err) {
+      // WebSocket initialization fallback
+    }
 
     return () => {
+      mounted = false
+      clearTimeout(initialTimer)
       clearInterval(timer)
       if (ws && ws.readyState === WebSocket.OPEN) {
         ws.close()
       }
     }
-  }, [])
+  }, [syncConversations])
 
   // Calculate dynamic tag counts
   const getTagCount = (tag: string) => {
@@ -406,7 +431,7 @@ export function Chats() {
     const matchesTag = activeTag === 'All' || chat.tags.includes(activeTag)
 
     // 2. Unread Tab Filter
-    const matchesTab = activeTab === 'all' || (chat.unreadCount > 0)
+    const matchesTab = activeTab === 'all' || chat.unreadCount > 0
 
     // 3. Search Query Filter
     const q = search.trim().toLowerCase()
@@ -419,17 +444,6 @@ export function Chats() {
 
     return matchesTag && matchesTab && matchesSearch
   })
-
-  // Auto-align selected user if current selection is not visible in filtered results
-  useEffect(() => {
-    if (filteredChatList.length > 0) {
-      const isCurrentSelectedPresent = filteredChatList.some((c) => c.id === selectedUser?.id)
-      if (!isCurrentSelectedPresent) {
-        setSelectedUser(filteredChatList[0])
-        setMobileSelectedUser(filteredChatList[0])
-      }
-    }
-  }, [activeTag, activeTab, search])
 
   // Group messages by date
   const currentMessageGroups = selectedUser?.messages.reduce(
@@ -460,7 +474,12 @@ export function Chats() {
       message: textToSend,
       timestamp: new Date().toISOString(),
     }
-    selectedUser.messages.push(newMsg)
+    const updatedUser: ChatUserItem = {
+      ...selectedUser,
+      messages: [...selectedUser.messages, newMsg],
+    }
+    setSelectedUser(updatedUser)
+    setChatList((prev) => prev.map((c) => (c.id === selectedUser.id ? updatedUser : c)))
 
     // 2. Real API dispatch to backend port 4000
     try {
@@ -471,8 +490,7 @@ export function Chats() {
         conversationId: selectedUser.id,
       })
       toast.success('Official WhatsApp message dispatched via Meta API!')
-    } catch (err) {
-      console.error('Failed to dispatch message via API:', err)
+    } catch (_err) {
       toast.info('Message recorded in CRM conversation.')
     } finally {
       setIsSending(false)
@@ -505,7 +523,12 @@ export function Chats() {
         size: attachment.size,
       },
     }
-    selectedUser.messages.push(newMsg)
+    const updatedUser: ChatUserItem = {
+      ...selectedUser,
+      messages: [...selectedUser.messages, newMsg],
+    }
+    setSelectedUser(updatedUser)
+    setChatList((prev) => prev.map((c) => (c.id === selectedUser.id ? updatedUser : c)))
     setAttachModalOpen(false)
 
     const cleanPhone = selectedUser.username.replace(/[^0-9]/g, '') || '919825100001'
@@ -544,8 +567,12 @@ export function Chats() {
   // Clear conversation
   const handleClearHistory = () => {
     if (!selectedUser) return
-    selectedUser.messages = []
-    setChatList([...chatList])
+    const updatedUser: ChatUserItem = {
+      ...selectedUser,
+      messages: [],
+    }
+    setSelectedUser(updatedUser)
+    setChatList((prev) => prev.map((c) => (c.id === selectedUser.id ? updatedUser : c)))
     setMoreModalOpen(false)
     toast.success('Conversation history cleared locally.')
   }
@@ -553,12 +580,15 @@ export function Chats() {
   // Toggle tag
   const handleToggleTag = (tag: string) => {
     if (!selectedUser) return
-    if (selectedUser.tags.includes(tag)) {
-      selectedUser.tags = selectedUser.tags.filter((t) => t !== tag)
-    } else {
-      selectedUser.tags.push(tag)
+    const updatedTags = selectedUser.tags.includes(tag)
+      ? selectedUser.tags.filter((t) => t !== tag)
+      : [...selectedUser.tags, tag]
+    const updatedUser: ChatUserItem = {
+      ...selectedUser,
+      tags: updatedTags,
     }
-    setChatList([...chatList])
+    setSelectedUser(updatedUser)
+    setChatList((prev) => prev.map((c) => (c.id === selectedUser.id ? updatedUser : c)))
     toast.success(`Updated tags for ${selectedUser.fullName}`)
   }
 

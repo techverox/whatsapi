@@ -50,7 +50,7 @@ export function DevelopersApi() {
   const [testMessage, setTestMessage] = useState('Hello from Whatsapi! Official Meta WhatsApp Cloud API is active.')
   const [messageType, setMessageType] = useState<'text' | 'template'>('text')
   const [isSending, setIsSending] = useState(false)
-  const [apiResponse, setApiResponse] = useState<any | null>(null)
+  const [apiResponse, setApiResponse] = useState<Record<string, unknown> | null>(null)
   const [apiLatency, setApiLatency] = useState<number | null>(null)
 
   // Fetch initial config and connection health from backend on mount
@@ -122,7 +122,11 @@ export function DevelopersApi() {
     setApiResponse(null)
     const startTime = performance.now()
 
-    let payload: any = {
+    const payload: {
+      to: string
+      template?: { name: string; language: { code: string } }
+      text?: string
+    } = {
       to: testPhone.trim(),
     }
 

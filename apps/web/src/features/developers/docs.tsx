@@ -35,6 +35,10 @@ interface EndpointDoc {
   curlExample: string
 }
 
+function getExecutionTimestamp(): number {
+  return typeof performance !== 'undefined' ? performance.now() : Date.now()
+}
+
 const ENDPOINTS: EndpointDoc[] = [
   {
     id: 'ep-msg-send',
@@ -183,7 +187,7 @@ export function DevelopersDocs() {
   })
   const [executingId, setExecutingId] = useState<string | null>(null)
   const [responses, setResponses] = useState<
-    Record<string, { status: number; statusText: string; latency: number; data: any }>
+    Record<string, { status: number; statusText: string; latency: number; data: unknown }>
   >({})
   const [copiedId, setCopiedId] = useState<string | null>(null)
 
@@ -196,7 +200,7 @@ export function DevelopersDocs() {
 
   const handleExecute = async (ep: EndpointDoc) => {
     setExecutingId(ep.id)
-    const startTime = performance.now()
+    const startTime = getExecutionTimestamp()
     const url = `http://localhost:4000${ep.path}`
 
     try {
@@ -211,10 +215,10 @@ export function DevelopersDocs() {
       }
 
       const res = await fetch(url, options)
-      const endTime = performance.now()
+      const endTime = getExecutionTimestamp()
       const latency = Math.round(endTime - startTime)
 
-      let json: any = null
+      let json: unknown = null
       try {
         json = await res.json()
       } catch {
@@ -238,15 +242,16 @@ export function DevelopersDocs() {
       } else {
         toast.error(`HTTP ${res.status}: Request failed`)
       }
-    } catch (err: any) {
-      const endTime = performance.now()
+    } catch (err: unknown) {
+      const endTime = getExecutionTimestamp()
+      const errMsg = err instanceof Error ? err.message : String(err)
       setResponses((prev) => ({
         ...prev,
         [ep.id]: {
           status: 500,
           statusText: 'Network Error',
           latency: Math.round(endTime - startTime),
-          data: { error: err.message, message: 'Could not connect to http://localhost:4000' },
+          data: { error: errMsg, message: 'Could not connect to http://localhost:4000' },
         },
       }))
       toast.error('Network Error: Gateway unreachable on Port 4000')

@@ -41,7 +41,9 @@ export function NotificationsForm() {
     try {
       const saved = localStorage.getItem('verox_notifications_settings')
       if (saved) return JSON.parse(saved)
-    } catch {}
+    } catch (_err) {
+      // Fallback to defaults
+    }
     return defaultNotificationsValues
   }
 
