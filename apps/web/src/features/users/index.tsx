@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react'
-import { Link } from '@tanstack/react-router'
+import { Link, useNavigate } from '@tanstack/react-router'
 import { veroxApi } from '@/lib/api'
 import {
   Radio,
@@ -23,6 +23,14 @@ import {
   Phone,
   User,
   ExternalLink,
+  MessageSquare,
+  Edit2,
+  Trash2,
+  ArrowUpDown,
+  ArrowUp,
+  ArrowDown,
+  Copy,
+  AlertTriangle,
 } from 'lucide-react'
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
@@ -43,6 +51,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog'
+import { cn } from '@/lib/utils'
 
 export interface ContactRecord {
   id: string
@@ -60,7 +69,7 @@ export interface ContactRecord {
   gpsClient: boolean
 }
 
-const initialMockContacts: ContactRecord[] = [
+const INITIAL_MOCK_CONTACTS: ContactRecord[] = [
   {
     id: 'c-1',
     created: '10/24/2026, 05:15 PM',
@@ -84,8 +93,8 @@ const initialMockContacts: ContactRecord[] = [
     source: 'indiamart',
     tags: ['IndiaMart Lead', 'Hot Lead', 'GPS'],
     optIn: true,
-    assignedAt: '-',
-    assignedTo: 'Not Assigned',
+    assignedAt: '10/22/2026, 04:00 PM',
+    assignedTo: 'Agent Bhavik',
     email: 'rajeshsharma@example.com',
     status: 'Qualified',
     wabaPhone: '+917698580043',
@@ -99,8 +108,8 @@ const initialMockContacts: ContactRecord[] = [
     source: 'facebook',
     tags: ['FB Ads', 'Fleet Mgmt', 'FASTAG'],
     optIn: true,
-    assignedAt: '-',
-    assignedTo: 'Not Assigned',
+    assignedAt: '10/22/2026, 05:30 PM',
+    assignedTo: 'Agent Anjali',
     email: 'vikrampatel@example.com',
     status: 'Contacted',
     wabaPhone: '+917698580043',
@@ -115,7 +124,7 @@ const initialMockContacts: ContactRecord[] = [
     tags: ['FASTAG Client', 'hot-lead'],
     optIn: true,
     assignedAt: '-',
-    assignedTo: 'Not Assigned',
+    assignedTo: 'VEROX AI Bot',
     email: 'ananyadesai@example.com',
     status: 'New',
     wabaPhone: '+917698580043',
@@ -127,10 +136,10 @@ const initialMockContacts: ContactRecord[] = [
     name: 'Sunil Mehta',
     phone: '+919898000004',
     source: 'manual',
-    tags: ['Hinglish Support', 'Fleet Mgmt'],
+    tags: ['Hinglish IN', 'Fleet Mgmt'],
     optIn: true,
     assignedAt: '-',
-    assignedTo: 'Not Assigned',
+    assignedTo: 'Agent Bhavik',
     email: 'sunilmehta@example.com',
     status: 'New',
     wabaPhone: '+917698580043',
@@ -145,7 +154,7 @@ const initialMockContacts: ContactRecord[] = [
     tags: ['GPS', 'hot-lead', 'Fleet Mgmt'],
     optIn: true,
     assignedAt: '10/22/2026, 11:35 PM',
-    assignedTo: 'Truck Sathi Admin',
+    assignedTo: 'Support Desk',
     email: 'client@trucksathi.in',
     status: 'Qualified',
     wabaPhone: '+917698580043',
@@ -175,7 +184,7 @@ const initialMockContacts: ContactRecord[] = [
     tags: ['FASTAG', 'Fleet Mgmt'],
     optIn: true,
     assignedAt: '10/22/2026, 09:00 PM',
-    assignedTo: 'Ramesh Kumar',
+    assignedTo: 'Agent Anjali',
     email: 'amit@pateltrans.com',
     status: 'Contacted',
     wabaPhone: '+917698580043',
@@ -205,7 +214,7 @@ const initialMockContacts: ContactRecord[] = [
     tags: ['English GB', 'GPS'],
     optIn: true,
     assignedAt: '10/22/2026, 05:10 PM',
-    assignedTo: 'Priya Sharma',
+    assignedTo: 'Agent Bhavik',
     email: 'suresh@kathiawartrans.com',
     status: 'Qualified',
     wabaPhone: '+917698580043',
@@ -235,7 +244,7 @@ const initialMockContacts: ContactRecord[] = [
     tags: ['GPS', 'Hinglish IN'],
     optIn: true,
     assignedAt: '10/22/2026, 11:30 AM',
-    assignedTo: 'Vikram Patel',
+    assignedTo: 'Agent Anjali',
     email: 'ketan@doshiexpress.com',
     status: 'Contacted',
     wabaPhone: '+917698580043',
@@ -243,20 +252,38 @@ const initialMockContacts: ContactRecord[] = [
   },
 ]
 
+const TAG_PILLS = [
+  'All',
+  'hot-lead',
+  'GPS',
+  'FASTAG',
+  'Fleet Mgmt',
+  'IndiaMart Lead',
+  'FB Ads',
+  'Hinglish IN',
+  'INSURANCE',
+]
+
 function generateContactId(): string {
   return `c-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`
 }
 
 export function Users() {
-  const [contacts, setContacts] = useState<ContactRecord[]>(initialMockContacts)
+  const navigate = useNavigate()
+  const [contacts, setContacts] = useState<ContactRecord[]>(INITIAL_MOCK_CONTACTS)
   const [search, setSearch] = useState('')
   const [selectedRows, setSelectedRows] = useState<string[]>([])
-  const [isRefreshing, setIsRefreshing] = useState(true)
+  const [isRefreshing, setIsRefreshing] = useState(false)
 
   // Filters State
+  const [activeTag, setActiveTag] = useState<string>('All')
   const [statusFilter, setStatusFilter] = useState<'All' | 'New' | 'Contacted' | 'Qualified' | 'Unqualified'>('All')
   const [sourceFilter, setSourceFilter] = useState<'All' | 'whatsapp' | 'indiamart' | 'facebook' | 'manual'>('All')
   const [isFilterModalOpen, setIsFilterModalOpen] = useState(false)
+
+  // Sorting State
+  const [sortField, setSortField] = useState<'created' | 'name' | 'phone' | 'source' | 'status' | 'assignedTo'>('created')
+  const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc')
 
   // Pagination State
   const [pageSize, setPageSize] = useState<number>(10)
@@ -279,24 +306,38 @@ export function Users() {
     gpsClient: true,
   })
 
-  // Modals
+  // Modals & Drawers
   const [createModalOpen, setCreateModalOpen] = useState(false)
   const [newContactName, setNewContactName] = useState('')
   const [newContactPhone, setNewContactPhone] = useState('')
+  const [newContactEmail, setNewContactEmail] = useState('')
   const [newContactSource, setNewContactSource] = useState('whatsapp')
   const [newContactTag, setNewContactTag] = useState('hot-lead')
+  const [newContactAgent, setNewContactAgent] = useState('Agent Bhavik')
 
+  // Edit Modal
+  const [editModalOpen, setEditModalOpen] = useState(false)
+  const [editingContact, setEditingContact] = useState<ContactRecord | null>(null)
+
+  // Delete Modals
+  const [deleteConfirmContact, setDeleteConfirmContact] = useState<ContactRecord | null>(null)
+  const [isBulkDeleteModalOpen, setIsBulkDeleteModalOpen] = useState(false)
+
+  // Bulk Assign & Tag Modals
   const [isAssignModalOpen, setIsAssignModalOpen] = useState(false)
   const [selectedAgentToAssign, setSelectedAgentToAssign] = useState('Agent Bhavik')
 
   const [isTagModalOpen, setIsTagModalOpen] = useState(false)
   const [selectedTagToAssign, setSelectedTagToAssign] = useState('hot-lead')
 
+  // Import Modal
   const [isImportModalOpen, setIsImportModalOpen] = useState(false)
   const [importCsvText, setImportCsvText] = useState('')
 
+  // Details Modal
   const [selectedContactForDetails, setSelectedContactForDetails] = useState<ContactRecord | null>(null)
 
+  // Load contacts from API Gateway
   const loadContacts = useCallback(() => {
     setIsRefreshing(true)
     veroxApi
@@ -407,15 +448,24 @@ export function Users() {
     }
   }
 
+  // Column Sort Toggle
+  const handleSort = (field: typeof sortField) => {
+    if (sortField === field) {
+      setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc')
+    } else {
+      setSortField(field)
+      setSortOrder('asc')
+    }
+  }
+
   // Create Contact
   const handleCreateContact = async () => {
     if (!newContactName.trim() || !newContactPhone.trim()) {
       toast.error('Name and Phone number are required.')
       return
     }
-    const formattedPhone = newContactPhone.trim().startsWith('+')
-      ? newContactPhone.trim()
-      : `+91${newContactPhone.trim().replace(/^0/, '')}`
+    const cleanPhone = newContactPhone.trim().replace(/[^0-9+]/g, '')
+    const formattedPhone = cleanPhone.startsWith('+') ? cleanPhone : `+91${cleanPhone.replace(/^0/, '')}`
 
     const newRecord: ContactRecord = {
       id: generateContactId(),
@@ -425,9 +475,9 @@ export function Users() {
       source: newContactSource,
       tags: [newContactTag],
       optIn: true,
-      assignedAt: '-',
-      assignedTo: 'Not Assigned',
-      email: `${newContactName.toLowerCase().replace(/[^a-z0-9]/g, '')}@example.com`,
+      assignedAt: newContactAgent !== 'Not Assigned' ? new Date().toLocaleString() : '-',
+      assignedTo: newContactAgent,
+      email: newContactEmail.trim() || `${newContactName.toLowerCase().replace(/[^a-z0-9]/g, '')}@example.com`,
       status: 'New',
       wabaPhone: '+917698580043',
       gpsClient: newContactTag === 'GPS',
@@ -437,7 +487,10 @@ export function Users() {
       await veroxApi.createContact({
         name: newContactName.trim(),
         phone: formattedPhone,
+        email: newRecord.email,
         source: newContactSource,
+        tags: [newContactTag],
+        assignedToName: newContactAgent,
       })
     } catch (_err) {
       // Sync fallback
@@ -446,8 +499,75 @@ export function Users() {
     setContacts([newRecord, ...contacts])
     setNewContactName('')
     setNewContactPhone('')
+    setNewContactEmail('')
     setCreateModalOpen(false)
     toast.success(`Contact "${newRecord.name}" created and synced!`)
+  }
+
+  // Open Edit Modal
+  const handleOpenEdit = (contact: ContactRecord) => {
+    setEditingContact({ ...contact })
+    setEditModalOpen(true)
+  }
+
+  // Save Edited Contact
+  const handleSaveEdit = async () => {
+    if (!editingContact) return
+    if (!editingContact.name.trim() || !editingContact.phone.trim()) {
+      toast.error('Name and Phone number cannot be empty.')
+      return
+    }
+
+    setContacts((prev) =>
+      prev.map((c) => (c.id === editingContact.id ? editingContact : c))
+    )
+
+    try {
+      await veroxApi.updateContact(editingContact.id, {
+        name: editingContact.name,
+        phone: editingContact.phone,
+        email: editingContact.email,
+        source: editingContact.source,
+        tags: editingContact.tags,
+        assignedToName: editingContact.assignedTo,
+        status: editingContact.status,
+      })
+    } catch (_err) {
+      // Local fallback
+    }
+
+    setEditModalOpen(false)
+    setEditingContact(null)
+    toast.success(`Contact "${editingContact.name}" updated!`)
+  }
+
+  // Delete Single Contact
+  const handleDeleteContact = async (contact: ContactRecord) => {
+    setContacts((prev) => prev.filter((c) => c.id !== contact.id))
+    setSelectedRows((prev) => prev.filter((id) => id !== contact.id))
+    try {
+      await veroxApi.deleteContact(contact.id)
+    } catch (_err) {
+      // Local fallback
+    }
+    setDeleteConfirmContact(null)
+    toast.success(`Contact "${contact.name}" removed from CRM.`)
+  }
+
+  // Bulk Delete Contacts
+  const handleBulkDelete = async () => {
+    if (selectedRows.length === 0) return
+    const idsToDelete = [...selectedRows]
+    setContacts((prev) => prev.filter((c) => !idsToDelete.includes(c.id)))
+    setSelectedRows([])
+    setIsBulkDeleteModalOpen(false)
+
+    try {
+      await veroxApi.bulkDeleteContacts(idsToDelete)
+    } catch (_err) {
+      // Local fallback
+    }
+    toast.success(`Successfully removed ${idsToDelete.length} contact(s).`)
   }
 
   // Bulk Assign Agent
@@ -562,23 +682,49 @@ export function Users() {
 
   // Filter Contacts
   const filteredContacts = contacts.filter((c) => {
+    // 1. Tag Pill Filter
+    const matchesTag = activeTag === 'All' || c.tags.includes(activeTag)
+
+    // 2. Search Query Filter
     const q = search.trim().toLowerCase()
     const matchesSearch =
       !q ||
       c.name.toLowerCase().includes(q) ||
       c.phone.includes(q) ||
       c.email.toLowerCase().includes(q) ||
+      c.assignedTo.toLowerCase().includes(q) ||
       c.tags.some((t) => t.toLowerCase().includes(q))
 
+    // 3. Facet Filters
     const matchesStatus = statusFilter === 'All' || c.status === statusFilter
     const matchesSource = sourceFilter === 'All' || c.source.toLowerCase() === sourceFilter.toLowerCase()
 
-    return matchesSearch && matchesStatus && matchesSource
+    return matchesTag && matchesSearch && matchesStatus && matchesSource
+  })
+
+  // Sort Contacts
+  const sortedContacts = [...filteredContacts].sort((a, b) => {
+    let comparison: number
+    if (sortField === 'name') {
+      comparison = a.name.localeCompare(b.name)
+    } else if (sortField === 'phone') {
+      comparison = a.phone.localeCompare(b.phone)
+    } else if (sortField === 'source') {
+      comparison = a.source.localeCompare(b.source)
+    } else if (sortField === 'status') {
+      comparison = a.status.localeCompare(b.status)
+    } else if (sortField === 'assignedTo') {
+      comparison = a.assignedTo.localeCompare(b.assignedTo)
+    } else {
+      // created timestamp
+      comparison = new Date(a.created).getTime() - new Date(b.created).getTime()
+    }
+    return sortOrder === 'asc' ? comparison : -comparison
   })
 
   // Pagination calculation
-  const totalPages = Math.max(1, Math.ceil(filteredContacts.length / pageSize))
-  const paginatedContacts = filteredContacts.slice(
+  const totalPages = Math.max(1, Math.ceil(sortedContacts.length / pageSize))
+  const paginatedContacts = sortedContacts.slice(
     (currentPage - 1) * pageSize,
     currentPage * pageSize
   )
@@ -586,6 +732,12 @@ export function Users() {
   const isCurrentPageAllSelected =
     paginatedContacts.length > 0 &&
     paginatedContacts.every((c) => selectedRows.includes(c.id))
+
+  // Tag Pill Count Helper
+  const getTagCount = (tag: string) => {
+    if (tag === 'All') return contacts.length
+    return contacts.filter((c) => c.tags.includes(tag)).length
+  }
 
   return (
     <>
@@ -596,13 +748,18 @@ export function Users() {
         <ProfileDropdown />
       </Header>
 
-      <Main className='flex flex-1 flex-col gap-4 p-4'>
+      <Main className='flex flex-1 flex-col gap-3 p-4'>
         {/* Title & Top Action Bar */}
         <div className='flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between border-b border-border/40 pb-3'>
           <div>
-            <h1 className='text-2xl font-bold tracking-tight'>Contacts</h1>
-            <p className='text-xs text-muted-foreground'>
-              Manage audience opt-ins, dynamic tags, multi-agent assignment, and broadcast lists
+            <div className='flex items-center gap-2.5'>
+              <h1 className='text-2xl font-bold tracking-tight'>Contacts</h1>
+              <Badge variant='outline' className='text-xs font-mono bg-muted/60'>
+                {contacts.length} Total Records
+              </Badge>
+            </div>
+            <p className='text-xs text-muted-foreground mt-0.5'>
+              Omnichannel audience CRM, WhatsApp opt-ins, dynamic tags &amp; multi-agent lead distribution.
             </p>
           </div>
 
@@ -611,7 +768,7 @@ export function Users() {
             <Button
               variant='outline'
               size='sm'
-              className='h-8 text-xs gap-1.5 border-orange-500/40 text-orange-600 hover:bg-orange-500/10 cursor-pointer'
+              className='h-8 text-xs gap-1.5 border-orange-500/40 text-orange-600 hover:bg-orange-500/10 cursor-pointer font-medium'
               asChild
             >
               <Link to='/campaigns'>
@@ -639,8 +796,21 @@ export function Users() {
               className='h-8 text-xs gap-1.5 cursor-pointer'
             >
               <Tag className='h-3.5 w-3.5' />
-              Assign Tag {selectedRows.length > 0 && `(${selectedRows.length})`}
+              Tag {selectedRows.length > 0 && `(${selectedRows.length})`}
             </Button>
+
+            {/* Bulk Delete Button when rows are selected */}
+            {selectedRows.length > 0 && (
+              <Button
+                variant='outline'
+                size='sm'
+                onClick={() => setIsBulkDeleteModalOpen(true)}
+                className='h-8 text-xs gap-1.5 text-rose-600 border-rose-500/30 hover:bg-rose-500/10 cursor-pointer font-bold'
+              >
+                <Trash2 className='h-3.5 w-3.5' />
+                Delete ({selectedRows.length})
+              </Button>
+            )}
 
             <Button
               variant='ghost'
@@ -675,12 +845,46 @@ export function Users() {
             <Button
               size='sm'
               onClick={() => setCreateModalOpen(true)}
-              className='h-8 text-xs gap-1.5 bg-orange-600 hover:bg-orange-700 text-white font-medium shadow-xs cursor-pointer'
+              className='h-8 text-xs gap-1.5 bg-orange-600 hover:bg-orange-700 text-white font-bold shadow-xs cursor-pointer'
             >
               <Plus className='h-3.5 w-3.5' />
               Create Contact
             </Button>
           </div>
+        </div>
+
+        {/* Top Tag Pills Filter Bar */}
+        <div className='flex items-center gap-1.5 overflow-x-auto pb-1 shrink-0 scrollbar-none'>
+          {TAG_PILLS.map((tag) => {
+            const isActive = activeTag === tag
+            const count = getTagCount(tag)
+            return (
+              <button
+                key={tag}
+                type='button'
+                onClick={() => {
+                  setActiveTag(tag)
+                  setCurrentPage(1)
+                }}
+                className={cn(
+                  'inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold whitespace-nowrap transition-all shadow-2xs cursor-pointer',
+                  isActive
+                    ? 'bg-orange-600 text-white hover:bg-orange-700'
+                    : 'bg-muted/70 text-muted-foreground hover:bg-muted hover:text-foreground'
+                )}
+              >
+                <span>{tag}</span>
+                <span
+                  className={cn(
+                    'text-[10px] px-1.5 py-0.2 rounded-full font-bold',
+                    isActive ? 'bg-white/20 text-white' : 'bg-background text-foreground'
+                  )}
+                >
+                  {count}
+                </span>
+              </button>
+            )
+          })}
         </div>
 
         {/* Search & Table Controls Bar */}
@@ -695,7 +899,7 @@ export function Users() {
                   setSearch(e.target.value)
                   setCurrentPage(1)
                 }}
-                placeholder='Search records by name, phone, tags...'
+                placeholder='Search records by name, phone, tags, agent...'
                 className='h-8 w-full rounded-md border border-border bg-background pl-8 pr-7 text-xs outline-hidden focus:border-orange-500 focus:ring-1 focus:ring-orange-500'
               />
               {search && (
@@ -708,18 +912,20 @@ export function Users() {
                 </button>
               )}
             </div>
-            {(statusFilter !== 'All' || sourceFilter !== 'All') && (
+            {(statusFilter !== 'All' || sourceFilter !== 'All' || activeTag !== 'All' || search) && (
               <Button
                 variant='ghost'
                 size='sm'
                 onClick={() => {
+                  setActiveTag('All')
                   setStatusFilter('All')
                   setSourceFilter('All')
+                  setSearch('')
                   setCurrentPage(1)
                 }}
                 className='h-8 text-xs text-orange-600 hover:bg-orange-500/10 cursor-pointer'
               >
-                Clear Filters
+                Clear All
               </Button>
             )}
           </div>
@@ -750,7 +956,7 @@ export function Users() {
         </div>
 
         {/* Contacts Table */}
-        <div className='rounded-md border border-border/60 bg-card overflow-x-auto shadow-xs'>
+        <div className='rounded-lg border border-border/60 bg-card overflow-x-auto shadow-xs'>
           {paginatedContacts.length === 0 ? (
             <div className='flex flex-col items-center justify-center py-16 px-4 text-center'>
               <SearchX className='h-10 w-10 text-muted-foreground mb-3' />
@@ -763,13 +969,14 @@ export function Users() {
                 size='sm'
                 onClick={() => {
                   setSearch('')
+                  setActiveTag('All')
                   setStatusFilter('All')
                   setSourceFilter('All')
                   setCurrentPage(1)
                 }}
                 className='h-8 text-xs mt-4 cursor-pointer'
               >
-                Reset Search & Filters
+                Reset Search &amp; Filters
               </Button>
             </div>
           ) : (
@@ -787,18 +994,103 @@ export function Users() {
                       className='rounded border-border accent-orange-600 cursor-pointer'
                     />
                   </th>
-                  {visibleColumns.created && <th className='p-2.5 font-medium'>Created</th>}
-                  {visibleColumns.name && <th className='p-2.5 font-medium'>Name</th>}
-                  {visibleColumns.phone && <th className='p-2.5 font-medium'>Phone</th>}
-                  {visibleColumns.source && <th className='p-2.5 font-medium'>Source</th>}
+                  {visibleColumns.created && (
+                    <th
+                      onClick={() => handleSort('created')}
+                      className='p-2.5 font-medium cursor-pointer hover:text-foreground select-none'
+                    >
+                      <div className='flex items-center gap-1'>
+                        Created
+                        {sortField === 'created' ? (
+                          sortOrder === 'asc' ? <ArrowUp className='h-3 w-3' /> : <ArrowDown className='h-3 w-3' />
+                        ) : (
+                          <ArrowUpDown className='h-3 w-3 opacity-40' />
+                        )}
+                      </div>
+                    </th>
+                  )}
+                  {visibleColumns.name && (
+                    <th
+                      onClick={() => handleSort('name')}
+                      className='p-2.5 font-medium cursor-pointer hover:text-foreground select-none'
+                    >
+                      <div className='flex items-center gap-1'>
+                        Name
+                        {sortField === 'name' ? (
+                          sortOrder === 'asc' ? <ArrowUp className='h-3 w-3' /> : <ArrowDown className='h-3 w-3' />
+                        ) : (
+                          <ArrowUpDown className='h-3 w-3 opacity-40' />
+                        )}
+                      </div>
+                    </th>
+                  )}
+                  {visibleColumns.phone && (
+                    <th
+                      onClick={() => handleSort('phone')}
+                      className='p-2.5 font-medium cursor-pointer hover:text-foreground select-none'
+                    >
+                      <div className='flex items-center gap-1'>
+                        Phone
+                        {sortField === 'phone' ? (
+                          sortOrder === 'asc' ? <ArrowUp className='h-3 w-3' /> : <ArrowDown className='h-3 w-3' />
+                        ) : (
+                          <ArrowUpDown className='h-3 w-3 opacity-40' />
+                        )}
+                      </div>
+                    </th>
+                  )}
+                  {visibleColumns.source && (
+                    <th
+                      onClick={() => handleSort('source')}
+                      className='p-2.5 font-medium cursor-pointer hover:text-foreground select-none'
+                    >
+                      <div className='flex items-center gap-1'>
+                        Source
+                        {sortField === 'source' ? (
+                          sortOrder === 'asc' ? <ArrowUp className='h-3 w-3' /> : <ArrowDown className='h-3 w-3' />
+                        ) : (
+                          <ArrowUpDown className='h-3 w-3 opacity-40' />
+                        )}
+                      </div>
+                    </th>
+                  )}
                   {visibleColumns.tags && <th className='p-2.5 font-medium'>Tags</th>}
                   {visibleColumns.optIn && <th className='p-2.5 font-medium'>Opt In</th>}
                   {visibleColumns.assignedAt && <th className='p-2.5 font-medium'>Assigned At</th>}
-                  {visibleColumns.assignedTo && <th className='p-2.5 font-medium'>Assigned To</th>}
+                  {visibleColumns.assignedTo && (
+                    <th
+                      onClick={() => handleSort('assignedTo')}
+                      className='p-2.5 font-medium cursor-pointer hover:text-foreground select-none'
+                    >
+                      <div className='flex items-center gap-1'>
+                        Assigned To
+                        {sortField === 'assignedTo' ? (
+                          sortOrder === 'asc' ? <ArrowUp className='h-3 w-3' /> : <ArrowDown className='h-3 w-3' />
+                        ) : (
+                          <ArrowUpDown className='h-3 w-3 opacity-40' />
+                        )}
+                      </div>
+                    </th>
+                  )}
                   {visibleColumns.email && <th className='p-2.5 font-medium'>Email</th>}
-                  {visibleColumns.status && <th className='p-2.5 font-medium'>Status</th>}
-                  {visibleColumns.wabaPhone && <th className='p-2.5 font-medium'>WABA Phone Number</th>}
+                  {visibleColumns.status && (
+                    <th
+                      onClick={() => handleSort('status')}
+                      className='p-2.5 font-medium cursor-pointer hover:text-foreground select-none'
+                    >
+                      <div className='flex items-center gap-1'>
+                        Status
+                        {sortField === 'status' ? (
+                          sortOrder === 'asc' ? <ArrowUp className='h-3 w-3' /> : <ArrowDown className='h-3 w-3' />
+                        ) : (
+                          <ArrowUpDown className='h-3 w-3 opacity-40' />
+                        )}
+                      </div>
+                    </th>
+                  )}
+                  {visibleColumns.wabaPhone && <th className='p-2.5 font-medium'>WABA Phone</th>}
                   {visibleColumns.gpsClient && <th className='p-2.5 font-medium'>GPS Client</th>}
+                  <th className='p-2.5 font-medium text-center'>Actions</th>
                 </tr>
               </thead>
               <tbody className='divide-y divide-border/30'>
@@ -817,7 +1109,7 @@ export function Users() {
                           type='button'
                           onClick={() => setSelectedContactForDetails(contact)}
                           className='text-muted-foreground hover:text-foreground cursor-pointer'
-                          title='View details'
+                          title='View contact summary'
                         >
                           <Eye className='h-3.5 w-3.5' />
                         </button>
@@ -869,7 +1161,12 @@ export function Users() {
                             {contact.tags.map((t) => (
                               <span
                                 key={t}
-                                className='rounded bg-muted px-1.5 py-0.5 text-[10px] font-medium text-muted-foreground'
+                                className={cn(
+                                  'rounded px-1.5 py-0.5 text-[10px] font-medium',
+                                  t === 'hot-lead'
+                                    ? 'bg-rose-500/15 text-rose-600 font-bold'
+                                    : 'bg-muted text-muted-foreground'
+                                )}
                               >
                                 {t}
                               </span>
@@ -918,7 +1215,7 @@ export function Users() {
                           <span
                             className={`rounded px-2 py-0.5 text-[11px] font-medium ${
                               contact.status === 'Qualified'
-                                ? 'bg-emerald-500/15 text-emerald-600'
+                                ? 'bg-emerald-500/15 text-emerald-600 font-bold'
                                 : contact.status === 'Contacted'
                                 ? 'bg-sky-500/15 text-sky-600'
                                 : 'bg-amber-500/15 text-amber-600'
@@ -944,6 +1241,41 @@ export function Users() {
                           )}
                         </td>
                       )}
+
+                      {/* Row Actions */}
+                      <td className='p-2.5 text-center'>
+                        <div className='flex items-center justify-center gap-1.5'>
+                          {/* Chat in Team Inbox */}
+                          <button
+                            type='button'
+                            onClick={() => navigate({ to: '/chats' })}
+                            className='h-6 w-6 rounded flex items-center justify-center text-muted-foreground hover:text-orange-600 hover:bg-orange-500/10 cursor-pointer transition-colors'
+                            title='Open in Team Inbox'
+                          >
+                            <MessageSquare className='h-3.5 w-3.5' />
+                          </button>
+
+                          {/* Edit Contact */}
+                          <button
+                            type='button'
+                            onClick={() => handleOpenEdit(contact)}
+                            className='h-6 w-6 rounded flex items-center justify-center text-muted-foreground hover:text-sky-600 hover:bg-sky-500/10 cursor-pointer transition-colors'
+                            title='Edit Contact'
+                          >
+                            <Edit2 className='h-3.5 w-3.5' />
+                          </button>
+
+                          {/* Delete Contact */}
+                          <button
+                            type='button'
+                            onClick={() => setDeleteConfirmContact(contact)}
+                            className='h-6 w-6 rounded flex items-center justify-center text-muted-foreground hover:text-rose-600 hover:bg-rose-500/10 cursor-pointer transition-colors'
+                            title='Delete Contact'
+                          >
+                            <Trash2 className='h-3.5 w-3.5' />
+                          </button>
+                        </div>
+                      </td>
                     </tr>
                   )
                 })}
@@ -1021,19 +1353,24 @@ export function Users() {
           </div>
         </div>
 
-        {/* 1. Create Contact Modal */}
+        {/* ========================================================= */}
+        {/* 1. CREATE CONTACT MODAL */}
+        {/* ========================================================= */}
         <Dialog open={createModalOpen} onOpenChange={setCreateModalOpen}>
           <DialogContent className='sm:max-w-md'>
             <DialogHeader>
-              <DialogTitle>Create New Contact</DialogTitle>
+              <DialogTitle className='flex items-center gap-2 text-base font-bold'>
+                <Plus className='h-4 w-4 text-orange-600' />
+                Create New Contact
+              </DialogTitle>
               <DialogDescription className='text-xs'>
-                Add a new customer profile for automated WhatsApp outreach and lead routing.
+                Add a new customer profile for automated WhatsApp outreach, CRM routing, and broadcasts.
               </DialogDescription>
             </DialogHeader>
 
-            <div className='space-y-3 py-2'>
+            <div className='space-y-3 py-2 text-xs'>
               <div>
-                <Label className='text-xs font-semibold'>Full Name</Label>
+                <Label className='text-xs font-semibold'>Full Name <span className='text-rose-500'>*</span></Label>
                 <Input
                   value={newContactName}
                   onChange={(e) => setNewContactName(e.target.value)}
@@ -1043,12 +1380,23 @@ export function Users() {
               </div>
 
               <div>
-                <Label className='text-xs font-semibold'>Phone Number (WhatsApp WABA E.164)</Label>
+                <Label className='text-xs font-semibold'>WhatsApp Phone Number <span className='text-rose-500'>*</span></Label>
                 <Input
                   value={newContactPhone}
                   onChange={(e) => setNewContactPhone(e.target.value)}
                   placeholder='+91 98250 12345'
                   className='h-8 text-xs mt-1 font-mono'
+                />
+              </div>
+
+              <div>
+                <Label className='text-xs font-semibold'>Email Address</Label>
+                <Input
+                  type='email'
+                  value={newContactEmail}
+                  onChange={(e) => setNewContactEmail(e.target.value)}
+                  placeholder='e.g., ramesh@patellogistics.in'
+                  className='h-8 text-xs mt-1'
                 />
               </div>
 
@@ -1068,7 +1416,7 @@ export function Users() {
                 </div>
 
                 <div>
-                  <Label className='text-xs font-semibold'>Primary Segment Tag</Label>
+                  <Label className='text-xs font-semibold'>Primary Tag</Label>
                   <select
                     value={newContactTag}
                     onChange={(e) => setNewContactTag(e.target.value)}
@@ -1078,31 +1426,243 @@ export function Users() {
                     <option value='GPS'>GPS</option>
                     <option value='FASTAG'>FASTAG</option>
                     <option value='Fleet Mgmt'>Fleet Mgmt</option>
+                    <option value='INSURANCE'>INSURANCE</option>
                   </select>
                 </div>
               </div>
 
-              <div className='rounded-md bg-muted/40 p-2.5 text-[11px] text-muted-foreground'>
-                New contacts are automatically verified against Meta Cloud API opt-in rules.
+              <div>
+                <Label className='text-xs font-semibold'>Assigned Agent</Label>
+                <select
+                  value={newContactAgent}
+                  onChange={(e) => setNewContactAgent(e.target.value)}
+                  className='h-8 w-full rounded-md border border-border bg-background px-2.5 text-xs mt-1 outline-hidden'
+                >
+                  <option value='Agent Bhavik'>Agent Bhavik</option>
+                  <option value='Agent Anjali'>Agent Anjali</option>
+                  <option value='VEROX AI Bot'>VEROX AI Bot</option>
+                  <option value='Support Desk'>Support Desk</option>
+                  <option value='Not Assigned'>Not Assigned</option>
+                </select>
+              </div>
+
+              <div className='rounded-md bg-muted/40 p-2 text-[11px] text-muted-foreground'>
+                New contacts are automatically verified against Meta WhatsApp Cloud API opt-in rules.
               </div>
             </div>
 
             <DialogFooter>
-              <Button variant='outline' size='sm' onClick={() => setCreateModalOpen(false)}>
+              <Button variant='outline' size='sm' onClick={() => setCreateModalOpen(false)} className='h-8 text-xs cursor-pointer'>
                 Cancel
               </Button>
-              <Button size='sm' onClick={handleCreateContact} className='bg-orange-600 hover:bg-orange-700 text-white'>
+              <Button size='sm' onClick={handleCreateContact} className='h-8 text-xs bg-orange-600 hover:bg-orange-700 text-white font-bold cursor-pointer'>
                 Save Contact
               </Button>
             </DialogFooter>
           </DialogContent>
         </Dialog>
 
-        {/* 2. Assign Agent Modal */}
+        {/* ========================================================= */}
+        {/* 2. EDIT CONTACT MODAL */}
+        {/* ========================================================= */}
+        <Dialog open={editModalOpen} onOpenChange={setEditModalOpen}>
+          {editingContact && (
+            <DialogContent className='sm:max-w-md'>
+              <DialogHeader>
+                <DialogTitle className='flex items-center gap-2 text-base font-bold'>
+                  <Edit2 className='h-4 w-4 text-orange-600' />
+                  Edit Contact &bull; {editingContact.name}
+                </DialogTitle>
+                <DialogDescription className='text-xs'>
+                  Modify contact details, assigned agent, status, and tags.
+                </DialogDescription>
+              </DialogHeader>
+
+              <div className='space-y-3 py-2 text-xs'>
+                <div>
+                  <Label className='text-xs font-semibold'>Full Name</Label>
+                  <Input
+                    value={editingContact.name}
+                    onChange={(e) =>
+                      setEditingContact({ ...editingContact, name: e.target.value })
+                    }
+                    className='h-8 text-xs mt-1'
+                  />
+                </div>
+
+                <div>
+                  <Label className='text-xs font-semibold'>Phone Number</Label>
+                  <Input
+                    value={editingContact.phone}
+                    onChange={(e) =>
+                      setEditingContact({ ...editingContact, phone: e.target.value })
+                    }
+                    className='h-8 text-xs mt-1 font-mono'
+                  />
+                </div>
+
+                <div>
+                  <Label className='text-xs font-semibold'>Email Address</Label>
+                  <Input
+                    value={editingContact.email}
+                    onChange={(e) =>
+                      setEditingContact({ ...editingContact, email: e.target.value })
+                    }
+                    className='h-8 text-xs mt-1'
+                  />
+                </div>
+
+                <div className='grid grid-cols-2 gap-2'>
+                  <div>
+                    <Label className='text-xs font-semibold'>Status</Label>
+                    <select
+                      value={editingContact.status}
+                      onChange={(e) =>
+                        setEditingContact({
+                          ...editingContact,
+                          status: e.target.value as ContactRecord['status'],
+                        })
+                      }
+                      className='h-8 w-full rounded-md border border-border bg-background px-2.5 text-xs mt-1 outline-hidden'
+                    >
+                      <option value='New'>New</option>
+                      <option value='Contacted'>Contacted</option>
+                      <option value='Qualified'>Qualified</option>
+                      <option value='Unqualified'>Unqualified</option>
+                    </select>
+                  </div>
+
+                  <div>
+                    <Label className='text-xs font-semibold'>Assigned Agent</Label>
+                    <select
+                      value={editingContact.assignedTo}
+                      onChange={(e) =>
+                        setEditingContact({ ...editingContact, assignedTo: e.target.value })
+                      }
+                      className='h-8 w-full rounded-md border border-border bg-background px-2.5 text-xs mt-1 outline-hidden'
+                    >
+                      <option value='Agent Bhavik'>Agent Bhavik</option>
+                      <option value='Agent Anjali'>Agent Anjali</option>
+                      <option value='VEROX AI Bot'>VEROX AI Bot</option>
+                      <option value='Support Desk'>Support Desk</option>
+                      <option value='Not Assigned'>Not Assigned</option>
+                    </select>
+                  </div>
+                </div>
+
+                {/* Edit Tags */}
+                <div>
+                  <Label className='text-xs font-semibold block mb-1'>CRM Tags</Label>
+                  <div className='flex flex-wrap gap-1'>
+                    {['hot-lead', 'GPS', 'FASTAG', 'Fleet Mgmt', 'IndiaMart Lead', 'FB Ads', 'Hinglish IN', 'INSURANCE'].map((tag) => {
+                      const hasTag = editingContact.tags.includes(tag)
+                      return (
+                        <button
+                          key={tag}
+                          type='button'
+                          onClick={() => {
+                            const newTags = hasTag
+                              ? editingContact.tags.filter((t) => t !== tag)
+                              : [...editingContact.tags, tag]
+                            setEditingContact({ ...editingContact, tags: newTags })
+                          }}
+                          className={cn(
+                            'px-2 py-0.5 rounded text-[10px] font-semibold border cursor-pointer transition-all',
+                            hasTag
+                              ? 'bg-orange-600 text-white border-orange-600'
+                              : 'bg-muted border-border text-muted-foreground hover:bg-muted/80'
+                          )}
+                        >
+                          {hasTag ? '✓ ' : '+ '}
+                          {tag}
+                        </button>
+                      )
+                    })}
+                  </div>
+                </div>
+              </div>
+
+              <DialogFooter>
+                <Button variant='outline' size='sm' onClick={() => setEditModalOpen(false)} className='h-8 text-xs cursor-pointer'>
+                  Cancel
+                </Button>
+                <Button size='sm' onClick={handleSaveEdit} className='h-8 text-xs bg-orange-600 hover:bg-orange-700 text-white font-bold cursor-pointer'>
+                  Save Changes
+                </Button>
+              </DialogFooter>
+            </DialogContent>
+          )}
+        </Dialog>
+
+        {/* ========================================================= */}
+        {/* 3. SINGLE DELETE CONFIRMATION MODAL */}
+        {/* ========================================================= */}
+        <Dialog open={!!deleteConfirmContact} onOpenChange={(open) => !open && setDeleteConfirmContact(null)}>
+          {deleteConfirmContact && (
+            <DialogContent className='sm:max-w-md'>
+              <DialogHeader>
+                <DialogTitle className='flex items-center gap-2 text-base text-rose-600 font-bold'>
+                  <AlertTriangle className='h-4 w-4' />
+                  Delete Contact
+                </DialogTitle>
+                <DialogDescription className='text-xs'>
+                  Are you sure you want to remove &ldquo;{deleteConfirmContact.name}&rdquo; ({deleteConfirmContact.phone})? This action cannot be undone.
+                </DialogDescription>
+              </DialogHeader>
+
+              <DialogFooter>
+                <Button variant='outline' size='sm' onClick={() => setDeleteConfirmContact(null)} className='h-8 text-xs cursor-pointer'>
+                  Cancel
+                </Button>
+                <Button
+                  size='sm'
+                  onClick={() => handleDeleteContact(deleteConfirmContact)}
+                  className='h-8 text-xs bg-rose-600 hover:bg-rose-700 text-white font-bold cursor-pointer'
+                >
+                  Delete Contact
+                </Button>
+              </DialogFooter>
+            </DialogContent>
+          )}
+        </Dialog>
+
+        {/* ========================================================= */}
+        {/* 4. BULK DELETE CONFIRMATION MODAL */}
+        {/* ========================================================= */}
+        <Dialog open={isBulkDeleteModalOpen} onOpenChange={setIsBulkDeleteModalOpen}>
+          <DialogContent className='sm:max-w-md'>
+            <DialogHeader>
+              <DialogTitle className='flex items-center gap-2 text-base text-rose-600 font-bold'>
+                <Trash2 className='h-4 w-4' />
+                Delete {selectedRows.length} Contacts
+              </DialogTitle>
+              <DialogDescription className='text-xs'>
+                You have selected {selectedRows.length} contacts for removal. Are you sure you want to proceed?
+              </DialogDescription>
+            </DialogHeader>
+
+            <DialogFooter>
+              <Button variant='outline' size='sm' onClick={() => setIsBulkDeleteModalOpen(false)} className='h-8 text-xs cursor-pointer'>
+                Cancel
+              </Button>
+              <Button
+                size='sm'
+                onClick={handleBulkDelete}
+                className='h-8 text-xs bg-rose-600 hover:bg-rose-700 text-white font-bold cursor-pointer'
+              >
+                Delete Selected
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+
+        {/* ========================================================= */}
+        {/* 5. ASSIGN AGENT MODAL */}
+        {/* ========================================================= */}
         <Dialog open={isAssignModalOpen} onOpenChange={setIsAssignModalOpen}>
           <DialogContent className='sm:max-w-md'>
             <DialogHeader>
-              <DialogTitle className='flex items-center gap-2'>
+              <DialogTitle className='flex items-center gap-2 text-base font-bold'>
                 <UserCheck className='h-4 w-4 text-orange-600' />
                 Bulk Assign Agent
               </DialogTitle>
@@ -1111,10 +1671,10 @@ export function Users() {
               </DialogDescription>
             </DialogHeader>
 
-            <div className='py-3 space-y-3'>
+            <div className='py-3 space-y-3 text-xs'>
               <Label className='text-xs font-semibold'>Select Team Agent</Label>
               <div className='space-y-2'>
-                {['Agent Bhavik', 'Agent Anjali', 'Ramesh Kumar', 'Priya Sharma', 'WhatsAPI AI Bot'].map((ag) => (
+                {['Agent Bhavik', 'Agent Anjali', 'VEROX AI Bot', 'Support Desk', 'Not Assigned'].map((ag) => (
                   <div
                     key={ag}
                     onClick={() => setSelectedAgentToAssign(ag)}
@@ -1132,21 +1692,23 @@ export function Users() {
             </div>
 
             <DialogFooter>
-              <Button variant='outline' size='sm' onClick={() => setIsAssignModalOpen(false)}>
+              <Button variant='outline' size='sm' onClick={() => setIsAssignModalOpen(false)} className='h-8 text-xs cursor-pointer'>
                 Cancel
               </Button>
-              <Button size='sm' onClick={handleBulkAssign} className='bg-orange-600 hover:bg-orange-700 text-white'>
+              <Button size='sm' onClick={handleBulkAssign} className='h-8 text-xs bg-orange-600 hover:bg-orange-700 text-white font-bold cursor-pointer'>
                 Assign Now
               </Button>
             </DialogFooter>
           </DialogContent>
         </Dialog>
 
-        {/* 3. Assign Tag Modal */}
+        {/* ========================================================= */}
+        {/* 6. ASSIGN TAG MODAL */}
+        {/* ========================================================= */}
         <Dialog open={isTagModalOpen} onOpenChange={setIsTagModalOpen}>
           <DialogContent className='sm:max-w-md'>
             <DialogHeader>
-              <DialogTitle className='flex items-center gap-2'>
+              <DialogTitle className='flex items-center gap-2 text-base font-bold'>
                 <Tag className='h-4 w-4 text-orange-600' />
                 Bulk Assign Tag
               </DialogTitle>
@@ -1155,7 +1717,7 @@ export function Users() {
               </DialogDescription>
             </DialogHeader>
 
-            <div className='py-3 space-y-3'>
+            <div className='py-3 space-y-3 text-xs'>
               <Label className='text-xs font-semibold'>Choose Tag</Label>
               <div className='flex flex-wrap gap-2'>
                 {['hot-lead', 'GPS', 'FASTAG', 'Fleet Mgmt', 'IndiaMart Lead', 'FB Ads', 'Hinglish IN', 'INSURANCE'].map((tag) => (
@@ -1176,21 +1738,23 @@ export function Users() {
             </div>
 
             <DialogFooter>
-              <Button variant='outline' size='sm' onClick={() => setIsTagModalOpen(false)}>
+              <Button variant='outline' size='sm' onClick={() => setIsTagModalOpen(false)} className='h-8 text-xs cursor-pointer'>
                 Cancel
               </Button>
-              <Button size='sm' onClick={handleBulkAssignTag} className='bg-orange-600 hover:bg-orange-700 text-white'>
+              <Button size='sm' onClick={handleBulkAssignTag} className='h-8 text-xs bg-orange-600 hover:bg-orange-700 text-white font-bold cursor-pointer'>
                 Apply Tag
               </Button>
             </DialogFooter>
           </DialogContent>
         </Dialog>
 
-        {/* 4. Import Contacts Modal */}
+        {/* ========================================================= */}
+        {/* 7. IMPORT CONTACTS MODAL */}
+        {/* ========================================================= */}
         <Dialog open={isImportModalOpen} onOpenChange={setIsImportModalOpen}>
           <DialogContent className='sm:max-w-lg'>
             <DialogHeader>
-              <DialogTitle className='flex items-center gap-2'>
+              <DialogTitle className='flex items-center gap-2 text-base font-bold'>
                 <Download className='h-4 w-4 text-orange-600' />
                 Import Contacts CSV
               </DialogTitle>
@@ -1199,7 +1763,7 @@ export function Users() {
               </DialogDescription>
             </DialogHeader>
 
-            <div className='space-y-3 py-2'>
+            <div className='space-y-3 py-2 text-xs'>
               <div className='flex items-center justify-between text-xs'>
                 <span className='font-semibold text-muted-foreground'>Format example:</span>
                 <button
@@ -1226,21 +1790,23 @@ export function Users() {
             </div>
 
             <DialogFooter>
-              <Button variant='outline' size='sm' onClick={() => setIsImportModalOpen(false)}>
+              <Button variant='outline' size='sm' onClick={() => setIsImportModalOpen(false)} className='h-8 text-xs cursor-pointer'>
                 Cancel
               </Button>
-              <Button size='sm' onClick={handleImportCSV} className='bg-orange-600 hover:bg-orange-700 text-white'>
+              <Button size='sm' onClick={handleImportCSV} className='h-8 text-xs bg-orange-600 hover:bg-orange-700 text-white font-bold cursor-pointer'>
                 Import Rows
               </Button>
             </DialogFooter>
           </DialogContent>
         </Dialog>
 
-        {/* 5. Filter Modal */}
+        {/* ========================================================= */}
+        {/* 8. FILTER MODAL */}
+        {/* ========================================================= */}
         <Dialog open={isFilterModalOpen} onOpenChange={setIsFilterModalOpen}>
           <DialogContent className='sm:max-w-md'>
             <DialogHeader>
-              <DialogTitle className='flex items-center gap-2'>
+              <DialogTitle className='flex items-center gap-2 text-base font-bold'>
                 <SlidersHorizontal className='h-4 w-4 text-orange-600' />
                 Filter Contacts
               </DialogTitle>
@@ -1249,7 +1815,7 @@ export function Users() {
               </DialogDescription>
             </DialogHeader>
 
-            <div className='space-y-3 py-2'>
+            <div className='space-y-3 py-2 text-xs'>
               <div>
                 <Label className='text-xs font-semibold'>Acquisition Source</Label>
                 <select
@@ -1265,7 +1831,7 @@ export function Users() {
                   <option value='whatsapp'>WhatsApp</option>
                   <option value='indiamart'>IndiaMart</option>
                   <option value='facebook'>Facebook Ads</option>
-                  <option value='manual'>Manual</option>
+                  <option value='manual'>Manual Entry</option>
                 </select>
               </div>
 
@@ -1298,21 +1864,24 @@ export function Users() {
                   setSourceFilter('All')
                   setIsFilterModalOpen(false)
                 }}
+                className='h-8 text-xs cursor-pointer'
               >
                 Reset
               </Button>
-              <Button size='sm' onClick={() => setIsFilterModalOpen(false)} className='bg-orange-600 hover:bg-orange-700 text-white'>
+              <Button size='sm' onClick={() => setIsFilterModalOpen(false)} className='h-8 text-xs bg-orange-600 hover:bg-orange-700 text-white font-bold cursor-pointer'>
                 Apply Filters
               </Button>
             </DialogFooter>
           </DialogContent>
         </Dialog>
 
-        {/* 6. Columns Customizer Modal */}
+        {/* ========================================================= */}
+        {/* 9. COLUMNS CUSTOMIZER MODAL */}
+        {/* ========================================================= */}
         <Dialog open={isColumnsModalOpen} onOpenChange={setIsColumnsModalOpen}>
           <DialogContent className='sm:max-w-md'>
             <DialogHeader>
-              <DialogTitle className='flex items-center gap-2'>
+              <DialogTitle className='flex items-center gap-2 text-base font-bold'>
                 <Columns3 className='h-4 w-4 text-orange-600' />
                 Customize Table Columns
               </DialogTitle>
@@ -1321,7 +1890,7 @@ export function Users() {
               </DialogDescription>
             </DialogHeader>
 
-            <div className='grid grid-cols-2 gap-2.5 py-2 text-xs'>
+            <div className='grid grid-cols-2 gap-2 py-2 text-xs'>
               {Object.entries(visibleColumns).map(([key, val]) => (
                 <label
                   key={key}
@@ -1343,14 +1912,16 @@ export function Users() {
             </div>
 
             <DialogFooter>
-              <Button size='sm' onClick={() => setIsColumnsModalOpen(false)}>
+              <Button size='sm' onClick={() => setIsColumnsModalOpen(false)} className='h-8 text-xs cursor-pointer'>
                 Done
               </Button>
             </DialogFooter>
           </DialogContent>
         </Dialog>
 
-        {/* 7. Contact Details Modal */}
+        {/* ========================================================= */}
+        {/* 10. CONTACT DETAILS MODAL */}
+        {/* ========================================================= */}
         <Dialog
           open={!!selectedContactForDetails}
           onOpenChange={(open) => !open && setSelectedContactForDetails(null)}
@@ -1359,7 +1930,7 @@ export function Users() {
             <DialogContent className='sm:max-w-md'>
               <DialogHeader>
                 <div className='flex items-center justify-between'>
-                  <DialogTitle className='flex items-center gap-2'>
+                  <DialogTitle className='flex items-center gap-2 text-base font-bold'>
                     <User className='h-4 w-4 text-orange-600' />
                     {selectedContactForDetails.name}
                   </DialogTitle>
@@ -1393,7 +1964,7 @@ export function Users() {
                 </div>
 
                 <div>
-                  <span className='text-[10px] text-muted-foreground block mb-1'>Tags</span>
+                  <span className='text-[10px] text-muted-foreground block mb-1 font-semibold'>CRM Tags</span>
                   <div className='flex flex-wrap gap-1'>
                     {selectedContactForDetails.tags.map((t) => (
                       <span key={t} className='px-2 py-0.5 rounded bg-muted text-[11px] font-medium'>
@@ -1403,35 +1974,60 @@ export function Users() {
                   </div>
                 </div>
 
-                <div className='pt-2 flex gap-2'>
-                  <Button
-                    size='sm'
-                    className='flex-1 bg-emerald-600 hover:bg-emerald-700 text-white h-8 text-xs gap-1.5'
-                    asChild
-                  >
-                    <a
-                      href={`https://wa.me/${selectedContactForDetails.phone.replace(/[^0-9]/g, '')}`}
-                      target='_blank'
-                      rel='noreferrer'
+                <div className='pt-2 flex flex-col gap-2'>
+                  <div className='grid grid-cols-2 gap-2'>
+                    <Button
+                      size='sm'
+                      className='bg-orange-600 hover:bg-orange-700 text-white h-8 text-xs gap-1.5 font-bold cursor-pointer'
+                      onClick={() => {
+                        setSelectedContactForDetails(null)
+                        navigate({ to: '/chats' })
+                      }}
                     >
-                      <ExternalLink className='h-3.5 w-3.5' /> Chat on WhatsApp
-                    </a>
-                  </Button>
-                  <Button
-                    variant='outline'
-                    size='sm'
-                    className='h-8 text-xs gap-1.5'
-                    asChild
-                  >
-                    <a href={`tel:${selectedContactForDetails.phone}`}>
-                      <Phone className='h-3.5 w-3.5' /> Call
-                    </a>
-                  </Button>
+                      <MessageSquare className='h-3.5 w-3.5' /> Team Inbox
+                    </Button>
+                    <Button
+                      size='sm'
+                      className='bg-emerald-600 hover:bg-emerald-700 text-white h-8 text-xs gap-1.5 font-bold cursor-pointer'
+                      asChild
+                    >
+                      <a
+                        href={`https://wa.me/${selectedContactForDetails.phone.replace(/[^0-9]/g, '')}`}
+                        target='_blank'
+                        rel='noreferrer'
+                      >
+                        <ExternalLink className='h-3.5 w-3.5' /> WhatsApp
+                      </a>
+                    </Button>
+                  </div>
+                  <div className='grid grid-cols-2 gap-2'>
+                    <Button
+                      variant='outline'
+                      size='sm'
+                      className='h-8 text-xs gap-1.5 cursor-pointer'
+                      asChild
+                    >
+                      <a href={`tel:${selectedContactForDetails.phone}`}>
+                        <Phone className='h-3.5 w-3.5' /> Call
+                      </a>
+                    </Button>
+                    <Button
+                      variant='outline'
+                      size='sm'
+                      className='h-8 text-xs gap-1.5 cursor-pointer'
+                      onClick={() => {
+                        navigator.clipboard.writeText(selectedContactForDetails.phone)
+                        toast.success('Phone number copied!')
+                      }}
+                    >
+                      <Copy className='h-3.5 w-3.5' /> Copy Phone
+                    </Button>
+                  </div>
                 </div>
               </div>
 
               <DialogFooter>
-                <Button variant='outline' size='sm' onClick={() => setSelectedContactForDetails(null)}>
+                <Button variant='outline' size='sm' onClick={() => setSelectedContactForDetails(null)} className='h-8 text-xs cursor-pointer'>
                   Close
                 </Button>
               </DialogFooter>

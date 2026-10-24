@@ -125,10 +125,24 @@ export const whatsapiApi = {
 
   // Contacts
   getContacts: () => request('/api/contacts'),
-  createContact: (contact: { name: string; phone: string; tags?: string[]; source?: string }) =>
+  createContact: (contact: { name: string; phone: string; tags?: string[]; source?: string; email?: string; assignedToName?: string }) =>
     request('/api/contacts', {
       method: 'POST',
       body: JSON.stringify(contact),
+    }),
+  updateContact: (id: string, contact: Partial<{ name: string; phone: string; tags: string[]; source: string; email: string; assignedToName: string; status: string }>) =>
+    request(`/api/contacts/${id}`, {
+      method: 'PATCH',
+      body: JSON.stringify(contact),
+    }),
+  deleteContact: (id: string) =>
+    request(`/api/contacts/${id}`, {
+      method: 'DELETE',
+    }),
+  bulkDeleteContacts: (ids: string[]) =>
+    request('/api/contacts/bulk-delete', {
+      method: 'POST',
+      body: JSON.stringify({ ids }),
     }),
 
   // Broadcast Campaigns

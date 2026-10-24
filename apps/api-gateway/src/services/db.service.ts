@@ -85,6 +85,28 @@ class DatabaseService {
     return newContact
   }
 
+  public updateContact(id: string, data: Partial<ContactItem>): ContactItem | null {
+    const contact = this.contacts.find((c) => c.id === id)
+    if (!contact) return null
+    Object.assign(contact, data, { updatedAt: new Date().toISOString() })
+    return contact
+  }
+
+  public deleteContact(id: string): boolean {
+    const index = this.contacts.findIndex((c) => c.id === id)
+    if (index === -1) return false
+    this.contacts[index].status = 'deleted'
+    return true
+  }
+
+  public bulkDeleteContacts(ids: string[]): number {
+    let count = 0
+    ids.forEach((id) => {
+      if (this.deleteContact(id)) count++
+    })
+    return count
+  }
+
   // --- Conversations & Messages ---
   public getConversations() {
     return this.conversations
