@@ -12,6 +12,9 @@ import {
   RotateCw,
   Download,
   ArrowUpRight,
+  Crown,
+  Activity,
+  Layers,
 } from 'lucide-react'
 import {
   ResponsiveContainer,
@@ -21,8 +24,6 @@ import {
   YAxis,
   Tooltip,
   Legend,
-  AreaChart,
-  Area,
   CartesianGrid,
 } from 'recharts'
 import { toast } from 'sonner'
@@ -30,7 +31,6 @@ import { Button } from '@/components/ui/button'
 import {
   Card,
   CardContent,
-  CardDescription,
   CardHeader,
   CardTitle,
 } from '@/components/ui/card'
@@ -54,7 +54,7 @@ import {
 } from '@/components/ui/dialog'
 
 // ============================================================================
-// DATA DEFINITIONS & REQUISITE STRUCTS
+// DATA STRUCTS & INTERFACES
 // ============================================================================
 
 interface ProjectItem {
@@ -90,15 +90,6 @@ interface IntegrationCard {
   lastSync: string
 }
 
-interface TeamMember {
-  id: string
-  name: string
-  avatar: string
-  leads: number
-  status: 'Online' | 'Offline' | 'Busy'
-  avgResponse: string
-  stateStatus: 'active' | 'suspended' | 'blocked'
-}
 
 interface AgentPerformance {
   id: string
@@ -112,7 +103,7 @@ interface AgentPerformance {
   status: 'Active' | 'Offline'
 }
 
-// Data by Timeframe for Message Analytics
+// Timeframe Data Maps
 const messageDataMap = {
   year: [
     { month: 'Jan', sent: 1240, received: 980 },
@@ -142,33 +133,6 @@ const messageDataMap = {
     { month: 'Fri', sent: 260, received: 210 },
     { month: 'Sat', sent: 140, received: 110 },
     { month: 'Sun', sent: 95, received: 80 },
-  ],
-}
-
-// Data by Timeframe for Lead Analytics
-const leadAnalyticsMap = {
-  year: [
-    { month: 'May', leads: 420, pending: 110, assigned: 310 },
-    { month: 'Jun', leads: 680, pending: 140, assigned: 540 },
-    { month: 'Jul', leads: 890, pending: 220, assigned: 670 },
-    { month: 'Aug', leads: 1240, pending: 310, assigned: 930 },
-    { month: 'Sep', leads: 1560, pending: 380, assigned: 1180 },
-    { month: 'Oct', leads: 1892, pending: 472, assigned: 1420 },
-  ],
-  '30days': [
-    { month: 'Week 1', leads: 1610, pending: 410, assigned: 1200 },
-    { month: 'Week 2', leads: 1720, pending: 430, assigned: 1290 },
-    { month: 'Week 3', leads: 1810, pending: 450, assigned: 1360 },
-    { month: 'Week 4', leads: 1892, pending: 472, assigned: 1420 },
-  ],
-  '7days': [
-    { month: 'Mon', leads: 1750, pending: 435, assigned: 1315 },
-    { month: 'Tue', leads: 1780, pending: 442, assigned: 1338 },
-    { month: 'Wed', leads: 1810, pending: 450, assigned: 1360 },
-    { month: 'Thu', leads: 1845, pending: 458, assigned: 1387 },
-    { month: 'Fri', leads: 1870, pending: 465, assigned: 1405 },
-    { month: 'Sat', leads: 1885, pending: 470, assigned: 1415 },
-    { month: 'Sun', leads: 1892, pending: 472, assigned: 1420 },
   ],
 }
 
@@ -301,35 +265,6 @@ const initialIntegrations: IntegrationCard[] = [
   },
 ]
 
-const initialTeamMembers: TeamMember[] = [
-  {
-    id: 'mem-1',
-    name: 'Ramesh Kumar',
-    avatar: 'RK',
-    leads: 24,
-    status: 'Online',
-    avgResponse: '2.4 mins',
-    stateStatus: 'active',
-  },
-  {
-    id: 'mem-2',
-    name: 'Priya Sharma',
-    avatar: 'PS',
-    leads: 18,
-    status: 'Online',
-    avgResponse: '1.8 mins',
-    stateStatus: 'active',
-  },
-  {
-    id: 'mem-3',
-    name: 'Vikram Patel',
-    avatar: 'VP',
-    leads: 15,
-    status: 'Online',
-    avgResponse: '3.1 mins',
-    stateStatus: 'active',
-  },
-]
 
 const initialAgentPerformance: AgentPerformance[] = [
   {
@@ -370,26 +305,24 @@ const initialAgentPerformance: AgentPerformance[] = [
 export function Dashboard() {
   // Planner State
   const [plannerTab, setPlannerTab] = useState<'projects' | 'tasks'>('projects')
-  const [projectFilter, setProjectFilter] = useState<'all' | 'active' | 'in_progress' | 'completed' | 'deployed'>('all')
+  const [projectFilter, setProjectFilter] = useState<'all' | 'active' | 'in_progress' | 'completed'>('all')
   const [taskFilter, setTaskFilter] = useState<'all' | 'todo' | 'in_progress' | 'done'>('all')
 
-  // Data Collections State
+  // Dynamic Data
   const [projects, setProjects] = useState<ProjectItem[]>(initialProjectsData)
   const [tasks, setTasks] = useState<TaskItem[]>(initialTasksData)
-  const [teamMembers] = useState<TeamMember[]>(initialTeamMembers)
-  const [memberFilter, setMemberFilter] = useState<'active' | 'suspended' | 'blocked'>('active')
 
-  // Time Range for Message & Lead Analytics
+  // Analytics Controls
   const [timeRange, setTimeRange] = useState<'year' | '30days' | '7days'>('year')
 
-  // Dynamic Metrics State
+  // KPI Counters
   const [sentCount, setSentCount] = useState(978)
   const [receivedCount] = useState(1251)
   const [totalLeadsCount, setTotalLeadsCount] = useState(1892)
   const [assignedLeadsCount, setAssignedLeadsCount] = useState(1420)
   const [pendingLeadsCount, setPendingLeadsCount] = useState(472)
 
-  // Interactive Modals State
+  // Modals
   const [isWabaModalOpen, setIsWabaModalOpen] = useState(false)
   const [isWabaTesting, setIsWabaTesting] = useState(false)
   const [wabaTestResult, setWabaTestResult] = useState<string | null>(null)
@@ -417,15 +350,12 @@ export function Dashboard() {
 
   const [selectedAgentForModal, setSelectedAgentForModal] = useState<AgentPerformance | null>(null)
 
-  // ============================================================================
-  // PLANNER COMPUTED ARRAYS
-  // ============================================================================
+  // Filtered views
   const filteredProjects = projects.filter((p) => {
     if (projectFilter === 'all') return true
     if (projectFilter === 'active') return p.status === 'In Progress' || p.status === 'Planning'
     if (projectFilter === 'in_progress') return p.status === 'In Progress'
     if (projectFilter === 'completed') return p.status === 'Completed'
-    if (projectFilter === 'deployed') return p.status === 'Deployed'
     return true
   })
 
@@ -437,24 +367,18 @@ export function Dashboard() {
     return true
   })
 
-  const filteredTeamMembers = teamMembers.filter((m) => m.stateStatus === memberFilter)
 
-  // ============================================================================
-  // ACTION HANDLERS
-  // ============================================================================
-
-  // Test WABA Ping Handshake
+  // Handlers
   const handleTestWabaConnection = () => {
     setIsWabaTesting(true)
     setWabaTestResult(null)
     setTimeout(() => {
       setIsWabaTesting(false)
-      setWabaTestResult('Verified: 200 OK (Latency: 28ms • Graph API v21.0 Connected)')
+      setWabaTestResult('Verified: 200 OK (Latency: 28ms • Graph API v21.0 Active)')
       toast.success('WhatsApp Business Cloud API Connection is 100% Active!')
     }, 500)
   }
 
-  // Create Broadcast Dispatch
   const handleDispatchBroadcast = () => {
     if (!broadcastName.trim()) {
       toast.error('Please enter a Broadcast Name.')
@@ -472,31 +396,26 @@ export function Dashboard() {
     }, 600)
   }
 
-  // Quick Add Contact
   const handleAddContact = () => {
     if (!newContactName.trim() || !newContactPhone.trim()) {
       toast.error('Please enter contact Name and Phone Number.')
       return
     }
-
     setTotalLeadsCount((prev) => prev + 1)
     if (newContactAssignee && newContactAssignee !== 'None') {
       setAssignedLeadsCount((prev) => prev + 1)
     } else {
       setPendingLeadsCount((prev) => prev + 1)
     }
-
     toast.success(`Contact "${newContactName}" added successfully!`, {
       description: `Phone: ${newContactPhone} • Assigned: ${newContactAssignee}`,
     })
-
     setNewContactName('')
     setNewContactPhone('')
     setNewContactEmail('')
     setIsAddContactModalOpen(false)
   }
 
-  // Export CSV
   const handleExportCsv = () => {
     const csvRows = [
       ['ID', 'Name', 'Phone', 'Source', 'Status', 'Assigned To', 'Created Date'],
@@ -507,7 +426,6 @@ export function Dashboard() {
       ['c-5', 'Truck Sathi Client', '+917698580043', 'whatsapp', 'Qualified', 'Truck Sathi Admin', '10/21/2026'],
       ['c-6', 'Gujarat Fleet Owner', '+919898017263', 'indiamart', 'Qualified', 'Vikram Patel', '10/20/2026'],
     ]
-
     const csvContent = csvRows.map((e) => e.map((val) => `"${val}"`).join(',')).join('\n')
     const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' })
     const url = URL.createObjectURL(blob)
@@ -518,11 +436,9 @@ export function Dashboard() {
     link.click()
     document.body.removeChild(link)
     URL.revokeObjectURL(url)
-
     toast.success('Exported 1,892 contacts to CSV successfully!')
   }
 
-  // Test Integration Ping
   const handleTestIntegrationPing = () => {
     setIsTestingIntegration(true)
     setIntegrationTestResult(null)
@@ -533,7 +449,6 @@ export function Dashboard() {
     }, 450)
   }
 
-  // Copy Webhook URL
   const handleCopyWebhook = (url: string) => {
     navigator.clipboard.writeText(url)
     setCopiedUrl(true)
@@ -541,7 +456,6 @@ export function Dashboard() {
     setTimeout(() => setCopiedUrl(false), 2000)
   }
 
-  // Save Project Status in Modal
   const handleUpdateProjectStatus = (newStatus: ProjectItem['status']) => {
     if (!selectedProjectForView) return
     setProjects((prev) =>
@@ -551,7 +465,6 @@ export function Dashboard() {
     toast.success(`Project updated to "${newStatus}"!`)
   }
 
-  // Save Task Status in Modal
   const handleUpdateTaskStatus = (newStatus: TaskItem['status']) => {
     if (!selectedTaskForView) return
     setTasks((prev) =>
@@ -572,37 +485,42 @@ export function Dashboard() {
         <ProfileDropdown />
       </Header>
 
-      {/* ===== Main Content Area ===== */}
-      <Main className='space-y-5 py-4'>
-        {/* Welcome & Top Action Bar */}
-        <div className='flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between border-b border-border/40 pb-4'>
-          <div>
+      {/* ===== Main Content Area (Clean Linear & Stripe-Grade SaaS Aesthetic) ===== */}
+      <Main className='space-y-6 py-5 max-w-[1580px] mx-auto'>
+        {/* Top Control Bar */}
+        <div className='flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between pb-3 border-b border-border/40'>
+          <div className='space-y-0.5'>
             <div className='flex items-center gap-2.5'>
-              <div className='h-3 w-3 rounded-full bg-emerald-500 animate-pulse' />
-              <h1 className='text-2xl font-bold tracking-tight'>
-                Whatsapi Control Hub
+              <span className='relative flex h-2 w-2'>
+                <span className='animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75'></span>
+                <span className='relative inline-flex rounded-full h-2 w-2 bg-emerald-500'></span>
+              </span>
+              <h1 className='text-xl font-bold tracking-tight text-foreground'>
+                Control Hub
               </h1>
-              <Badge className='bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/30 font-medium'>
-                Whatsapi Cloud Edition
+              <Badge variant='outline' className='text-[10px] py-0 px-2 font-mono border-emerald-500/30 text-emerald-600 dark:text-emerald-400 bg-emerald-500/5'>
+                Cloud Edition v21.0
               </Badge>
             </div>
-            <p className='text-xs text-muted-foreground mt-0.5'>
+            <p className='text-xs text-muted-foreground'>
               Multi-channel WhatsApp Cloud API, Lead Automation Engine & Multi-Agent CRM
             </p>
           </div>
-          <div className='flex items-center gap-2'>
-            <Button
-              variant='outline'
-              size='sm'
-              className='h-9 gap-1.5 text-xs cursor-pointer border-emerald-500/30 hover:border-emerald-500/60 hover:bg-emerald-500/5'
+
+          <div className='flex items-center gap-2.5'>
+            <button
+              type='button'
               onClick={() => setIsWabaModalOpen(true)}
+              className='h-8 px-3 rounded-md text-xs font-medium cursor-pointer border border-emerald-500/25 bg-emerald-500/5 text-emerald-600 dark:text-emerald-400 hover:bg-emerald-500/10 transition-colors flex items-center gap-1.5'
             >
-              <ShieldCheck className='h-3.5 w-3.5 text-emerald-600' />
-              WABA: +91 76985 80043 (GREEN)
-            </Button>
+              <ShieldCheck className='h-3.5 w-3.5' />
+              <span>WABA: +91 76985 80043</span>
+              <span className='h-1.5 w-1.5 rounded-full bg-emerald-500'></span>
+            </button>
+
             <Button
               size='sm'
-              className='h-9 gap-1.5 text-xs bg-orange-600 hover:bg-orange-700 text-white shadow-xs cursor-pointer'
+              className='h-8 px-3.5 gap-1.5 text-xs bg-gradient-to-r from-orange-600 to-amber-600 hover:from-orange-700 hover:to-amber-700 text-white font-medium shadow-xs cursor-pointer border-0'
               onClick={() => setIsBroadcastModalOpen(true)}
             >
               <Send className='h-3.5 w-3.5' />
@@ -612,449 +530,398 @@ export function Dashboard() {
         </div>
 
         {/* ========================================================================= */}
-        {/* ROW 1: Total Flows, Total Chatbot, Project Planner                        */}
+        {/* ROW 1: 4-STAT BENTO EXECUTIVE KPI CARDS                                   */}
         {/* ========================================================================= */}
-        <div className='grid grid-cols-1 gap-4 lg:grid-cols-12'>
-          {/* Card 1: Total Flows */}
-          <Card
-            className='lg:col-span-3 border-border/60 shadow-xs cursor-pointer transition-all hover:border-orange-500/40 hover:shadow-sm'
+        <div className='grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3.5'>
+          {/* Stat 1: Total Flows */}
+          <div
             onClick={() => {
               window.location.href = '/flows'
             }}
+            className='p-4 rounded-xl border border-border/50 bg-card hover:border-orange-500/40 hover:shadow-xs transition-all cursor-pointer group flex flex-col justify-between'
           >
-            <CardHeader className='flex flex-row items-center justify-between pb-2'>
-              <CardTitle className='text-sm font-medium text-muted-foreground'>
-                Total Flows
-              </CardTitle>
-              <div className='flex h-10 w-10 items-center justify-center rounded-full bg-orange-500/10 text-orange-600'>
-                <Workflow className='h-5 w-5' />
+            <div className='flex items-center justify-between'>
+              <span className='text-xs font-medium text-muted-foreground'>Flows Automation</span>
+              <div className='h-7 w-7 rounded-lg bg-orange-500/10 text-orange-600 flex items-center justify-center group-hover:scale-105 transition-transform'>
+                <Workflow className='h-4 w-4' />
               </div>
-            </CardHeader>
-            <CardContent>
-              <div className='text-3xl font-bold flex items-center justify-between'>
-                <span>8</span>
-                <span className='text-xs text-muted-foreground font-normal flex items-center gap-1 hover:text-orange-600'>
-                  Open Flows <ArrowUpRight className='h-3.5 w-3.5' />
+            </div>
+            <div className='mt-2.5'>
+              <div className='text-2xl font-bold tracking-tight text-foreground'>8</div>
+              <div className='flex items-center justify-between text-xs mt-1.5'>
+                <span className='inline-flex items-center gap-1 text-emerald-600 font-medium text-[11px]'>
+                  <span className='h-1.5 w-1.5 rounded-full bg-emerald-500' /> 1 Active
+                </span>
+                <span className='text-muted-foreground text-[11px] group-hover:text-orange-600 transition-colors flex items-center gap-0.5'>
+                  Studio <ArrowUpRight className='h-3 w-3' />
                 </span>
               </div>
-              <div className='flex items-center gap-2 mt-3'>
-                <span className='inline-flex items-center gap-1 rounded-full bg-emerald-500/15 px-2.5 py-0.5 text-xs font-semibold text-emerald-600 dark:text-emerald-400'>
-                  Active (1)
-                </span>
-                <span className='inline-flex items-center gap-1 rounded-full bg-muted px-2.5 py-0.5 text-xs font-medium text-muted-foreground'>
-                  Inactive (7)
-                </span>
-              </div>
-            </CardContent>
-          </Card>
+            </div>
+          </div>
 
-          {/* Card 2: Total Chatbot */}
-          <Card
-            className='lg:col-span-3 border-border/60 shadow-xs cursor-pointer transition-all hover:border-sky-500/40 hover:shadow-sm'
+          {/* Stat 2: Active Chatbot */}
+          <div
             onClick={() => {
               window.location.href = '/chatbot'
             }}
+            className='p-4 rounded-xl border border-border/50 bg-card hover:border-sky-500/40 hover:shadow-xs transition-all cursor-pointer group flex flex-col justify-between'
           >
-            <CardHeader className='flex flex-row items-center justify-between pb-2'>
-              <CardTitle className='text-sm font-medium text-muted-foreground'>
-                Total Chatbot
-              </CardTitle>
-              <div className='flex h-10 w-10 items-center justify-center rounded-full bg-sky-500/10 text-sky-600'>
-                <Bot className='h-5 w-5' />
+            <div className='flex items-center justify-between'>
+              <span className='text-xs font-medium text-muted-foreground'>AI Chatbot Engines</span>
+              <div className='h-7 w-7 rounded-lg bg-sky-500/10 text-sky-600 flex items-center justify-center group-hover:scale-105 transition-transform'>
+                <Bot className='h-4 w-4' />
+              </div>
+            </div>
+            <div className='mt-2.5'>
+              <div className='text-2xl font-bold tracking-tight text-foreground'>3</div>
+              <div className='flex items-center justify-between text-xs mt-1.5'>
+                <span className='inline-flex items-center gap-1 text-emerald-600 font-medium text-[11px]'>
+                  <span className='h-1.5 w-1.5 rounded-full bg-emerald-500' /> 3 Ready
+                </span>
+                <span className='text-muted-foreground text-[11px] group-hover:text-sky-600 transition-colors flex items-center gap-0.5'>
+                  Builder <ArrowUpRight className='h-3 w-3' />
+                </span>
+              </div>
+            </div>
+          </div>
+
+          {/* Stat 3: Total Inbound Leads */}
+          <div
+            onClick={() => setIsAddContactModalOpen(true)}
+            className='p-4 rounded-xl border border-border/50 bg-card hover:border-emerald-500/40 hover:shadow-xs transition-all cursor-pointer group flex flex-col justify-between'
+          >
+            <div className='flex items-center justify-between'>
+              <span className='text-xs font-medium text-muted-foreground'>Inbound Pipeline</span>
+              <div className='h-7 w-7 rounded-lg bg-emerald-500/10 text-emerald-600 flex items-center justify-center group-hover:scale-105 transition-transform'>
+                <Zap className='h-4 w-4' />
+              </div>
+            </div>
+            <div className='mt-2.5'>
+              <div className='text-2xl font-bold tracking-tight text-foreground'>
+                {totalLeadsCount.toLocaleString()}
+              </div>
+              <div className='flex items-center justify-between text-xs mt-1.5'>
+                <span className='text-emerald-600 font-semibold text-[11px]'>+142 today</span>
+                <span className='text-muted-foreground text-[11px]'>
+                  {assignedLeadsCount.toLocaleString()} Assigned • {pendingLeadsCount.toLocaleString()} Pending
+                </span>
+              </div>
+            </div>
+          </div>
+
+          {/* Stat 4: Total Message Traffic */}
+          <div
+            onClick={() => {
+              window.location.href = '/chats'
+            }}
+            className='p-4 rounded-xl border border-border/50 bg-card hover:border-purple-500/40 hover:shadow-xs transition-all cursor-pointer group flex flex-col justify-between'
+          >
+            <div className='flex items-center justify-between'>
+              <span className='text-xs font-medium text-muted-foreground'>Conversations Dispatched</span>
+              <div className='h-7 w-7 rounded-lg bg-purple-500/10 text-purple-600 flex items-center justify-center group-hover:scale-105 transition-transform'>
+                <Activity className='h-4 w-4' />
+              </div>
+            </div>
+            <div className='mt-2.5'>
+              <div className='text-2xl font-bold tracking-tight text-foreground'>
+                {(sentCount + receivedCount).toLocaleString()}
+              </div>
+              <div className='flex items-center justify-between text-xs mt-1.5'>
+                <span className='text-emerald-600 font-semibold text-[11px]'>+18.4% MoM</span>
+                <span className='text-muted-foreground text-[11px]'>92.4% WhatsApp SLA</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* ========================================================================= */}
+        {/* ROW 2: PROJECT PLANNER & CAPACITY PLAN                                    */}
+        {/* ========================================================================= */}
+        <div className='grid grid-cols-1 lg:grid-cols-12 gap-4'>
+          {/* Left: Project Planner (Linear high-density table) */}
+          <Card className='lg:col-span-8 border-border/60 shadow-xs'>
+            <CardHeader className='p-4 pb-2 flex flex-row items-center justify-between'>
+              <div className='flex items-center gap-3'>
+                <CardTitle className='text-sm font-semibold text-foreground flex items-center gap-2'>
+                  <Layers className='h-4 w-4 text-orange-600' />
+                  <span>Deployment Planner</span>
+                </CardTitle>
+                <div className='flex items-center rounded-lg border border-border/60 p-0.5 bg-muted/40'>
+                  <button
+                    type='button'
+                    onClick={() => setPlannerTab('projects')}
+                    className={`rounded-md px-2.5 py-0.5 text-xs font-medium cursor-pointer transition-colors ${
+                      plannerTab === 'projects'
+                        ? 'bg-background text-foreground shadow-xs'
+                        : 'text-muted-foreground hover:text-foreground'
+                    }`}
+                  >
+                    Projects ({projects.length})
+                  </button>
+                  <button
+                    type='button'
+                    onClick={() => setPlannerTab('tasks')}
+                    className={`rounded-md px-2.5 py-0.5 text-xs font-medium cursor-pointer transition-colors ${
+                      plannerTab === 'tasks'
+                        ? 'bg-background text-foreground shadow-xs'
+                        : 'text-muted-foreground hover:text-foreground'
+                    }`}
+                  >
+                    Tasks ({tasks.length})
+                  </button>
+                </div>
+              </div>
+
+              {/* Status Filter Pills */}
+              <div className='flex items-center gap-1 text-[11px]'>
+                {plannerTab === 'projects' ? (
+                  <>
+                    <button
+                      type='button'
+                      onClick={() => setProjectFilter('all')}
+                      className={`px-2 py-0.5 rounded-full cursor-pointer transition-colors ${
+                        projectFilter === 'all'
+                          ? 'bg-orange-500/15 text-orange-600 font-semibold border border-orange-500/30'
+                          : 'text-muted-foreground hover:text-foreground'
+                      }`}
+                    >
+                      All
+                    </button>
+                    <button
+                      type='button'
+                      onClick={() => setProjectFilter('in_progress')}
+                      className={`px-2 py-0.5 rounded-full cursor-pointer transition-colors ${
+                        projectFilter === 'in_progress'
+                          ? 'bg-orange-500/15 text-orange-600 font-semibold border border-orange-500/30'
+                          : 'text-muted-foreground hover:text-foreground'
+                      }`}
+                    >
+                      In Progress ({projects.filter((p) => p.status === 'In Progress').length})
+                    </button>
+                    <button
+                      type='button'
+                      onClick={() => setProjectFilter('completed')}
+                      className={`px-2 py-0.5 rounded-full cursor-pointer transition-colors ${
+                        projectFilter === 'completed'
+                          ? 'bg-orange-500/15 text-orange-600 font-semibold border border-orange-500/30'
+                          : 'text-muted-foreground hover:text-foreground'
+                      }`}
+                    >
+                      Done ({projects.filter((p) => p.status === 'Completed').length})
+                    </button>
+                  </>
+                ) : (
+                  <>
+                    <button
+                      type='button'
+                      onClick={() => setTaskFilter('all')}
+                      className={`px-2 py-0.5 rounded-full cursor-pointer transition-colors ${
+                        taskFilter === 'all'
+                          ? 'bg-orange-500/15 text-orange-600 font-semibold border border-orange-500/30'
+                          : 'text-muted-foreground hover:text-foreground'
+                      }`}
+                    >
+                      All
+                    </button>
+                    <button
+                      type='button'
+                      onClick={() => setTaskFilter('in_progress')}
+                      className={`px-2 py-0.5 rounded-full cursor-pointer transition-colors ${
+                        taskFilter === 'in_progress'
+                          ? 'bg-orange-500/15 text-orange-600 font-semibold border border-orange-500/30'
+                          : 'text-muted-foreground hover:text-foreground'
+                      }`}
+                    >
+                      In Progress ({tasks.filter((t) => t.status === 'In Progress').length})
+                    </button>
+                    <button
+                      type='button'
+                      onClick={() => setTaskFilter('done')}
+                      className={`px-2 py-0.5 rounded-full cursor-pointer transition-colors ${
+                        taskFilter === 'done'
+                          ? 'bg-orange-500/15 text-orange-600 font-semibold border border-orange-500/30'
+                          : 'text-muted-foreground hover:text-foreground'
+                      }`}
+                    >
+                      Done ({tasks.filter((t) => t.status === 'Done').length})
+                    </button>
+                  </>
+                )}
               </div>
             </CardHeader>
-            <CardContent>
-              <div className='text-3xl font-bold flex items-center justify-between'>
-                <span>3</span>
-                <span className='text-xs text-muted-foreground font-normal flex items-center gap-1 hover:text-sky-600'>
-                  Open Studio <ArrowUpRight className='h-3.5 w-3.5' />
-                </span>
-              </div>
-              <div className='flex items-center gap-2 mt-3'>
-                <span className='inline-flex items-center gap-1 rounded-full bg-emerald-500/15 px-2.5 py-0.5 text-xs font-semibold text-emerald-600 dark:text-emerald-400'>
-                  Active (3)
-                </span>
-                <span className='inline-flex items-center gap-1 rounded-full bg-muted px-2.5 py-0.5 text-xs font-medium text-muted-foreground'>
-                  Inactive (0)
-                </span>
-              </div>
-            </CardContent>
-          </Card>
 
-          {/* Card 3: Project Planner */}
-          <Card className='lg:col-span-6 border-border/60 shadow-xs'>
-            <CardHeader className='flex flex-row items-center justify-between pb-2'>
-              <div>
-                <CardTitle className='text-base font-semibold'>Project Planner</CardTitle>
-                <div className='flex items-center gap-3 text-xs text-muted-foreground mt-0.5'>
-                  <span>Total Projects: <strong className='text-foreground'>{projects.length}</strong></span>
-                  <span>•</span>
-                  <span>Total Tasks: <strong className='text-foreground'>{tasks.length}</strong></span>
-                </div>
-              </div>
-
-              {/* Projects | Tasks Tabs */}
-              <div className='flex items-center rounded-lg border border-border/60 p-0.5 bg-muted/40'>
-                <button
-                  type='button'
-                  onClick={() => setPlannerTab('projects')}
-                  className={`rounded-md px-3 py-1 text-xs font-medium cursor-pointer transition-colors ${
-                    plannerTab === 'projects'
-                      ? 'bg-background text-foreground shadow-xs'
-                      : 'text-muted-foreground hover:text-foreground'
-                  }`}
-                >
-                  Projects
-                </button>
-                <button
-                  type='button'
-                  onClick={() => setPlannerTab('tasks')}
-                  className={`rounded-md px-3 py-1 text-xs font-medium cursor-pointer transition-colors ${
-                    plannerTab === 'tasks'
-                      ? 'bg-background text-foreground shadow-xs'
-                      : 'text-muted-foreground hover:text-foreground'
-                  }`}
-                >
-                  Tasks
-                </button>
-              </div>
-            </CardHeader>
-            <CardContent className='pt-1'>
-              {/* Filter status pills */}
-              {plannerTab === 'projects' ? (
-                <div className='flex items-center gap-1.5 overflow-x-auto pb-2 text-xs'>
-                  <button
-                    type='button'
-                    onClick={() => setProjectFilter('all')}
-                    className={`rounded-full px-2.5 py-0.5 font-medium cursor-pointer transition-colors ${
-                      projectFilter === 'all'
-                        ? 'bg-orange-500/15 text-orange-600 dark:text-orange-400 border border-orange-500/30'
-                        : 'bg-muted/60 text-muted-foreground hover:bg-muted'
-                    }`}
-                  >
-                    All ({projects.length})
-                  </button>
-                  <button
-                    type='button'
-                    onClick={() => setProjectFilter('active')}
-                    className={`rounded-full px-2.5 py-0.5 font-medium cursor-pointer transition-colors ${
-                      projectFilter === 'active'
-                        ? 'bg-orange-500/15 text-orange-600 border border-orange-500/30'
-                        : 'bg-muted/60 text-muted-foreground hover:bg-muted'
-                    }`}
-                  >
-                    Active ({projects.filter((p) => p.status === 'In Progress' || p.status === 'Planning').length})
-                  </button>
-                  <button
-                    type='button'
-                    onClick={() => setProjectFilter('in_progress')}
-                    className={`rounded-full px-2.5 py-0.5 font-medium cursor-pointer transition-colors ${
-                      projectFilter === 'in_progress'
-                        ? 'bg-orange-500/15 text-orange-600 border border-orange-500/30'
-                        : 'bg-muted/60 text-muted-foreground hover:bg-muted'
-                    }`}
-                  >
-                    In Progress ({projects.filter((p) => p.status === 'In Progress').length})
-                  </button>
-                  <button
-                    type='button'
-                    onClick={() => setProjectFilter('completed')}
-                    className={`rounded-full px-2.5 py-0.5 font-medium cursor-pointer transition-colors ${
-                      projectFilter === 'completed'
-                        ? 'bg-orange-500/15 text-orange-600 border border-orange-500/30'
-                        : 'bg-muted/60 text-muted-foreground hover:bg-muted'
-                    }`}
-                  >
-                    Completed ({projects.filter((p) => p.status === 'Completed').length})
-                  </button>
-                  <button
-                    type='button'
-                    onClick={() => setProjectFilter('deployed')}
-                    className={`rounded-full px-2.5 py-0.5 font-medium cursor-pointer transition-colors ${
-                      projectFilter === 'deployed'
-                        ? 'bg-orange-500/15 text-orange-600 border border-orange-500/30'
-                        : 'bg-muted/60 text-muted-foreground hover:bg-muted'
-                    }`}
-                  >
-                    Deployed (0)
-                  </button>
-                </div>
-              ) : (
-                <div className='flex items-center gap-1.5 overflow-x-auto pb-2 text-xs'>
-                  <button
-                    type='button'
-                    onClick={() => setTaskFilter('all')}
-                    className={`rounded-full px-2.5 py-0.5 font-medium cursor-pointer transition-colors ${
-                      taskFilter === 'all'
-                        ? 'bg-orange-500/15 text-orange-600 dark:text-orange-400 border border-orange-500/30'
-                        : 'bg-muted/60 text-muted-foreground hover:bg-muted'
-                    }`}
-                  >
-                    All Tasks ({tasks.length})
-                  </button>
-                  <button
-                    type='button'
-                    onClick={() => setTaskFilter('in_progress')}
-                    className={`rounded-full px-2.5 py-0.5 font-medium cursor-pointer transition-colors ${
-                      taskFilter === 'in_progress'
-                        ? 'bg-orange-500/15 text-orange-600 border border-orange-500/30'
-                        : 'bg-muted/60 text-muted-foreground hover:bg-muted'
-                    }`}
-                  >
-                    In Progress ({tasks.filter((t) => t.status === 'In Progress').length})
-                  </button>
-                  <button
-                    type='button'
-                    onClick={() => setTaskFilter('done')}
-                    className={`rounded-full px-2.5 py-0.5 font-medium cursor-pointer transition-colors ${
-                      taskFilter === 'done'
-                        ? 'bg-orange-500/15 text-orange-600 border border-orange-500/30'
-                        : 'bg-muted/60 text-muted-foreground hover:bg-muted'
-                    }`}
-                  >
-                    Done ({tasks.filter((t) => t.status === 'Done').length})
-                  </button>
-                  <button
-                    type='button'
-                    onClick={() => setTaskFilter('todo')}
-                    className={`rounded-full px-2.5 py-0.5 font-medium cursor-pointer transition-colors ${
-                      taskFilter === 'todo'
-                        ? 'bg-orange-500/15 text-orange-600 border border-orange-500/30'
-                        : 'bg-muted/60 text-muted-foreground hover:bg-muted'
-                    }`}
-                  >
-                    Todo ({tasks.filter((t) => t.status === 'Todo').length})
-                  </button>
-                </div>
-              )}
-
-              {/* Planner Table */}
-              <div className='mt-2 overflow-x-auto rounded-md border border-border/40'>
+            <CardContent className='p-4 pt-1'>
+              <div className='overflow-x-auto rounded-lg border border-border/40'>
                 <table className='w-full text-xs'>
                   <thead className='bg-muted/40 font-semibold text-muted-foreground'>
                     <tr className='text-left border-b border-border/40'>
-                      <th className='p-2 font-medium'>{plannerTab === 'projects' ? 'PROJECT' : 'TASK'}</th>
-                      <th className='p-2 font-medium'>{plannerTab === 'projects' ? 'STATUS' : 'PROJECT'}</th>
-                      <th className='p-2 font-medium'>{plannerTab === 'projects' ? 'START DATE' : 'ASSIGNEE'}</th>
-                      <th className='p-2 font-medium'>DUE DATE</th>
-                      <th className='p-2 font-medium'>{plannerTab === 'projects' ? 'PRIORITY' : 'STATUS'}</th>
-                      <th className='p-2 font-medium text-right'>ACTION</th>
+                      <th className='p-2.5 font-medium'>{plannerTab === 'projects' ? 'PROJECT' : 'TASK'}</th>
+                      <th className='p-2.5 font-medium'>{plannerTab === 'projects' ? 'STATUS' : 'PROJECT'}</th>
+                      <th className='p-2.5 font-medium'>{plannerTab === 'projects' ? 'START' : 'ASSIGNEE'}</th>
+                      <th className='p-2.5 font-medium'>DUE</th>
+                      <th className='p-2.5 font-medium'>{plannerTab === 'projects' ? 'PRIORITY' : 'STATUS'}</th>
+                      <th className='p-2.5 font-medium text-right'>ACTION</th>
                     </tr>
                   </thead>
                   <tbody className='divide-y divide-border/30'>
                     {plannerTab === 'projects' ? (
-                      filteredProjects.length === 0 ? (
-                        <tr>
-                          <td colSpan={6} className='p-4 text-center text-muted-foreground'>
-                            No projects match the selected filter.
-                          </td>
-                        </tr>
-                      ) : (
-                        filteredProjects.map((p) => (
-                          <tr key={p.id} className='hover:bg-muted/30 transition-colors'>
-                            <td className='p-2 font-medium text-foreground'>{p.name}</td>
-                            <td className='p-2'>
+                      filteredProjects.map((p) => (
+                        <tr key={p.id} className='hover:bg-muted/20 transition-colors'>
+                          <td className='p-2.5 font-medium text-foreground'>{p.name}</td>
+                          <td className='p-2.5'>
+                            <span
+                              className={`inline-flex items-center gap-1 rounded px-1.5 py-0.5 text-[11px] font-medium ${
+                                p.status === 'In Progress'
+                                  ? 'bg-sky-500/15 text-sky-600'
+                                  : p.status === 'Completed'
+                                  ? 'bg-emerald-500/15 text-emerald-600'
+                                  : 'bg-amber-500/15 text-amber-600'
+                              }`}
+                            >
                               <span
-                                className={`rounded px-1.5 py-0.5 font-medium ${
+                                className={`h-1.5 w-1.5 rounded-full ${
                                   p.status === 'In Progress'
-                                    ? 'bg-sky-500/15 text-sky-600'
+                                    ? 'bg-sky-500'
                                     : p.status === 'Completed'
-                                    ? 'bg-emerald-500/15 text-emerald-600'
-                                    : 'bg-amber-500/15 text-amber-600'
+                                    ? 'bg-emerald-500'
+                                    : 'bg-amber-500'
                                 }`}
-                              >
-                                {p.status}
-                              </span>
-                            </td>
-                            <td className='p-2 text-muted-foreground'>{p.startDate}</td>
-                            <td className='p-2 text-muted-foreground'>{p.dueDate}</td>
-                            <td className='p-2'>
-                              <span
-                                className={`rounded px-1.5 py-0.5 font-medium ${
-                                  p.priority === 'High'
-                                    ? 'bg-rose-500/15 text-rose-600'
-                                    : 'bg-amber-500/15 text-amber-600'
-                                }`}
-                              >
-                                {p.priority}
-                              </span>
-                            </td>
-                            <td className='p-2 text-right'>
-                              <Button
-                                variant='ghost'
-                                size='sm'
-                                className='h-6 px-2 text-xs text-orange-600 hover:text-orange-700 hover:bg-orange-500/10 cursor-pointer'
-                                onClick={() => setSelectedProjectForView(p)}
-                              >
-                                View
-                              </Button>
-                            </td>
-                          </tr>
-                        ))
-                      )
-                    ) : (
-                      filteredTasks.length === 0 ? (
-                        <tr>
-                          <td colSpan={6} className='p-4 text-center text-muted-foreground'>
-                            No tasks match the selected filter.
+                              />
+                              {p.status}
+                            </span>
+                          </td>
+                          <td className='p-2.5 text-muted-foreground font-mono'>{p.startDate}</td>
+                          <td className='p-2.5 text-muted-foreground font-mono'>{p.dueDate}</td>
+                          <td className='p-2.5'>
+                            <span
+                              className={`rounded px-1.5 py-0.5 text-[10px] font-semibold ${
+                                p.priority === 'High'
+                                  ? 'bg-rose-500/10 text-rose-600'
+                                  : 'bg-amber-500/10 text-amber-600'
+                              }`}
+                            >
+                              {p.priority}
+                            </span>
+                          </td>
+                          <td className='p-2.5 text-right'>
+                            <button
+                              type='button'
+                              onClick={() => setSelectedProjectForView(p)}
+                              className='text-xs font-semibold text-orange-600 hover:text-orange-700 cursor-pointer'
+                            >
+                              View
+                            </button>
                           </td>
                         </tr>
-                      ) : (
-                        filteredTasks.map((t) => (
-                          <tr key={t.id} className='hover:bg-muted/30 transition-colors'>
-                            <td className='p-2 font-medium text-foreground'>{t.title}</td>
-                            <td className='p-2 text-muted-foreground truncate max-w-[140px]'>{t.project}</td>
-                            <td className='p-2 text-muted-foreground'>{t.assignee}</td>
-                            <td className='p-2 text-muted-foreground'>{t.dueDate}</td>
-                            <td className='p-2'>
+                      ))
+                    ) : (
+                      filteredTasks.map((t) => (
+                        <tr key={t.id} className='hover:bg-muted/20 transition-colors'>
+                          <td className='p-2.5 font-medium text-foreground'>{t.title}</td>
+                          <td className='p-2.5 text-muted-foreground truncate max-w-[140px]'>{t.project}</td>
+                          <td className='p-2.5 text-muted-foreground'>{t.assignee}</td>
+                          <td className='p-2.5 text-muted-foreground font-mono'>{t.dueDate}</td>
+                          <td className='p-2.5'>
+                            <span
+                              className={`inline-flex items-center gap-1 rounded px-1.5 py-0.5 text-[11px] font-medium ${
+                                t.status === 'Done'
+                                  ? 'bg-emerald-500/15 text-emerald-600'
+                                  : t.status === 'In Progress'
+                                  ? 'bg-sky-500/15 text-sky-600'
+                                  : 'bg-slate-500/15 text-slate-600'
+                              }`}
+                            >
                               <span
-                                className={`rounded px-1.5 py-0.5 font-medium ${
-                                  t.status === 'Done'
-                                    ? 'bg-emerald-500/15 text-emerald-600'
-                                    : t.status === 'In Progress'
-                                    ? 'bg-sky-500/15 text-sky-600'
-                                    : 'bg-slate-500/15 text-slate-600'
+                                className={`h-1.5 w-1.5 rounded-full ${
+                                  t.status === 'Done' ? 'bg-emerald-500' : 'bg-sky-500'
                                 }`}
-                              >
-                                {t.status}
-                              </span>
-                            </td>
-                            <td className='p-2 text-right'>
-                              <Button
-                                variant='ghost'
-                                size='sm'
-                                className='h-6 px-2 text-xs text-orange-600 hover:text-orange-700 hover:bg-orange-500/10 cursor-pointer'
-                                onClick={() => setSelectedTaskForView(t)}
-                              >
-                                View
-                              </Button>
-                            </td>
-                          </tr>
-                        ))
-                      )
+                              />
+                              {t.status}
+                            </span>
+                          </td>
+                          <td className='p-2.5 text-right'>
+                            <button
+                              type='button'
+                              onClick={() => setSelectedTaskForView(t)}
+                              className='text-xs font-semibold text-orange-600 hover:text-orange-700 cursor-pointer'
+                            >
+                              View
+                            </button>
+                          </td>
+                        </tr>
+                      ))
                     )}
                   </tbody>
                 </table>
               </div>
             </CardContent>
           </Card>
+
+          {/* Right: Cloud Plan & Tier Card (Stripe-Grade) */}
+          <Card className='lg:col-span-4 border-border/60 shadow-xs flex flex-col justify-between'>
+            <CardHeader className='p-4 pb-2'>
+              <div className='flex items-center justify-between'>
+                <div className='flex items-center gap-2'>
+                  <Crown className='h-4 w-4 text-orange-600' />
+                  <CardTitle className='text-sm font-semibold'>Enterprise Cloud</CardTitle>
+                </div>
+                <Badge className='bg-emerald-500/15 text-emerald-600 border-0 font-semibold text-[10px]'>
+                  Active Tier
+                </Badge>
+              </div>
+              <p className='text-xs text-muted-foreground mt-0.5'>
+                Uncapped Commercial Infrastructure
+              </p>
+            </CardHeader>
+
+            <CardContent className='p-4 pt-1 space-y-2.5'>
+              <div className='divide-y divide-border/40 rounded-lg border border-border/40 text-xs overflow-hidden'>
+                <div className='flex justify-between p-2 bg-muted/20'>
+                  <span className='text-muted-foreground'>Daily Broadcast</span>
+                  <span className='font-semibold text-foreground font-mono'>100,000 / day</span>
+                </div>
+                <div className='flex justify-between p-2'>
+                  <span className='text-muted-foreground'>WABA Limit</span>
+                  <span className='font-medium text-emerald-600'>Unlimited Local</span>
+                </div>
+                <div className='flex justify-between p-2 bg-muted/20'>
+                  <span className='text-muted-foreground'>Chatbot / Flows</span>
+                  <span className='font-medium text-emerald-600'>Unlimited (Active)</span>
+                </div>
+                <div className='flex justify-between p-2'>
+                  <span className='text-muted-foreground'>Team Seats</span>
+                  <span className='font-semibold font-mono'>25 Agents</span>
+                </div>
+                <div className='flex justify-between p-2 bg-muted/20'>
+                  <span className='text-muted-foreground'>License Renewal</span>
+                  <span className='text-muted-foreground font-mono'>19 Jan 2027</span>
+                </div>
+              </div>
+
+              <Button
+                className='w-full mt-2 bg-orange-600 hover:bg-orange-700 text-white font-medium text-xs h-8 cursor-pointer'
+                asChild
+              >
+                <a href='/settings?tab=billing'>Manage Subscription</a>
+              </Button>
+            </CardContent>
+          </Card>
         </div>
 
         {/* ========================================================================= */}
-        {/* ROW 2: Messages, Message Analytics, Your Plan                             */}
+        {/* ROW 3: TRAFFIC ANALYTICS & LEAD PIPELINE                                  */}
         {/* ========================================================================= */}
-        <div className='grid grid-cols-1 gap-4 lg:grid-cols-12'>
-          {/* Card 1: Messages & Response Analytics */}
-          <Card className='lg:col-span-4 border-border/60 shadow-xs'>
-            <CardHeader className='pb-2'>
-              <div className='flex items-center justify-between'>
-                <CardTitle className='text-base font-semibold'>Messages</CardTitle>
-                <Badge className='bg-emerald-500/15 text-emerald-600 border-0 font-medium'>
-                  +18.4% this month
-                </Badge>
-              </div>
-              <div className='grid grid-cols-2 gap-2 mt-3 p-3 rounded-lg bg-muted/40'>
-                <div>
-                  <div className='text-xs text-muted-foreground flex items-center justify-between'>
-                    <span>Sent Messages</span>
-                    <span className='text-[10px] text-rose-500 font-semibold'>-5%</span>
-                  </div>
-                  <div className='text-xl font-bold text-foreground'>
-                    {sentCount.toLocaleString()}
-                  </div>
-                </div>
-                <div>
-                  <div className='text-xs text-muted-foreground flex items-center justify-between'>
-                    <span>Received Messages</span>
-                    <span className='text-[10px] text-emerald-500 font-semibold'>+5%</span>
-                  </div>
-                  <div className='text-xl font-bold text-foreground'>
-                    {receivedCount.toLocaleString()}
-                  </div>
-                </div>
-              </div>
-            </CardHeader>
-            <CardContent className='space-y-3 pt-2'>
-              <div className='text-xs font-semibold text-muted-foreground tracking-wider uppercase flex items-center justify-between'>
-                <span>Response Analytics</span>
-                <span className='text-[10px] text-emerald-600 font-medium'>Avg SLA: 2.1m</span>
-              </div>
-
-              {/* Progress: Whatsapp */}
-              <div
-                className='space-y-1 cursor-pointer'
-                onClick={() => toast.info('WhatsApp traffic handles 92.4% of total customer conversations')}
-              >
-                <div className='flex justify-between text-xs font-medium'>
-                  <span className='flex items-center gap-1.5'>
-                    <span className='h-2 w-2 rounded-full bg-emerald-500' /> Whatsapp
-                  </span>
-                  <span>92.4%</span>
-                </div>
-                <div className='h-2 w-full rounded-full bg-muted overflow-hidden'>
-                  <div className='h-full bg-emerald-500 rounded-full transition-all duration-500' style={{ width: '92.4%' }} />
-                </div>
-              </div>
-
-              {/* Progress: LinkedIn */}
-              <div
-                className='space-y-1 cursor-pointer'
-                onClick={() => toast.info('LinkedIn Lead Gen Ads integration is active')}
-              >
-                <div className='flex justify-between text-xs font-medium'>
-                  <span className='flex items-center gap-1.5'>
-                    <span className='h-2 w-2 rounded-full bg-blue-600' /> LinkedIn
-                  </span>
-                  <span>4.2%</span>
-                </div>
-                <div className='h-2 w-full rounded-full bg-muted overflow-hidden'>
-                  <div className='h-full bg-blue-600 rounded-full transition-all duration-500' style={{ width: '4.2%' }} />
-                </div>
-              </div>
-
-              {/* Progress: Instagram */}
-              <div
-                className='space-y-1 cursor-pointer'
-                onClick={() => toast.info('Instagram DM Auto-Responder connected')}
-              >
-                <div className='flex justify-between text-xs font-medium'>
-                  <span className='flex items-center gap-1.5'>
-                    <span className='h-2 w-2 rounded-full bg-pink-500' /> Instagram
-                  </span>
-                  <span>2.1%</span>
-                </div>
-                <div className='h-2 w-full rounded-full bg-muted overflow-hidden'>
-                  <div className='h-full bg-pink-500 rounded-full transition-all duration-500' style={{ width: '2.1%' }} />
-                </div>
-              </div>
-
-              {/* Progress: Twitter */}
-              <div
-                className='space-y-1 cursor-pointer'
-                onClick={() => toast.info('Twitter / X Inbound Support webhook active')}
-              >
-                <div className='flex justify-between text-xs font-medium'>
-                  <span className='flex items-center gap-1.5'>
-                    <span className='h-2 w-2 rounded-full bg-sky-400' /> Twitter / X
-                  </span>
-                  <span>1.3%</span>
-                </div>
-                <div className='h-2 w-full rounded-full bg-muted overflow-hidden'>
-                  <div className='h-full bg-sky-400 rounded-full transition-all duration-500' style={{ width: '1.3%' }} />
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-
-          {/* Card 2: Message Analytics Chart */}
-          <Card className='lg:col-span-5 border-border/60 shadow-xs'>
-            <CardHeader className='flex flex-row items-center justify-between pb-2'>
+        <div className='grid grid-cols-1 lg:grid-cols-12 gap-4'>
+          {/* Chart 1: Message Volume Trends */}
+          <Card className='lg:col-span-7 border-border/60 shadow-xs'>
+            <CardHeader className='p-4 pb-2 flex flex-row items-center justify-between'>
               <div>
-                <CardTitle className='text-base font-semibold'>Message Analytics</CardTitle>
-                <CardDescription className='text-xs'>
-                  Monthly breakdown of sent vs. received traffic
-                </CardDescription>
+                <CardTitle className='text-sm font-semibold'>Message Analytics</CardTitle>
+                <p className='text-xs text-muted-foreground'>
+                  Traffic breakdown: Sent vs. Received
+                </p>
               </div>
+
               <div className='flex items-center gap-2'>
                 <select
                   value={timeRange}
@@ -1063,7 +930,7 @@ export function Dashboard() {
                     setTimeRange(val)
                     toast.info(`Switched analytics view to ${e.target.options[e.target.selectedIndex].text}`)
                   }}
-                  className='h-8 rounded-md border border-border bg-background px-2 text-xs font-medium cursor-pointer'
+                  className='h-7 rounded-md border border-border bg-background px-2 text-xs font-medium cursor-pointer'
                 >
                   <option value='year'>Current Year</option>
                   <option value='30days'>Past 30 Days</option>
@@ -1071,11 +938,12 @@ export function Dashboard() {
                 </select>
               </div>
             </CardHeader>
-            <CardContent className='pt-2'>
-              <div className='h-[230px] w-full'>
+
+            <CardContent className='p-4 pt-1'>
+              <div className='h-[200px] w-full'>
                 <ResponsiveContainer width='100%' height='100%'>
                   <BarChart data={messageDataMap[timeRange]} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
-                    <CartesianGrid strokeDasharray='3 3' stroke='hsl(var(--border))' opacity={0.4} />
+                    <CartesianGrid strokeDasharray='3 3' stroke='hsl(var(--border))' opacity={0.3} />
                     <XAxis dataKey='month' tickLine={false} tick={{ fontSize: 11 }} />
                     <YAxis tickLine={false} tick={{ fontSize: 11 }} />
                     <Tooltip
@@ -1083,367 +951,137 @@ export function Dashboard() {
                         backgroundColor: 'hsl(var(--card))',
                         borderColor: 'hsl(var(--border))',
                         borderRadius: '8px',
-                        fontSize: '12px',
+                        fontSize: '11px',
                       }}
                     />
-                    <Legend wrapperStyle={{ fontSize: '11px', paddingTop: '8px' }} />
-                    <Bar dataKey='sent' name='Sent' fill='#ea580c' radius={[4, 4, 0, 0]} />
-                    <Bar dataKey='received' name='Received' fill='#94a3b8' radius={[4, 4, 0, 0]} />
+                    <Legend wrapperStyle={{ fontSize: '11px', paddingTop: '4px' }} />
+                    <Bar dataKey='sent' name='Sent' fill='#ea580c' radius={[3, 3, 0, 0]} />
+                    <Bar dataKey='received' name='Received' fill='#94a3b8' radius={[3, 3, 0, 0]} />
                   </BarChart>
                 </ResponsiveContainer>
               </div>
             </CardContent>
           </Card>
 
-          {/* Card 3: Your Plan */}
-          <Card className='lg:col-span-3 border-border/60 shadow-xs flex flex-col justify-between'>
-            <CardHeader className='pb-2'>
+          {/* Chart 2: Lead Ingestion & Distribution */}
+          <Card className='lg:col-span-5 border-border/60 shadow-xs flex flex-col justify-between'>
+            <CardHeader className='p-4 pb-2'>
               <div className='flex items-center justify-between'>
-                <CardTitle className='text-base font-semibold'>Your Plan</CardTitle>
-                <Badge className='bg-orange-500/15 text-orange-600 border-0 font-semibold'>
-                  Enterprise Active
-                </Badge>
-              </div>
-              <CardDescription className='text-xs'>
-                Local Uncapped Production Tier
-              </CardDescription>
-            </CardHeader>
-            <CardContent className='space-y-2 pt-1'>
-              <div className='divide-y divide-border/40 rounded-lg border border-border/40 text-xs overflow-hidden'>
-                <div className='flex justify-between p-2.5 bg-muted/20'>
-                  <span className='text-muted-foreground'>Plan Tier</span>
-                  <strong className='font-semibold'>Custom Enterprise</strong>
-                </div>
-                <div className='flex justify-between p-2.5'>
-                  <span className='text-muted-foreground'>WABA Limit</span>
-                  <span className='font-medium text-emerald-600'>Unlimited Local</span>
-                </div>
-                <div className='flex justify-between p-2.5 bg-muted/20'>
-                  <span className='text-muted-foreground'>Daily Broadcast</span>
-                  <strong className='font-semibold'>100,000 / day</strong>
-                </div>
-                <div className='flex justify-between p-2.5'>
-                  <span className='text-muted-foreground'>Chatbot / Flows</span>
-                  <span className='font-medium text-emerald-600'>Unlimited (Active)</span>
-                </div>
-                <div className='flex justify-between p-2.5 bg-muted/20'>
-                  <span className='text-muted-foreground'>Team Seats</span>
-                  <strong className='font-semibold'>25 Agents</strong>
-                </div>
-                <div className='flex justify-between p-2.5'>
-                  <span className='text-muted-foreground'>License Renewal</span>
-                  <span className='text-muted-foreground'>Oct 2027</span>
+                <CardTitle className='text-sm font-semibold'>Capture Breakdown</CardTitle>
+                <div className='flex items-center gap-1.5'>
+                  <Button
+                    size='sm'
+                    variant='outline'
+                    className='h-7 text-xs px-2 cursor-pointer'
+                    onClick={handleExportCsv}
+                  >
+                    <Download className='h-3 w-3 mr-1' /> Export
+                  </Button>
+                  <Button
+                    size='sm'
+                    className='h-7 text-xs px-2.5 bg-orange-600 hover:bg-orange-700 text-white cursor-pointer'
+                    onClick={() => setIsAddContactModalOpen(true)}
+                  >
+                    + Add Lead
+                  </Button>
                 </div>
               </div>
-
-              <Button
-                className='w-full mt-3 bg-orange-600 hover:bg-orange-700 text-white font-medium text-xs h-9 cursor-pointer'
-                asChild
-              >
-                <a href='/settings?tab=billing'>View Details & Configuration</a>
-              </Button>
-            </CardContent>
-          </Card>
-        </div>
-
-        {/* ========================================================================= */}
-        {/* ROW 3: Contact Source, Lead Analytics, Leads Counter                      */}
-        {/* ========================================================================= */}
-        <div className='grid grid-cols-1 gap-4 lg:grid-cols-12'>
-          {/* Card 1: Contact Source Distribution */}
-          <Card className='lg:col-span-4 border-border/60 shadow-xs'>
-            <CardHeader className='pb-2'>
-              <CardTitle className='text-base font-semibold'>Contact Source Distribution</CardTitle>
-              <CardDescription className='text-xs'>
-                Inbound capture breakdown by channel
-              </CardDescription>
+              <p className='text-xs text-muted-foreground'>Inbound capture channels</p>
             </CardHeader>
-            <CardContent className='space-y-3 pt-2'>
+
+            <CardContent className='p-4 pt-1 space-y-2.5'>
               {/* WhatsApp Organic */}
               <div
-                className='space-y-1.5 cursor-pointer hover:opacity-90'
+                className='space-y-1 cursor-pointer hover:opacity-90'
                 onClick={() => {
                   window.location.href = '/users?source=whatsapp'
                 }}
               >
-                <div className='flex justify-between text-xs font-medium'>
-                  <span className='text-foreground font-semibold'>WhatsApp Organic (QR & Click-to-Chat)</span>
+                <div className='flex justify-between text-xs'>
+                  <span className='font-medium text-foreground flex items-center gap-1.5'>
+                    <span className='h-2 w-2 rounded-full bg-emerald-500' /> WhatsApp Organic
+                  </span>
                   <span className='text-emerald-600 font-bold'>45% (851)</span>
                 </div>
-                <div className='h-2.5 w-full rounded-full bg-muted overflow-hidden'>
+                <div className='h-1.5 w-full rounded-full bg-muted overflow-hidden'>
                   <div className='h-full bg-emerald-500 rounded-full' style={{ width: '45%' }} />
                 </div>
               </div>
 
-              {/* IndiaMart Lead Sync */}
+              {/* IndiaMart Push */}
               <div
-                className='space-y-1.5 cursor-pointer hover:opacity-90'
+                className='space-y-1 cursor-pointer hover:opacity-90'
                 onClick={() => {
                   window.location.href = '/users?source=indiamart'
                 }}
               >
-                <div className='flex justify-between text-xs font-medium'>
-                  <span className='text-foreground font-semibold'>IndiaMart Lead Push API</span>
+                <div className='flex justify-between text-xs'>
+                  <span className='font-medium text-foreground flex items-center gap-1.5'>
+                    <span className='h-2 w-2 rounded-full bg-orange-500' /> IndiaMart Push API
+                  </span>
                   <span className='text-orange-600 font-bold'>30% (567)</span>
                 </div>
-                <div className='h-2.5 w-full rounded-full bg-muted overflow-hidden'>
+                <div className='h-1.5 w-full rounded-full bg-muted overflow-hidden'>
                   <div className='h-full bg-orange-500 rounded-full' style={{ width: '30%' }} />
                 </div>
               </div>
 
-              {/* Facebook Lead Ads */}
+              {/* Facebook Instant */}
               <div
-                className='space-y-1.5 cursor-pointer hover:opacity-90'
+                className='space-y-1 cursor-pointer hover:opacity-90'
                 onClick={() => {
                   window.location.href = '/users?source=facebook'
                 }}
               >
-                <div className='flex justify-between text-xs font-medium'>
-                  <span className='text-foreground font-semibold'>Facebook Instant Forms</span>
+                <div className='flex justify-between text-xs'>
+                  <span className='font-medium text-foreground flex items-center gap-1.5'>
+                    <span className='h-2 w-2 rounded-full bg-blue-500' /> Facebook Forms
+                  </span>
                   <span className='text-blue-600 font-bold'>15% (284)</span>
                 </div>
-                <div className='h-2.5 w-full rounded-full bg-muted overflow-hidden'>
-                  <div className='h-full bg-blue-600 rounded-full' style={{ width: '15%' }} />
+                <div className='h-1.5 w-full rounded-full bg-muted overflow-hidden'>
+                  <div className='h-full bg-blue-500 rounded-full' style={{ width: '15%' }} />
                 </div>
               </div>
 
-              {/* Google Sheets / CSV Import */}
+              {/* Google Sheets */}
               <div
-                className='space-y-1.5 cursor-pointer hover:opacity-90'
+                className='space-y-1 cursor-pointer hover:opacity-90'
                 onClick={() => {
                   window.location.href = '/users?source=manual'
                 }}
               >
-                <div className='flex justify-between text-xs font-medium'>
-                  <span className='text-foreground font-semibold'>Google Sheets & CSV Import</span>
+                <div className='flex justify-between text-xs'>
+                  <span className='font-medium text-foreground flex items-center gap-1.5'>
+                    <span className='h-2 w-2 rounded-full bg-purple-500' /> CSV & Google Sheets
+                  </span>
                   <span className='text-purple-600 font-bold'>10% (190)</span>
                 </div>
-                <div className='h-2.5 w-full rounded-full bg-muted overflow-hidden'>
+                <div className='h-1.5 w-full rounded-full bg-muted overflow-hidden'>
                   <div className='h-full bg-purple-500 rounded-full' style={{ width: '10%' }} />
                 </div>
               </div>
             </CardContent>
           </Card>
-
-          {/* Card 2: Lead Analytics Spline Chart */}
-          <Card className='lg:col-span-5 border-border/60 shadow-xs'>
-            <CardHeader className='flex flex-row items-center justify-between pb-2'>
-              <div>
-                <CardTitle className='text-base font-semibold'>Lead Analytics</CardTitle>
-                <CardDescription className='text-xs'>
-                  Monthly trend of total leads vs. assigned vs. pending
-                </CardDescription>
-              </div>
-              <div className='flex items-center gap-3 text-xs'>
-                <span className='flex items-center gap-1 text-orange-600 font-medium'>
-                  <span className='h-2 w-2 rounded-full bg-orange-500' /> Leads
-                </span>
-                <span className='flex items-center gap-1 text-muted-foreground font-medium'>
-                  <span className='h-2 w-2 rounded-full bg-slate-400' /> Pending
-                </span>
-                <span className='flex items-center gap-1 text-emerald-600 font-medium'>
-                  <span className='h-2 w-2 rounded-full bg-emerald-500' /> Assigned
-                </span>
-              </div>
-            </CardHeader>
-            <CardContent className='pt-2'>
-              <div className='h-[200px] w-full'>
-                <ResponsiveContainer width='100%' height='100%'>
-                  <AreaChart data={leadAnalyticsMap[timeRange]} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
-                    <defs>
-                      <linearGradient id='colorLeads' x1='0' y1='0' x2='0' y2='1'>
-                        <stop offset='5%' stopColor='#ea580c' stopOpacity={0.3} />
-                        <stop offset='95%' stopColor='#ea580c' stopOpacity={0} />
-                      </linearGradient>
-                      <linearGradient id='colorAssigned' x1='0' y1='0' x2='0' y2='1'>
-                        <stop offset='5%' stopColor='#10b981' stopOpacity={0.3} />
-                        <stop offset='95%' stopColor='#10b981' stopOpacity={0} />
-                      </linearGradient>
-                    </defs>
-                    <CartesianGrid strokeDasharray='3 3' stroke='hsl(var(--border))' opacity={0.4} />
-                    <XAxis dataKey='month' tickLine={false} tick={{ fontSize: 11 }} />
-                    <YAxis tickLine={false} tick={{ fontSize: 11 }} />
-                    <Tooltip
-                      contentStyle={{
-                        backgroundColor: 'hsl(var(--card))',
-                        borderColor: 'hsl(var(--border))',
-                        borderRadius: '8px',
-                        fontSize: '12px',
-                      }}
-                    />
-                    <Area type='monotone' dataKey='leads' stroke='#ea580c' fillOpacity={1} fill='url(#colorLeads)' />
-                    <Area type='monotone' dataKey='assigned' stroke='#10b981' fillOpacity={1} fill='url(#colorAssigned)' />
-                  </AreaChart>
-                </ResponsiveContainer>
-              </div>
-            </CardContent>
-          </Card>
-
-          {/* Card 3: Leads Counter Card */}
-          <Card className='lg:col-span-3 border-border/60 shadow-xs flex flex-col justify-between'>
-            <CardHeader className='pb-2'>
-              <div className='flex items-center justify-between'>
-                <CardTitle className='text-base font-semibold'>Total Leads</CardTitle>
-                <div className='flex h-8 w-8 items-center justify-center rounded-lg bg-orange-500/10 text-orange-600'>
-                  <Zap className='h-4 w-4' />
-                </div>
-              </div>
-              <div className='text-3xl font-extrabold mt-1 text-foreground'>
-                {totalLeadsCount.toLocaleString()}
-              </div>
-              <p className='text-xs text-emerald-600 font-medium'>
-                +142 today via IndiaMart & FB Ads
-              </p>
-            </CardHeader>
-            <CardContent className='space-y-3 pt-1'>
-              <div className='grid grid-cols-2 gap-2 text-xs'>
-                <div className='p-2 rounded-lg bg-emerald-500/10 border border-emerald-500/20'>
-                  <div className='text-muted-foreground'>Assigned</div>
-                  <div className='text-base font-bold text-emerald-600'>
-                    {assignedLeadsCount.toLocaleString()}
-                  </div>
-                  <div className='text-[10px] text-muted-foreground'>75% processed</div>
-                </div>
-                <div className='p-2 rounded-lg bg-amber-500/10 border border-amber-500/20'>
-                  <div className='text-muted-foreground'>Pending</div>
-                  <div className='text-base font-bold text-amber-600'>
-                    {pendingLeadsCount.toLocaleString()}
-                  </div>
-                  <div className='text-[10px] text-muted-foreground'>Auto-routing active</div>
-                </div>
-              </div>
-              <div className='flex gap-2 pt-1'>
-                <Button
-                  size='sm'
-                  className='w-full text-xs bg-orange-600 hover:bg-orange-700 text-white cursor-pointer'
-                  onClick={() => setIsAddContactModalOpen(true)}
-                >
-                  + Add Contact
-                </Button>
-                <Button
-                  size='sm'
-                  variant='outline'
-                  className='w-full text-xs cursor-pointer'
-                  onClick={handleExportCsv}
-                >
-                  <Download className='h-3 w-3 me-1' /> Export CSV
-                </Button>
-              </div>
-            </CardContent>
-          </Card>
         </div>
 
         {/* ========================================================================= */}
-        {/* ROW 4: Member Statistics & Active Integrations                            */}
+        {/* ROW 4: CONNECTED INTEGRATIONS & AGENT PERFORMANCE                         */}
         {/* ========================================================================= */}
-        <div className='grid grid-cols-1 gap-4 lg:grid-cols-12'>
-          {/* Card 1: Member Statistics & Latest Leads Assigned */}
-          <Card className='lg:col-span-6 border-border/60 shadow-xs'>
-            <CardHeader className='flex flex-row items-center justify-between pb-2'>
+        <div className='grid grid-cols-1 lg:grid-cols-12 gap-4'>
+          {/* Integrations Grid */}
+          <Card className='lg:col-span-5 border-border/60 shadow-xs'>
+            <CardHeader className='p-4 pb-2 flex flex-row items-center justify-between'>
               <div>
-                <CardTitle className='text-base font-semibold'>Member Statistics</CardTitle>
-                <CardDescription className='text-xs'>
-                  CRM Team agent distribution & workload
-                </CardDescription>
+                <CardTitle className='text-sm font-semibold'>Connected Integrations</CardTitle>
+                <p className='text-xs text-muted-foreground'>6 active webhook listeners</p>
               </div>
-              <div className='flex items-center gap-1.5 text-xs'>
-                <button
-                  type='button'
-                  onClick={() => setMemberFilter('active')}
-                  className={`rounded-full px-2 py-0.5 font-semibold cursor-pointer transition-colors ${
-                    memberFilter === 'active'
-                      ? 'bg-emerald-500/15 text-emerald-600 border border-emerald-500/30'
-                      : 'bg-muted/60 text-muted-foreground'
-                  }`}
-                >
-                  Active ({teamMembers.length})
-                </button>
-                <button
-                  type='button'
-                  onClick={() => setMemberFilter('suspended')}
-                  className={`rounded-full px-2 py-0.5 cursor-pointer transition-colors ${
-                    memberFilter === 'suspended'
-                      ? 'bg-amber-500/15 text-amber-600 border border-amber-500/30'
-                      : 'bg-muted/60 text-muted-foreground'
-                  }`}
-                >
-                  Suspended (0)
-                </button>
-                <button
-                  type='button'
-                  onClick={() => setMemberFilter('blocked')}
-                  className={`rounded-full px-2 py-0.5 cursor-pointer transition-colors ${
-                    memberFilter === 'blocked'
-                      ? 'bg-rose-500/15 text-rose-600 border border-rose-500/30'
-                      : 'bg-muted/60 text-muted-foreground'
-                  }`}
-                >
-                  Blocked (0)
-                </button>
-              </div>
-            </CardHeader>
-            <CardContent className='pt-1'>
-              <div className='text-xs font-semibold text-muted-foreground mb-2 flex items-center justify-between'>
-                <span>Latest Leads Assigned</span>
-                <a href='/settings?tab=team' className='text-[10px] text-orange-600 hover:underline'>
-                  Manage Team
-                </a>
-              </div>
-              <div className='overflow-x-auto rounded-md border border-border/40'>
-                <table className='w-full text-xs'>
-                  <thead className='bg-muted/40 font-semibold text-muted-foreground'>
-                    <tr className='text-left border-b border-border/40'>
-                      <th className='p-2 font-medium'>MEMBER</th>
-                      <th className='p-2 font-medium'>LEADS</th>
-                      <th className='p-2 font-medium'>STATUS</th>
-                      <th className='p-2 font-medium text-right'>AVG RESPONSE</th>
-                    </tr>
-                  </thead>
-                  <tbody className='divide-y divide-border/30'>
-                    {filteredTeamMembers.map((m) => (
-                      <tr
-                        key={m.id}
-                        className='hover:bg-muted/30 transition-colors cursor-pointer'
-                        onClick={() => {
-                          window.location.href = `/chats?agent=${encodeURIComponent(m.name)}`
-                        }}
-                      >
-                        <td className='p-2 font-medium flex items-center gap-2'>
-                          <div className='h-6 w-6 rounded-full bg-orange-500/15 text-orange-600 flex items-center justify-center font-bold text-[10px]'>
-                            {m.avatar}
-                          </div>
-                          {m.name}
-                        </td>
-                        <td className='p-2 font-semibold'>{m.leads} leads</td>
-                        <td className='p-2'>
-                          <span className='inline-flex items-center gap-1 text-emerald-600 font-medium'>
-                            <span className='h-1.5 w-1.5 rounded-full bg-emerald-500' /> {m.status}
-                          </span>
-                        </td>
-                        <td className='p-2 text-right text-muted-foreground'>{m.avgResponse}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            </CardContent>
-          </Card>
-
-          {/* Card 2: Active Integrations Grid */}
-          <Card className='lg:col-span-6 border-border/60 shadow-xs'>
-            <CardHeader className='flex flex-row items-center justify-between pb-2'>
-              <div>
-                <CardTitle className='text-base font-semibold'>Integrations</CardTitle>
-                <CardDescription className='text-xs'>
-                  Connected engines and webhook connectors
-                </CardDescription>
-              </div>
-              <Badge className='bg-emerald-500/15 text-emerald-600 border-0 font-medium'>
-                Active {initialIntegrations.length} / 27 Total
+              <Badge className='bg-emerald-500/15 text-emerald-600 border-0 font-medium text-[10px]'>
+                Active 6 / 27
               </Badge>
             </CardHeader>
-            <CardContent className='pt-1'>
-              <div className='grid grid-cols-2 sm:grid-cols-3 gap-2.5'>
+            <CardContent className='p-4 pt-1'>
+              <div className='grid grid-cols-2 sm:grid-cols-3 gap-2'>
                 {initialIntegrations.map((intg) => (
                   <div
                     key={intg.id}
@@ -1451,89 +1089,83 @@ export function Dashboard() {
                       setSelectedIntegration(intg)
                       setIntegrationTestResult(null)
                     }}
-                    className='p-2.5 rounded-lg border border-border/50 bg-card hover:border-orange-500/50 hover:bg-orange-500/5 transition-all cursor-pointer shadow-2xs'
+                    className='p-2 rounded-lg border border-border/50 bg-card hover:border-orange-500/40 hover:bg-orange-500/5 transition-all cursor-pointer shadow-2xs'
                   >
                     <div className='flex items-center justify-between'>
-                      <div className={`h-7 w-7 rounded ${intg.avatarColor} flex items-center justify-center font-bold text-xs`}>
+                      <div className={`h-6 w-6 rounded ${intg.avatarColor} flex items-center justify-center font-bold text-[10px]`}>
                         {intg.badgeText}
                       </div>
-                      <span className='h-2 w-2 rounded-full bg-emerald-500 animate-pulse' />
+                      <span className='h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse' />
                     </div>
-                    <div className='mt-2 font-semibold text-xs truncate'>{intg.name}</div>
-                    <div className='text-[10px] text-muted-foreground'>{intg.provider}</div>
+                    <div className='mt-1.5 font-semibold text-[11px] truncate'>{intg.name}</div>
+                    <div className='text-[10px] text-muted-foreground truncate'>{intg.provider}</div>
                   </div>
                 ))}
               </div>
             </CardContent>
           </Card>
-        </div>
 
-        {/* ========================================================================= */}
-        {/* ROW 5: Agent Performance Report                                           */}
-        {/* ========================================================================= */}
-        <Card className='border-border/60 shadow-xs'>
-          <CardHeader className='flex flex-row items-center justify-between pb-2'>
-            <div>
-              <CardTitle className='text-base font-semibold'>Agent Performance Report</CardTitle>
-              <CardDescription className='text-xs'>
-                Multi-agent resolution efficiency, response time, and customer feedback
-              </CardDescription>
-            </div>
-            <Button variant='outline' size='sm' className='h-8 text-xs cursor-pointer' asChild>
-              <a href='/settings?tab=team'>View All Agents</a>
-            </Button>
-          </CardHeader>
-          <CardContent className='pt-1'>
-            <div className='overflow-x-auto rounded-md border border-border/40'>
-              <table className='w-full text-xs'>
-                <thead className='bg-muted/40 font-semibold text-muted-foreground'>
-                  <tr className='text-left border-b border-border/40'>
-                    <th className='p-2.5 font-medium'>AGENT NAME</th>
-                    <th className='p-2.5 font-medium'>ROLE</th>
-                    <th className='p-2.5 font-medium'>CONVERSATIONS</th>
-                    <th className='p-2.5 font-medium'>FIRST RESPONSE</th>
-                    <th className='p-2.5 font-medium'>RESOLUTION RATE</th>
-                    <th className='p-2.5 font-medium'>CSAT SCORE</th>
-                    <th className='p-2.5 font-medium text-right'>STATUS</th>
-                  </tr>
-                </thead>
-                <tbody className='divide-y divide-border/30'>
-                  {initialAgentPerformance.map((ag) => (
-                    <tr
-                      key={ag.id}
-                      className='hover:bg-muted/30 transition-colors cursor-pointer'
-                      onClick={() => setSelectedAgentForModal(ag)}
-                    >
-                      <td className='p-2.5 font-medium flex items-center gap-2'>
-                        <div className='h-6 w-6 rounded-full bg-orange-500/15 text-orange-600 flex items-center justify-center font-bold text-[10px]'>
-                          {ag.avatar}
-                        </div>
-                        {ag.name}
-                      </td>
-                      <td className='p-2.5 text-muted-foreground'>{ag.role}</td>
-                      <td className='p-2.5 font-semibold'>{ag.conversations} chats</td>
-                      <td className='p-2.5 text-muted-foreground'>{ag.firstResponse}</td>
-                      <td className='p-2.5 text-emerald-600 font-semibold'>{ag.resolutionRate}</td>
-                      <td className='p-2.5 font-semibold'>{ag.csatScore}</td>
-                      <td className='p-2.5 text-right'>
-                        <Badge className='bg-emerald-500/10 text-emerald-600 border-0'>
-                          {ag.status}
-                        </Badge>
-                      </td>
+          {/* Agent Performance Report Table */}
+          <Card className='lg:col-span-7 border-border/60 shadow-xs'>
+            <CardHeader className='p-4 pb-2 flex flex-row items-center justify-between'>
+              <div>
+                <CardTitle className='text-sm font-semibold'>Team SLA & CSAT</CardTitle>
+                <p className='text-xs text-muted-foreground'>Resolution efficiency & response times</p>
+              </div>
+              <Button variant='outline' size='sm' className='h-7 text-xs px-2 cursor-pointer' asChild>
+                <a href='/settings?tab=team'>Manage Team</a>
+              </Button>
+            </CardHeader>
+            <CardContent className='p-4 pt-1'>
+              <div className='overflow-x-auto rounded-lg border border-border/40'>
+                <table className='w-full text-xs'>
+                  <thead className='bg-muted/40 font-semibold text-muted-foreground'>
+                    <tr className='text-left border-b border-border/40'>
+                      <th className='p-2 font-medium'>AGENT</th>
+                      <th className='p-2 font-medium'>CHATS</th>
+                      <th className='p-2 font-medium'>RESPONSE</th>
+                      <th className='p-2 font-medium'>RESOLUTION</th>
+                      <th className='p-2 font-medium'>CSAT</th>
+                      <th className='p-2 font-medium text-right'>STATUS</th>
                     </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </CardContent>
-        </Card>
+                  </thead>
+                  <tbody className='divide-y divide-border/30'>
+                    {initialAgentPerformance.map((ag) => (
+                      <tr
+                        key={ag.id}
+                        className='hover:bg-muted/20 transition-colors cursor-pointer'
+                        onClick={() => setSelectedAgentForModal(ag)}
+                      >
+                        <td className='p-2 font-medium flex items-center gap-1.5'>
+                          <div className='h-5 w-5 rounded-full bg-orange-500/15 text-orange-600 flex items-center justify-center font-bold text-[9px]'>
+                            {ag.avatar}
+                          </div>
+                          <span>{ag.name}</span>
+                        </td>
+                        <td className='p-2 font-semibold font-mono'>{ag.conversations}</td>
+                        <td className='p-2 text-muted-foreground font-mono'>{ag.firstResponse}</td>
+                        <td className='p-2 text-emerald-600 font-semibold font-mono'>{ag.resolutionRate}</td>
+                        <td className='p-2 font-semibold'>{ag.csatScore}</td>
+                        <td className='p-2 text-right'>
+                          <Badge className='bg-emerald-500/10 text-emerald-600 border-0 text-[10px]'>
+                            {ag.status}
+                          </Badge>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
       </Main>
 
       {/* ========================================================================= */}
       {/* INTERACTIVE MODALS                                                        */}
       {/* ========================================================================= */}
 
-      {/* Modal 1: WhatsApp Business API (WABA) Health Modal */}
+      {/* Modal 1: WABA Connectivity Status */}
       <Dialog open={isWabaModalOpen} onOpenChange={setIsWabaModalOpen}>
         <DialogContent className='max-w-md'>
           <DialogHeader>
@@ -1601,13 +1233,13 @@ export function Dashboard() {
               className='text-xs bg-orange-600 hover:bg-orange-700 text-white cursor-pointer'
               asChild
             >
-              <a href='/settings?tab=whatsapp'>Manage in Settings</a>
+              <a href='/settings?tab=waba'>Manage in Settings</a>
             </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
 
-      {/* Modal 2: Create Broadcast Modal */}
+      {/* Modal 2: Create Broadcast Dialog */}
       <Dialog open={isBroadcastModalOpen} onOpenChange={setIsBroadcastModalOpen}>
         <DialogContent className='max-w-lg'>
           <DialogHeader>
