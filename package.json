@@ -1,0 +1,26 @@
+{
+  "name": "whatsapi-crm",
+  "version": "1.0.0",
+  "description": "WhatsAPI CRM - Enterprise Omnichannel WhatsApp, AI CRM & Visual Flow Platform",
+  "private": true,
+  "scripts": {
+    "dev:gateway": "cd apps/api-gateway && npm run dev",
+    "dev:web": "cd apps/web && npm run dev",
+    "build:gateway": "cd apps/api-gateway && npm run build",
+    "build:web": "cd apps/web && npm run build",
+    "build": "npm run build:gateway && npm run build:web",
+    "start:gateway": "cd apps/api-gateway && npm run start",
+    "preview:web": "cd apps/web && npm run preview -- --port 3000 --host",
+    "start": "npm run start:gateway"
+  },
+  "keywords": [
+    "whatsapp-crm",
+    "omnichannel",
+    "ai-assistant",
+    "chatbot",
+    "flow-automation",
+    "bizautomation"
+  ],
+  "author": "Antigravity Engineering Core",
+  "license": "MIT"
+}

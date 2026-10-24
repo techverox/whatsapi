@@ -1,0 +1,9 @@
+node_modules
+.git
+.github
+rea/
+*.log
+.env.local
+coverage/
+tmp/
+temp/

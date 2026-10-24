@@ -1,0 +1,85 @@
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+model Contact {
+  id               String         @id @default(cuid())
+  name             String
+  phone            String         @unique
+  email            String?
+  source           String         @default("whatsapp")
+  optIn            Boolean        @default(true)
+  tags             Tag[]
+  assignedTo       User?          @relation(fields: [assignedToId], references: [id])
+  assignedToId     String?
+  assignedAt       DateTime?
+  customAttributes Json?
+  conversations    Conversation[]
+  createdAt        DateTime       @default(now())
+  updatedAt        DateTime       @updatedAt
+}
+
+model Conversation {
+  id            String    @id @default(cuid())
+  contact       Contact   @relation(fields: [contactId], references: [id], onDelete: Cascade)
+  contactId     String
+  channel       String    @default("whatsapp")
+  status        String    @default("open") // open, pending, resolved, snoozed
+  messages      Message[]
+  lastMessageAt DateTime  @default(now())
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+}
+
+model Message {
+  id             String       @id @default(cuid())
+  conversation   Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  conversationId String
+  senderType     String       // contact, agent, bot, system
+  senderId       String?
+  messageType    String       // text, image, document, audio, video, template, interactive
+  content        String?
+  mediaUrl       String?
+  wamid          String?      @unique // WhatsApp Message ID from Meta
+  status         String       @default("sent") // sent, delivered, read, failed
+  errorCode      String?
+  createdAt      DateTime     @default(now())
+}
+
+model Campaign {
+  id             String    @id @default(cuid())
+  name           String
+  templateName   String
+  templateLang   String    @default("en")
+  totalContacts  Int       @default(0)
+  sentCount      Int       @default(0)
+  deliveredCount Int       @default(0)
+  readCount      Int       @default(0)
+  failedCount    Int       @default(0)
+  status         String    @default("draft") // draft, scheduled, running, completed, failed
+  scheduledAt    DateTime?
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+}
+
+model Tag {
+  id       String    @id @default(cuid())
+  name     String    @unique
+  color    String    @default("#f97316")
+  contacts Contact[]
+}
+
+model User {
+  id               String    @id @default(cuid())
+  name             String
+  email            String    @unique
+  passwordHash     String
+  role             String    @default("agent") // admin, manager, agent
+  assignedContacts Contact[]
+  createdAt        DateTime  @default(now())
+}
