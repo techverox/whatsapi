@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { Link } from '@tanstack/react-router'
 import {
   Search as SearchIcon,
@@ -431,8 +431,26 @@ export function Apps() {
     }
   }
 
+  const loadWhatsAppConfig = useCallback(async () => {
+    try {
+      const res = await veroxApi.getWhatsAppConfig()
+      if (res.success && res.data) {
+        const cfg = res.data as Record<string, string>
+        if (cfg.phoneNumberId) setWaPhoneId(cfg.phoneNumberId)
+        if (cfg.wabaId) setWaWabaId(cfg.wabaId)
+        if (cfg.webhookVerifyToken) setWaVerifyToken(cfg.webhookVerifyToken)
+        if (cfg.maskedToken) setWaToken(cfg.maskedToken)
+      }
+    } catch (_err) {
+      // Use default placeholders
+    }
+  }, [])
+
   useEffect(() => {
     let mounted = true
+    const timer = setTimeout(() => {
+      if (mounted) loadWhatsAppConfig()
+    }, 0)
 
     veroxApi
       .getIntegrations()
@@ -462,26 +480,11 @@ export function Apps() {
         // Fall back to initial list
       })
 
-    veroxApi
-      .getWhatsAppConfig()
-      .then((res) => {
-        if (!mounted) return
-        if (res.success && res.data) {
-          const cfg = res.data as Record<string, string>
-          if (cfg.phoneNumberId) setWaPhoneId(cfg.phoneNumberId)
-          if (cfg.wabaId) setWaWabaId(cfg.wabaId)
-          if (cfg.webhookVerifyToken) setWaVerifyToken(cfg.webhookVerifyToken)
-          if (cfg.maskedToken) setWaToken(cfg.maskedToken)
-        }
-      })
-      .catch((_err) => {
-        // Use default placeholders
-      })
-
     return () => {
       mounted = false
+      clearTimeout(timer)
     }
-  }, [])
+  }, [loadWhatsAppConfig])
 
   const handleOpenConfig = (app: IntegrationApp) => {
     setSelectedApp(app)

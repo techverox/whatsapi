@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useRef, useCallback } from 'react'
 import {
   Sparkles,
   Save,
@@ -155,38 +155,41 @@ export function AIAssistant() {
   const [isGenerating, setIsGenerating] = useState(false)
   const chatBottomRef = useRef<HTMLDivElement>(null)
 
-  // Fetch knowledge documents from API Gateway on mount
+  // Fetch knowledge documents from API Gateway
+  const loadKnowledgeFromGateway = useCallback(async () => {
+    setIsSyncingKnowledge(true)
+    try {
+      const res = await veroxApi.getAiKnowledge()
+      if (res.success && res.data && Array.isArray(res.data)) {
+        setKnowledgeDocs(
+          (res.data as Array<Record<string, unknown>>).map((d) => ({
+            id: (typeof d.id === 'string' ? d.id : undefined) || generateKbId(),
+            title: String(d.title || 'Untitled'),
+            category: String(d.category || 'General'),
+            content: String(d.content || ''),
+            chunks: Math.max(1, Math.round(String(d.content || '').length / 150)),
+            updatedAt: d.updatedAt ? new Date(String(d.updatedAt)).toLocaleDateString() : 'Active',
+          }))
+        )
+      }
+    } catch (_err) {
+      // Fallback in memory is already set
+    } finally {
+      setIsSyncingKnowledge(false)
+    }
+  }, [])
+
   useEffect(() => {
     let mounted = true
-
-    veroxApi
-      .getAiKnowledge()
-      .then((res) => {
-        if (!mounted) return
-        if (res.success && res.data && Array.isArray(res.data)) {
-          setKnowledgeDocs(
-            res.data.map((d: Record<string, unknown>) => ({
-              id: (typeof d.id === 'string' ? d.id : undefined) || generateKbId(),
-              title: String(d.title || 'Untitled'),
-              category: String(d.category || 'General'),
-              content: String(d.content || ''),
-              chunks: Math.max(1, Math.round(String(d.content || '').length / 150)),
-              updatedAt: d.updatedAt ? new Date(String(d.updatedAt)).toLocaleDateString() : 'Active',
-            }))
-          )
-        }
-      })
-      .catch((_err) => {
-        // Fallback in memory is already set
-      })
-      .finally(() => {
-        if (mounted) setIsSyncingKnowledge(false)
-      })
+    const timer = setTimeout(() => {
+      if (mounted) loadKnowledgeFromGateway()
+    }, 0)
 
     return () => {
       mounted = false
+      clearTimeout(timer)
     }
-  }, [])
+  }, [loadKnowledgeFromGateway])
 
   useEffect(() => {
     chatBottomRef.current?.scrollIntoView({ behavior: 'smooth' })
@@ -285,10 +288,16 @@ export function AIAssistant() {
       let escalated = false
 
       if (res.success && res.data) {
-        answerText = res.data.answer || ''
-        sources = res.data.groundedSources || []
-        confidence = res.data.confidence ?? 0.95
-        escalated = res.data.escalatedToAgent ?? false
+        const d = res.data as {
+          answer?: string
+          groundedSources?: string[]
+          confidence?: number
+          escalatedToAgent?: boolean
+        }
+        answerText = d.answer || ''
+        sources = d.groundedSources || []
+        confidence = d.confidence ?? 0.95
+        escalated = d.escalatedToAgent ?? false
       }
 
       // If backend was unreachable or returned empty, use robust domain intelligence
