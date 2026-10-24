@@ -112,7 +112,7 @@ export function AccountForm() {
               <FormLabel>Date of Birth</FormLabel>
               <DatePicker selected={field.value} onSelect={field.onChange} />
               <FormDescription>
-                Required for WhatsAPI CRM Multi-Factor Authentication (MFA) account recovery.
+                Required for Whatsapi Multi-Factor Authentication (MFA) account recovery.
               </FormDescription>
               <FormMessage />
             </FormItem>

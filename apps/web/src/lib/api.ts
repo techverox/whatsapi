@@ -1,5 +1,5 @@
 /**
- * WhatsAPI CRM - Enterprise API Client
+ * Whatsapi - Enterprise API Client
  * Connects frontend UI components directly to API Gateway on port 4000
  */
 
@@ -79,7 +79,7 @@ async function request<T = any>(
     console.warn(`[WhatsAPI Client] Network request to ${url} failed:`, err.message)
     return {
       success: false,
-      message: `Failed to connect to WhatsAPI CRM Gateway at ${API_BASE_URL}. Ensure port 4000 is running.`,
+      message: `Failed to connect to Whatsapi Gateway at ${API_BASE_URL}. Ensure port 4000 is running.`,
       error: err,
     }
   }

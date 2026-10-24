@@ -26,7 +26,7 @@ export const sidebarData: SidebarData = {
   },
   teams: [
     {
-      name: 'WhatsAPI CRM',
+      name: 'Whatsapi',
       logo: MessageCircleCode,
       plan: 'Enterprise Cloud Edition',
     },

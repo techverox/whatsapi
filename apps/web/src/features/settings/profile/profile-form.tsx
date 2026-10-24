@@ -45,10 +45,10 @@ type ProfileFormValues = z.infer<typeof profileFormSchema>
 const defaultProfileValues: ProfileFormValues = {
   username: 'truck_sathi_admin',
   email: 'trucksathiamazon@gmail.com',
-  bio: 'Operations Head at Truck Sathi & WhatsAPI CRM. Managing 500+ Gujarat commercial fleet AIS-140 GPS tracking devices, FASTAG KYC, and WhatsApp AI CRM.',
+  bio: 'Operations Head at Truck Sathi & Whatsapi. Managing 500+ Gujarat commercial fleet AIS-140 GPS tracking devices, FASTAG KYC, and WhatsApp AI.',
   urls: [
     { value: 'https://trucksathi.in' },
-    { value: 'https://whatsapicrm.com' },
+    { value: 'https://whatsapi.io' },
   ],
 }
 
@@ -96,7 +96,7 @@ export function ProfileForm() {
                 <Input placeholder='truck_sathi_admin' {...field} />
               </FormControl>
               <FormDescription>
-                This is your public display handle across WhatsAPI CRM team chats and audit logs.
+                This is your public display handle across Whatsapi team chats and audit logs.
               </FormDescription>
               <FormMessage />
             </FormItem>

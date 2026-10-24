@@ -56,7 +56,7 @@ const defaultTemplates: TemplateItem[] = [
     components: [
       {
         type: 'BODY',
-        text: 'નમસ્તે {{1}}, આ દિવાળી પર WhatsAPI CRM તમારા બિઝનેસ માટે લાવ્યું છે 30% સ્પેશિયલ ડિસ્કાઉન્ટ! તમારા બધા WhatsApp માર્કેટિંગ અને IndiaMart લીડ્સ હવે થશે 100% ઓટોમેટિક.',
+        text: 'નમસ્તે {{1}}, આ દિવાળી પર Whatsapi તમારા બિઝનેસ માટે લાવ્યું છે 30% સ્પેશિયલ ડિસ્કાઉન્ટ! તમારા બધા WhatsApp માર્કેટિંગ અને IndiaMart લીડ્સ હવે થશે 100% ઓટોમેટિક.',
       },
     ],
   },
@@ -189,7 +189,7 @@ export function WhatsappTemplates() {
     const cleanName = templateName.trim().toLowerCase().replace(/[^a-z0-9_]/g, '_')
     const effectiveBody =
       bodyText.trim() ||
-      'Namaste {{1}}, welcome to Truck Sathi & WhatsAPI CRM! Exclusive commercial fleet offer is live.'
+      'Namaste {{1}}, welcome to Truck Sathi & Whatsapi! Exclusive commercial fleet offer is live.'
 
     const newTemplate: TemplateItem = {
       id: `tmpl-${Date.now()}`,

@@ -82,10 +82,10 @@ export function Dashboard() {
             <div className='flex items-center gap-2.5'>
               <div className='h-3 w-3 rounded-full bg-emerald-500 animate-pulse' />
               <h1 className='text-2xl font-bold tracking-tight'>
-                WhatsAPI CRM Control Hub
+                Whatsapi Control Hub
               </h1>
               <Badge className='bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/30 font-medium'>
-                WhatsAPI Cloud Edition
+                Whatsapi Cloud Edition
               </Badge>
             </div>
             <p className='text-xs text-muted-foreground mt-0.5'>

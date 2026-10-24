@@ -1,7 +1,7 @@
 {
-  "name": "whatsapi-crm",
+  "name": "whatsapi",
   "version": "1.0.0",
-  "description": "WhatsAPI CRM - Enterprise Omnichannel WhatsApp, AI CRM & Visual Flow Platform",
+  "description": "Whatsapi - Enterprise Omnichannel WhatsApp, AI Automation & Visual Flow Platform",
   "private": true,
   "workspaces": [
     "apps/*"

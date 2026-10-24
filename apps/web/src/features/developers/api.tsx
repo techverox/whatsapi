@@ -47,7 +47,7 @@ export function DevelopersApi() {
 
   // Live Test Dispatcher State (AiSensy Style)
   const [testPhone, setTestPhone] = useState('+919825102938')
-  const [testMessage, setTestMessage] = useState('Hello from WhatsAPI CRM! Official Meta WhatsApp Cloud API is active.')
+  const [testMessage, setTestMessage] = useState('Hello from Whatsapi! Official Meta WhatsApp Cloud API is active.')
   const [messageType, setMessageType] = useState<'text' | 'template'>('text')
   const [isSending, setIsSending] = useState(false)
   const [apiResponse, setApiResponse] = useState<any | null>(null)
@@ -424,7 +424,7 @@ export function DevelopersApi() {
                       <Badge className='bg-emerald-500/15 text-emerald-600 text-[10px]'>APPROVED</Badge>
                     </div>
                     <p className='text-muted-foreground text-[11px] leading-relaxed'>
-                      Header: "શુભ દિવાળી અને નૂતન વર્ષાભિનંદન! 🪔" | Body: "નમસ્તે {"{{1}}"}, આ દિવાળી પર WhatsAPI CRM..."
+                      Header: "શુભ દિવાળી અને નૂતન વર્ષાભિનંદન! 🪔" | Body: "નમસ્તે {"{{1}}"}, આ દિવાળી પર Whatsapi..."
                     </p>
                   </div>
                 )}

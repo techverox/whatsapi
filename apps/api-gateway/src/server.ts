@@ -347,7 +347,7 @@ app.post('/api/messages/send', async (req: Request, res: Response) => {
       template.components
     )
   } else {
-    sentMsg = await whatsAppService.sendTextMessage(cleanPhone, text || 'WhatsAPI CRM Outreach')
+    sentMsg = await whatsAppService.sendTextMessage(cleanPhone, text || 'Whatsapi Outreach')
   }
 
   // 4. Save into conversation
@@ -392,7 +392,7 @@ app.use('/api/v1', whatsappRouter)
 // Global Root Information
 app.get('/', (_req: Request, res: Response) => {
   res.json({
-    platform: 'WhatsAPI CRM — Enterprise Omnichannel & AI Orchestration Platform',
+    platform: 'Whatsapi — Enterprise Omnichannel & AI Orchestration Platform',
     version: '1.0.0',
     websocket: `ws://localhost:${PORT}`,
     endpoints: {
@@ -417,7 +417,7 @@ app.get('/', (_req: Request, res: Response) => {
 
 // Server Listen (HTTP + WebSocket)
 server.listen(PORT, () => {
-  console.log(`🚀 WhatsAPI CRM Gateway running on http://localhost:${PORT}`)
+  console.log(`🚀 Whatsapi Gateway running on http://localhost:${PORT}`)
   console.log(`⚡ Realtime WebSocket running on ws://localhost:${PORT}`)
   console.log(`📡 WhatsApp Webhook URL: http://localhost:${PORT}/webhook/whatsapp`)
   console.log(`📦 IndiaMart Webhook URL: http://localhost:${PORT}/webhook/indiamart`)
