@@ -7,17 +7,11 @@ import {
   BookOpen,
   Plus,
   RefreshCw,
-  Sparkles,
-  Copy,
-  Check,
   Trash2,
   ExternalLink,
-  Layers,
-  Database,
   ArrowRight,
   FileText,
   Lightbulb,
-  CheckCircle2,
 } from 'lucide-react'
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
@@ -469,7 +463,6 @@ export function KnowledgeBase() {
 
   const [searchQuery, setSearchQuery] = useState('')
   const [isSyncingAI, setIsSyncingAI] = useState(false)
-  const [copiedCode, setCopiedCode] = useState(false)
 
   // New Article Modal
   const [addModalOpen, setAddModalOpen] = useState(false)
@@ -522,13 +515,6 @@ export function KnowledgeBase() {
   const handleSelectArticle = (catId: string, articleId: string) => {
     setSelectedCategoryId(catId)
     setSelectedArticleId(articleId)
-  }
-
-  const handleCopyCode = (text: string) => {
-    navigator.clipboard.writeText(text)
-    setCopiedCode(true)
-    toast.success('Snippet copied to clipboard!')
-    setTimeout(() => setCopiedCode(false), 2000)
   }
 
   const handleSyncToAI = async () => {

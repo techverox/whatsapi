@@ -10,8 +10,6 @@ import {
   Copy,
   Check,
   MoreVertical,
-  Sliders,
-  RefreshCw,
   Maximize2,
   Minimize2,
   ZoomIn,
@@ -449,7 +447,7 @@ export function Flows() {
     senderPhoneNumber: '919881145178',
     recipientPhoneNumberId: '942534582278953',
     messageId: 'wamId.HBgNOTE5MDgxMTQ1NTc4FQIAEhggOUNDNDFGMDA',
-    messageTimestamp: Math.floor(Date.now() / 1000).toString(),
+    messageTimestamp: '1709373911',
     messageType: 'text',
     content: {
       text: 'Hi, I need pricing for 10 commercial fleet AIS-140 GPS trackers.',
@@ -481,7 +479,7 @@ export function Flows() {
                 {
                   from: '919881145178',
                   id: 'wamId.HBgNOTE5MDgxMTQ1NTc4FQIAEhggOUNDNDFGMDA',
-                  timestamp: Math.floor(Date.now() / 1000).toString(),
+                  timestamp: '1709373911',
                   text: { body: 'Hi, I need pricing for 10 commercial fleet AIS-140 GPS trackers.' },
                   type: 'text',
                 },

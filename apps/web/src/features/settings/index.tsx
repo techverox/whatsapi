@@ -7,11 +7,9 @@ import {
   Key,
   Shield,
   Palette,
-  Bell,
   Camera,
   CheckCircle2,
   Trash2,
-  Plus,
   Send,
   Eye,
   EyeOff,
@@ -19,7 +17,6 @@ import {
   Check,
   RefreshCw,
   Crown,
-  ExternalLink,
   ChevronDown,
 } from 'lucide-react'
 import { toast } from 'sonner'
@@ -311,67 +308,73 @@ export function Settings({
           <button
             type='button'
             onClick={() => setActiveTab('profile')}
-            className={`flex-1 py-2 px-4 rounded-lg text-xs font-semibold cursor-pointer transition-all ${
+            className={`flex-1 py-2 px-3.5 rounded-lg text-xs font-semibold cursor-pointer transition-all flex items-center justify-center gap-1.5 ${
               activeTab === 'profile'
                 ? 'bg-card text-foreground shadow-xs border border-border/80 font-bold'
                 : 'text-muted-foreground hover:text-foreground'
             }`}
           >
+            <User className='h-3.5 w-3.5' />
             Profile
           </button>
           <button
             type='button'
             onClick={() => setActiveTab('team')}
-            className={`flex-1 py-2 px-4 rounded-lg text-xs font-semibold cursor-pointer transition-all ${
+            className={`flex-1 py-2 px-3.5 rounded-lg text-xs font-semibold cursor-pointer transition-all flex items-center justify-center gap-1.5 ${
               activeTab === 'team'
                 ? 'bg-card text-foreground shadow-xs border border-border/80 font-bold'
                 : 'text-muted-foreground hover:text-foreground'
             }`}
           >
+            <Users className='h-3.5 w-3.5' />
             Team
           </button>
           <button
             type='button'
             onClick={() => setActiveTab('organisation')}
-            className={`flex-1 py-2 px-4 rounded-lg text-xs font-semibold cursor-pointer transition-all ${
+            className={`flex-1 py-2 px-3.5 rounded-lg text-xs font-semibold cursor-pointer transition-all flex items-center justify-center gap-1.5 ${
               activeTab === 'organisation'
                 ? 'bg-card text-foreground shadow-xs border border-border/80 font-bold'
                 : 'text-muted-foreground hover:text-foreground'
             }`}
           >
+            <Building2 className='h-3.5 w-3.5' />
             Organisation
           </button>
           <button
             type='button'
             onClick={() => setActiveTab('billing')}
-            className={`flex-1 py-2 px-4 rounded-lg text-xs font-semibold cursor-pointer transition-all ${
+            className={`flex-1 py-2 px-3.5 rounded-lg text-xs font-semibold cursor-pointer transition-all flex items-center justify-center gap-1.5 ${
               activeTab === 'billing'
                 ? 'bg-card text-foreground shadow-xs border border-border/80 font-bold'
                 : 'text-muted-foreground hover:text-foreground'
             }`}
           >
+            <CreditCard className='h-3.5 w-3.5' />
             Billing
           </button>
           <button
             type='button'
             onClick={() => setActiveTab('waba')}
-            className={`flex-1 py-2 px-4 rounded-lg text-xs font-semibold cursor-pointer transition-all ${
+            className={`flex-1 py-2 px-3.5 rounded-lg text-xs font-semibold cursor-pointer transition-all flex items-center justify-center gap-1.5 ${
               activeTab === 'waba'
                 ? 'bg-card text-foreground shadow-xs border border-border/80 font-bold'
                 : 'text-muted-foreground hover:text-foreground'
             }`}
           >
+            <Key className='h-3.5 w-3.5' />
             WhatsApp API
           </button>
           <button
             type='button'
             onClick={() => setActiveTab('appearance')}
-            className={`flex-1 py-2 px-4 rounded-lg text-xs font-semibold cursor-pointer transition-all ${
+            className={`flex-1 py-2 px-3.5 rounded-lg text-xs font-semibold cursor-pointer transition-all flex items-center justify-center gap-1.5 ${
               activeTab === 'appearance'
                 ? 'bg-card text-foreground shadow-xs border border-border/80 font-bold'
                 : 'text-muted-foreground hover:text-foreground'
             }`}
           >
+            <Palette className='h-3.5 w-3.5' />
             Appearance
           </button>
         </div>
