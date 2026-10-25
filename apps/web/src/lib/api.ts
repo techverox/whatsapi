@@ -174,6 +174,10 @@ export const whatsapiApi = {
       method: 'POST',
       body: JSON.stringify(template),
     }),
+  deleteTemplate: (id: string) =>
+    request(`/api/templates/${id}`, {
+      method: 'DELETE',
+    }),
   syncMetaTemplates: () =>
     request('/api/whatsapp/templates/sync', {
       method: 'POST',

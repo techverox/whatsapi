@@ -222,6 +222,12 @@ class TemplatesService {
     return this.templates.find((t) => t.name === name) || this.templates[0]
   }
 
+  public deleteTemplate(idOrName: string): boolean {
+    const initialLen = this.templates.length
+    this.templates = this.templates.filter((t) => t.id !== idOrName && t.name !== idOrName)
+    return this.templates.length < initialLen
+  }
+
   public createTemplate(data: {
     name: string
     language: string

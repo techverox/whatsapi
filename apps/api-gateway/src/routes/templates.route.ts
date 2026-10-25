@@ -65,3 +65,19 @@ templatesRouter.post('/preview', (req: Request, res: Response) => {
     })
   }
 })
+
+// DELETE /api/v1/whatsapp/templates/:id - Delete template from registry
+templatesRouter.delete('/:id', (req: Request, res: Response) => {
+  const id = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id
+  const success = templatesService.deleteTemplate(id)
+  if (!success) {
+    return res.status(404).json({
+      success: false,
+      message: `Template '${id}' not found.`,
+    })
+  }
+  res.json({
+    success: true,
+    message: `Template '${id}' deleted successfully.`,
+  })
+})
