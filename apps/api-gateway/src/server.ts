@@ -8,6 +8,7 @@ import { contactsRouter } from './routes/contacts.route.js'
 import { conversationsRouter } from './routes/conversations.route.js'
 import { campaignsRouter } from './routes/campaigns.route.js'
 import { tagsRouter } from './routes/tags.route.js'
+import { columnsRouter } from './routes/columns.route.js'
 import { whatsappRouter } from './routes/whatsapp.route.js'
 import { templatesRouter } from './routes/templates.route.js'
 import { botRouter } from './routes/bot.route.js'
@@ -373,6 +374,7 @@ app.use('/api/contacts', contactsRouter)
 app.use('/api/conversations', conversationsRouter)
 app.use('/api/campaigns', campaignsRouter)
 app.use('/api/tags', tagsRouter)
+app.use('/api/columns', columnsRouter)
 app.use('/api/templates', templatesRouter)
 app.use('/api/integrations', integrationsRouter)
 app.use('/api', whatsappRouter)
@@ -381,6 +383,7 @@ app.use('/api/v1/contacts', contactsRouter)
 app.use('/api/v1/conversations', conversationsRouter)
 app.use('/api/v1/campaigns', campaignsRouter)
 app.use('/api/v1/tags', tagsRouter)
+app.use('/api/v1/columns', columnsRouter)
 app.use('/api/v1/templates', templatesRouter)
 app.use('/api/v1/whatsapp/templates', templatesRouter)
 app.use('/api/v1/whatsapp', whatsappRouter)

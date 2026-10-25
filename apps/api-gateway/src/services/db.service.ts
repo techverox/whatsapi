@@ -4,11 +4,14 @@ import {
   initialConversations,
   initialCampaigns,
   initialTags,
+  initialColumns,
   ContactItem,
   ConversationItem,
   MessageItem,
   CampaignItem,
   TagItem,
+  ColumnItem,
+  ColumnDataType,
 } from '../data/mock-store.js'
 
 class DatabaseService {
@@ -20,6 +23,7 @@ class DatabaseService {
   public conversations: ConversationItem[] = [...initialConversations]
   public campaigns: CampaignItem[] = [...initialCampaigns]
   public tags: TagItem[] = [...initialTags]
+  public columns: ColumnItem[] = [...initialColumns]
 
   constructor() {
     this.initPrisma()
@@ -258,6 +262,164 @@ class DatabaseService {
         c.status !== 'deleted' &&
         c.tags.some((t) => t.id === idOrName || t.name.toLowerCase() === targetName)
     )
+  }
+
+  // --- Custom Columns ---
+  public getColumns(): (ColumnItem & { usageCount: number })[] {
+    return this.columns.map((col) => {
+      const count = this.contacts.filter((c) => {
+        if (c.status === 'deleted') return false
+        if (col.key === 'email' && c.email) return true
+        if (col.key === 'status' && c.status) return true
+        if (col.key === 'waba_phone_number' && c.phone) return true
+        if (
+          c.customFields &&
+          c.customFields[col.key] !== undefined &&
+          c.customFields[col.key] !== null &&
+          c.customFields[col.key] !== ''
+        ) {
+          return true
+        }
+        return false
+      }).length
+
+      return {
+        ...col,
+        usageCount: count,
+      }
+    })
+  }
+
+  public getColumnById(idOrKey: string): ColumnItem | undefined {
+    const clean = idOrKey.trim().toLowerCase()
+    return this.columns.find(
+      (c) =>
+        c.id.toLowerCase() === clean ||
+        c.key.toLowerCase() === clean ||
+        c.name.toLowerCase() === clean
+    )
+  }
+
+  public createColumn(data: {
+    name: string
+    type: ColumnDataType
+    options?: string
+    required?: boolean
+    description?: string
+  }): ColumnItem {
+    const cleanName = data.name.trim()
+    const generatedKey = cleanName
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, '_')
+      .replace(/^_+|_+$/g, '')
+
+    const existing = this.columns.find(
+      (c) => c.name.toLowerCase() === cleanName.toLowerCase() || c.key === generatedKey
+    )
+    if (existing) {
+      throw new Error(`Custom column with name "${cleanName}" or key "${generatedKey}" already exists.`)
+    }
+
+    const validTypes: ColumnDataType[] = ['Text', 'Number', 'Select', 'Boolean', 'Phone', 'Date']
+    if (!validTypes.includes(data.type)) {
+      throw new Error(`Invalid column type "${data.type}". Allowed types: ${validTypes.join(', ')}`)
+    }
+
+    let formattedOptions = data.options ? data.options.trim() : '-'
+    if (data.type === 'Boolean') {
+      formattedOptions = 'Yes, No'
+    } else if (data.type === 'Select' && (!data.options || !data.options.trim())) {
+      throw new Error('Options (comma-separated) are required when Field Data Type is Select.')
+    }
+
+    const now = new Date().toISOString()
+    const newCol: ColumnItem = {
+      id: `col-${Date.now()}`,
+      name: cleanName,
+      key: generatedKey,
+      type: data.type,
+      options: formattedOptions,
+      required: Boolean(data.required),
+      description: data.description ? data.description.trim() : undefined,
+      isSystem: false,
+      createdAt: now,
+      updatedAt: now,
+    }
+
+    this.columns.push(newCol)
+    return newCol
+  }
+
+  public updateColumn(id: string, data: Partial<ColumnItem>): ColumnItem | null {
+    const col = this.columns.find(
+      (c) => c.id === id || c.key.toLowerCase() === id.toLowerCase()
+    )
+    if (!col) return null
+
+    const oldKey = col.key
+
+    if (data.name && data.name.trim()) {
+      col.name = data.name.trim()
+    }
+    if (data.type) {
+      const validTypes: ColumnDataType[] = ['Text', 'Number', 'Select', 'Boolean', 'Phone', 'Date']
+      if (validTypes.includes(data.type)) {
+        col.type = data.type
+      }
+    }
+    if (data.options !== undefined) {
+      col.options = col.type === 'Boolean' ? 'Yes, No' : (data.options.trim() || '-')
+    }
+    if (data.required !== undefined) {
+      col.required = Boolean(data.required)
+    }
+    if (data.description !== undefined) {
+      col.description = data.description.trim() || undefined
+    }
+    col.updatedAt = new Date().toISOString()
+
+    // If key has changed, migrate existing contact customFields
+    if (col.key !== oldKey) {
+      this.contacts.forEach((contact) => {
+        if (contact.customFields && contact.customFields[oldKey] !== undefined) {
+          contact.customFields[col.key] = contact.customFields[oldKey]
+          delete contact.customFields[oldKey]
+        }
+      })
+    }
+
+    return col
+  }
+
+  public deleteColumn(id: string): { success: boolean; message: string } {
+    const index = this.columns.findIndex(
+      (c) => c.id === id || c.key.toLowerCase() === id.toLowerCase()
+    )
+    if (index === -1) {
+      return { success: false, message: `Column with ID "${id}" not found.` }
+    }
+
+    const target = this.columns[index]
+    if (target.isSystem) {
+      return {
+        success: false,
+        message: `System column "${target.name}" is protected and cannot be deleted.`,
+      }
+    }
+
+    const [deleted] = this.columns.splice(index, 1)
+
+    // Decouple from contacts to prevent orphan data
+    this.contacts.forEach((contact) => {
+      if (contact.customFields && contact.customFields[deleted.key] !== undefined) {
+        delete contact.customFields[deleted.key]
+      }
+    })
+
+    return {
+      success: true,
+      message: `Column "${deleted.name}" deleted and decoupled from contacts.`,
+    }
   }
 }
 

@@ -17,6 +17,7 @@ export interface ContactItem {
   assignedToName?: string
   assignedAt?: string
   status: 'active' | 'archived' | 'deleted'
+  customFields?: Record<string, any>
   createdAt: string
   updatedAt: string
 }
@@ -63,6 +64,21 @@ export interface CampaignItem {
   createdAt: string
 }
 
+export type ColumnDataType = 'Text' | 'Number' | 'Select' | 'Boolean' | 'Phone' | 'Date'
+
+export interface ColumnItem {
+  id: string
+  name: string
+  key: string
+  type: ColumnDataType
+  options: string
+  required?: boolean
+  description?: string
+  isSystem?: boolean
+  createdAt: string
+  updatedAt: string
+}
+
 export const initialTags: TagItem[] = [
   { id: 'tag-1', name: 'IndiaMart Lead', color: '#f97316' },
   { id: 'tag-2', name: 'FB Ads', color: '#3b82f6' },
@@ -70,6 +86,81 @@ export const initialTags: TagItem[] = [
   { id: 'tag-4', name: 'FASTAG Client', color: '#10b981' },
   { id: 'tag-5', name: 'Fleet Mgmt', color: '#8b5cf6' },
   { id: 'tag-6', name: 'Hinglish Support', color: '#06b6d4' },
+]
+
+export const initialColumns: ColumnItem[] = [
+  {
+    id: 'col-1',
+    name: 'Email',
+    key: 'email',
+    type: 'Text',
+    options: '-',
+    required: false,
+    description: 'Customer contact email address',
+    isSystem: true,
+    createdAt: '2026-10-15T10:00:00.000Z',
+    updatedAt: '2026-10-15T10:00:00.000Z',
+  },
+  {
+    id: 'col-2',
+    name: 'Status',
+    key: 'status',
+    type: 'Select',
+    options: 'New, Contacted, Qualified, Unqualified',
+    required: true,
+    description: 'CRM lead stage lifecycle',
+    isSystem: true,
+    createdAt: '2026-10-16T11:00:00.000Z',
+    updatedAt: '2026-10-16T11:00:00.000Z',
+  },
+  {
+    id: 'col-3',
+    name: 'WABA Phone Number',
+    key: 'waba_phone_number',
+    type: 'Phone',
+    options: '-',
+    required: true,
+    description: 'WhatsApp Business API designated phone number',
+    isSystem: true,
+    createdAt: '2026-10-16T12:00:00.000Z',
+    updatedAt: '2026-10-16T12:00:00.000Z',
+  },
+  {
+    id: 'col-4',
+    name: 'GPS Client',
+    key: 'gps_client',
+    type: 'Boolean',
+    options: 'Yes, No',
+    required: false,
+    description: 'Whether contact holds an active GPS tracking subscription',
+    isSystem: false,
+    createdAt: '2026-10-18T09:00:00.000Z',
+    updatedAt: '2026-10-18T09:00:00.000Z',
+  },
+  {
+    id: 'col-5',
+    name: 'Fleet Size',
+    key: 'fleet_size',
+    type: 'Number',
+    options: '-',
+    required: false,
+    description: 'Number of commercial vehicles managed by contact',
+    isSystem: false,
+    createdAt: '2026-10-18T14:30:00.000Z',
+    updatedAt: '2026-10-18T14:30:00.000Z',
+  },
+  {
+    id: 'col-6',
+    name: 'Preferred RTO State',
+    key: 'preferred_rto_state',
+    type: 'Select',
+    options: 'Gujarat, Rajasthan, Maharashtra, Delhi',
+    required: false,
+    description: 'State RTO jurisdiction for vehicle registration and FASTag sync',
+    isSystem: false,
+    createdAt: '2026-10-19T16:00:00.000Z',
+    updatedAt: '2026-10-19T16:00:00.000Z',
+  },
 ]
 
 export const initialContacts: ContactItem[] = [

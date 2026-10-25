@@ -266,6 +266,39 @@ export const whatsapiApi = {
       method: 'DELETE',
     }),
   getTagContacts: (id: string) => request(`/api/tags/${id}/contacts`),
+
+  // Custom Columns & Schema
+  getColumns: () => request('/api/columns'),
+  createColumn: (data: {
+    name: string
+    type: string
+    options?: string
+    required?: boolean
+    description?: string
+  }) =>
+    request('/api/columns', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    }),
+  updateColumn: (
+    id: string,
+    data: {
+      name?: string
+      type?: string
+      options?: string
+      required?: boolean
+      description?: string
+    }
+  ) =>
+    request(`/api/columns/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(data),
+    }),
+  deleteColumn: (id: string) =>
+    request(`/api/columns/${id}`, {
+      method: 'DELETE',
+    }),
+  getColumnStats: (id: string) => request(`/api/columns/${id}/stats`),
 }
 
 // Backward compatibility alias
