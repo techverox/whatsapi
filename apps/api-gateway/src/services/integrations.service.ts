@@ -613,6 +613,10 @@ export class IntegrationsService {
     return this.webhookLogs
   }
 
+  public clearLogs(): void {
+    this.webhookLogs = []
+  }
+
   public addLog(entry: Partial<WebhookLogEntry>): WebhookLogEntry {
     const newLog: WebhookLogEntry = {
       id: `log-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`,

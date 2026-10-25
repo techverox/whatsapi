@@ -24,6 +24,25 @@ integrationsRouter.get('/logs', (_req: Request, res: Response) => {
   })
 })
 
+// 2b. DELETE /api/v1/integrations/logs - Clear Webhook Event Logs
+integrationsRouter.delete('/logs', (_req: Request, res: Response) => {
+  integrationsService.clearLogs()
+  res.json({
+    success: true,
+    message: 'Webhook event logs cleared successfully.',
+    data: [],
+  })
+})
+
+integrationsRouter.post('/logs/clear', (_req: Request, res: Response) => {
+  integrationsService.clearLogs()
+  res.json({
+    success: true,
+    message: 'Webhook event logs cleared successfully.',
+    data: [],
+  })
+})
+
 // 3. GET /api/v1/integrations/:id - Get specific connector details
 integrationsRouter.get('/:id', (req: Request, res: Response) => {
   const id = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id

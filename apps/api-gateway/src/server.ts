@@ -89,14 +89,35 @@ const handleWaGet = (req: Request, res: Response) => {
   const challenge = req.query['hub.challenge'] as string
 
   if (!mode || !token) {
+    integrationsService.addLog({
+      source: 'Meta Handshake (GET)',
+      event: 'MISSING_HUB_PARAMETERS',
+      status: '400 BAD',
+      payloadPreview: 'Missing hub.mode or hub.verify_token in query string',
+      fullPayload: req.query,
+    })
     return res.status(400).send('Missing hub parameters')
   }
 
   const result = whatsAppService.verifyWebhookChallenge(mode, token, challenge)
   if (result) {
+    integrationsService.addLog({
+      source: 'Meta Handshake (GET)',
+      event: 'HUB_CHALLENGE_VERIFIED',
+      status: '200 OK',
+      payloadPreview: `hub.mode=${mode} | token=${token.slice(0, 10)}... | challenge=${challenge}`,
+      fullPayload: { mode, token, challenge },
+    })
     return res.status(200).send(result)
   }
 
+  integrationsService.addLog({
+    source: 'Meta Handshake (GET)',
+    event: 'TOKEN_MISMATCH_FORBIDDEN',
+    status: '400 BAD',
+    payloadPreview: `Forbidden: Provided verify_token "${token}" does not match configured token.`,
+    fullPayload: { mode, token, challenge },
+  })
   return res.status(403).send('Forbidden: Token mismatch')
 }
 
@@ -105,10 +126,24 @@ const handleWaPost = (req: Request, res: Response) => {
   const signature = req.headers['x-hub-signature-256'] as string | undefined
 
   if (!whatsAppService.verifySignature(JSON.stringify(req.body), signature)) {
+    integrationsService.addLog({
+      source: 'Meta WhatsApp Cloud',
+      event: 'SIGNATURE_VERIFICATION_FAILED',
+      status: '400 BAD',
+      payloadPreview: 'Unauthorized: Invalid cryptographic HMAC-SHA256 signature',
+      fullPayload: { signature, body: req.body },
+    })
     return res.status(401).send('Unauthorized: Invalid cryptographic signature')
   }
 
   const outcome = whatsAppService.processWebhookPayload(req.body)
+  integrationsService.addLog({
+    source: 'Meta WhatsApp Cloud',
+    event: outcome.type ? `WHATSAPP_${outcome.type.toUpperCase()}` : 'EVENT_RECEIVED',
+    status: '200 OK',
+    payloadPreview: JSON.stringify(req.body).slice(0, 140),
+    fullPayload: req.body,
+  })
   res.status(200).json({ status: 'EVENT_RECEIVED', ...outcome })
 }
 

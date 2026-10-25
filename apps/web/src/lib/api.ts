@@ -220,6 +220,20 @@ export const whatsapiApi = {
   // Integrations & Connected Apps
   getIntegrations: () => request('/api/integrations'),
   getIntegrationLogs: () => request('/api/integrations/logs'),
+  clearIntegrationLogs: () =>
+    request('/api/integrations/logs', {
+      method: 'DELETE',
+    }),
+  simulateFacebookLead: (payload: { form_id?: string; field_data: Array<{ name: string; values: string[] }> }) =>
+    request('/webhook/facebook', {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    }),
+  simulateRazorpayPayment: (payload: Record<string, unknown>) =>
+    request('/webhook/razorpay', {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    }),
   updateIntegration: (id: string, config: Record<string, unknown>) =>
     request(`/api/integrations/${id}/config`, {
       method: 'POST',

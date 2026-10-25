@@ -1,6 +1,7 @@
 import { Router, Request, Response } from 'express'
 import { whatsAppService } from '../services/whatsapp.service.js'
 import { dbService } from '../services/db.service.js'
+import { integrationsService } from '../services/integrations.service.js'
 
 export const whatsappRouter = Router()
 
@@ -197,6 +198,14 @@ whatsappRouter.post('/whatsapp/simulate-inbound', (req: Request, res: Response) 
   }
 
   const outcome = whatsAppService.processWebhookPayload(mockPayload)
+  integrationsService.addLog({
+    source: 'Meta WhatsApp Cloud',
+    event: 'SIMULATED_MESSAGES_RECEIVED',
+    status: '200 OK',
+    payloadPreview: `{ from: "${from}", name: "${name || 'Customer'}", text: "${text.slice(0, 80)}" }`,
+    fullPayload: mockPayload,
+  })
+
   res.status(200).json({
     success: true,
     message: 'Inbound WhatsApp message simulated and recorded in Team Inbox.',
