@@ -1,7 +1,7 @@
 import { z } from 'zod'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
-import { toast } from 'sonner'
+import { Sparkles } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import {
   Dialog,
@@ -21,17 +21,10 @@ import {
   FormMessage,
 } from '@/components/ui/form'
 import { Input } from '@/components/ui/input'
+import { useTasks } from './tasks-provider'
 
 const formSchema = z.object({
-  file: z
-    .instanceof(FileList)
-    .refine((files) => files.length > 0, {
-      message: 'Please upload a file.',
-    })
-    .refine(
-      (files) => ['text/csv'].includes(files?.[0]?.type),
-      'Please upload csv format.'
-    ),
+  file: z.any().optional(),
 })
 
 type TaskImportDialogProps = {
@@ -43,6 +36,7 @@ export function TasksImportDialog({
   open,
   onOpenChange,
 }: TaskImportDialogProps) {
+  const { importTasks } = useTasks()
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
     defaultValues: { file: undefined },
@@ -50,14 +44,63 @@ export function TasksImportDialog({
 
   const fileRef = form.register('file')
 
-  const onSubmit = () => {
-    const file = form.getValues('file')
+  const onSubmit = async () => {
+    const fileList = form.getValues('file')
 
-    if (file && file[0]) {
-      toast.success('Tasks CSV Imported Successfully!', {
-        description: `Imported "${file[0].name}" (${Math.round(file[0].size / 1024)} KB). Pipeline updated with new fleet tasks.`,
-      })
+    if (fileList && fileList[0]) {
+      const file = fileList[0]
+      const text = await file.text()
+      const lines = text.split('\n').filter((l: string) => l.trim().length > 0)
+      const imported: any[] = []
+
+      // If CSV has header, skip it
+      const startIdx = lines[0].toLowerCase().includes('title') ? 1 : 0
+      for (let i = startIdx; i < lines.length; i++) {
+        const parts = lines[i].split(',').map((p: string) => p.replace(/^"|"$/g, '').trim())
+        if (parts[0]) {
+          imported.push({
+            title: parts[1] || parts[0],
+            status: parts[2] || 'todo',
+            label: parts[3] || 'feature',
+            priority: parts[4] || 'medium',
+          })
+        }
+      }
+
+      if (imported.length > 0) {
+        await importTasks(imported)
+      } else {
+        await handleImportSample()
+      }
+    } else {
+      await handleImportSample()
     }
+
+    onOpenChange(false)
+  }
+
+  const handleImportSample = async () => {
+    const samples = [
+      {
+        title: 'Provision 120 AIS-140 GPS trackers for Surat Freight Corridor',
+        status: 'todo',
+        label: 'feature',
+        priority: 'high',
+      },
+      {
+        title: 'Audit FASTAG Instant KYC Webhook for Saurashtra Fleet Hub',
+        status: 'in progress',
+        label: 'feature',
+        priority: 'medium',
+      },
+      {
+        title: 'Deploy Gujarat Festive Outreach template gujarat_diwali_fleet_v3',
+        status: 'done',
+        label: 'documentation',
+        priority: 'high',
+      },
+    ]
+    await importTasks(samples)
     onOpenChange(false)
   }
 
@@ -66,43 +109,72 @@ export function TasksImportDialog({
       open={open}
       onOpenChange={(val) => {
         onOpenChange(val)
-        form.reset()
+        if (!val) form.reset()
       }}
     >
-      <DialogContent className='gap-2 sm:max-w-sm'>
+      <DialogContent className='gap-3 sm:max-w-md'>
         <DialogHeader className='text-start'>
-          <DialogTitle>Import Tasks</DialogTitle>
-          <DialogDescription>
-            Import tasks quickly from a CSV file.
+          <DialogTitle id='import-dialog-title'>Import Tasks</DialogTitle>
+          <DialogDescription className='text-xs'>
+            Import tasks quickly from a CSV file or load Gujarat Fleet Automation templates.
           </DialogDescription>
         </DialogHeader>
+
         <Form {...form}>
-          <form id='task-import-form' onSubmit={form.handleSubmit(onSubmit)}>
+          <form id='task-import-form' onSubmit={form.handleSubmit(onSubmit)} className='space-y-3'>
             <FormField
               control={form.control}
               name='file'
               render={() => (
                 <FormItem className='my-2'>
-                  <FormLabel>File</FormLabel>
+                  <FormLabel className='text-xs font-semibold'>CSV File</FormLabel>
                   <FormControl>
                     <Input
+                      id='input-import-file'
                       type='file'
                       accept='text/csv'
                       {...fileRef}
-                      className='h-8 py-0'
+                      className='h-9 text-xs'
                     />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
               )}
             />
+
+            <div className='p-3 bg-muted/40 rounded-lg border border-border/50 text-xs flex items-center justify-between'>
+              <div className='space-y-0.5'>
+                <p className='font-semibold'>Need sample tasks?</p>
+                <p className='text-muted-foreground text-[11px]'>Load 3 pre-built Gujarat transport pipeline tasks.</p>
+              </div>
+              <Button
+                id='btn-import-sample'
+                type='button'
+                variant='outline'
+                size='sm'
+                onClick={handleImportSample}
+                className='text-xs h-7 gap-1 cursor-pointer shrink-0 border-orange-500/40 hover:bg-orange-500/10'
+              >
+                <Sparkles className='h-3 w-3 text-orange-600' />
+                <span>Load Sample</span>
+              </Button>
+            </div>
           </form>
         </Form>
-        <DialogFooter className='gap-2'>
+
+        <DialogFooter className='gap-2 pt-2'>
           <DialogClose asChild>
-            <Button variant='outline'>Close</Button>
+            <Button id='btn-cancel-import' variant='outline' size='sm' className='text-xs'>
+              Cancel
+            </Button>
           </DialogClose>
-          <Button type='submit' form='task-import-form'>
+          <Button
+            id='btn-submit-import'
+            type='submit'
+            form='task-import-form'
+            size='sm'
+            className='bg-orange-600 hover:bg-orange-700 text-white font-semibold text-xs'
+          >
             Import
           </Button>
         </DialogFooter>

@@ -27,15 +27,15 @@ export function DataTableRowActions<TData>({
   row,
 }: DataTableRowActionsProps<TData>) {
   const task = taskSchema.parse(row.original)
-
-  const { setOpen, setCurrentRow } = useTasks()
+  const { setOpen, setCurrentRow, updateTask } = useTasks()
 
   return (
     <DropdownMenu modal={false}>
       <DropdownMenuTrigger asChild>
         <Button
+          id={`btn-task-menu-${task.id}`}
           variant='ghost'
-          className='flex h-8 w-8 p-0 data-[state=open]:bg-muted'
+          className='flex h-8 w-8 p-0 data-[state=open]:bg-muted cursor-pointer'
         >
           <DotsHorizontalIcon className='h-4 w-4' />
           <span className='sr-only'>Open menu</span>
@@ -43,22 +43,40 @@ export function DataTableRowActions<TData>({
       </DropdownMenuTrigger>
       <DropdownMenuContent align='end' className='w-40'>
         <DropdownMenuItem
+          id={`menu-item-edit-${task.id}`}
           onClick={() => {
             setCurrentRow(task)
             setOpen('update')
           }}
+          className='cursor-pointer'
         >
           Edit
         </DropdownMenuItem>
-        <DropdownMenuItem disabled>Make a copy</DropdownMenuItem>
-        <DropdownMenuItem disabled>Favorite</DropdownMenuItem>
+        <DropdownMenuItem
+          onClick={() => {
+            updateTask({
+              ...task,
+              status: task.status === 'done' ? 'todo' : 'done',
+            })
+          }}
+          className='cursor-pointer'
+        >
+          {task.status === 'done' ? 'Mark Todo' : 'Mark Done'}
+        </DropdownMenuItem>
         <DropdownMenuSeparator />
         <DropdownMenuSub>
-          <DropdownMenuSubTrigger>Labels</DropdownMenuSubTrigger>
+          <DropdownMenuSubTrigger className='cursor-pointer'>Labels</DropdownMenuSubTrigger>
           <DropdownMenuSubContent>
-            <DropdownMenuRadioGroup value={task.label}>
+            <DropdownMenuRadioGroup
+              value={task.label}
+              onValueChange={(val) => updateTask({ ...task, label: val })}
+            >
               {labels.map((label) => (
-                <DropdownMenuRadioItem key={label.value} value={label.value}>
+                <DropdownMenuRadioItem
+                  key={label.value}
+                  value={label.value}
+                  className='cursor-pointer'
+                >
                   {label.label}
                 </DropdownMenuRadioItem>
               ))}
@@ -67,10 +85,12 @@ export function DataTableRowActions<TData>({
         </DropdownMenuSub>
         <DropdownMenuSeparator />
         <DropdownMenuItem
+          id={`menu-item-delete-${task.id}`}
           onClick={() => {
             setCurrentRow(task)
             setOpen('delete')
           }}
+          className='cursor-pointer text-red-600 focus:text-red-600'
         >
           Delete
           <DropdownMenuShortcut>

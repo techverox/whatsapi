@@ -5,18 +5,19 @@ import { useTasks } from './tasks-provider'
 
 export function TasksDialogs() {
   const { open, setOpen, currentRow, setCurrentRow, deleteTask } = useTasks()
+
   return (
     <>
       <TasksMutateDrawer
         key='task-create'
         open={open === 'create'}
-        onOpenChange={() => setOpen('create')}
+        onOpenChange={(isOpen) => setOpen(isOpen ? 'create' : null)}
       />
 
       <TasksImportDialog
         key='tasks-import'
         open={open === 'import'}
-        onOpenChange={() => setOpen('import')}
+        onOpenChange={(isOpen) => setOpen(isOpen ? 'import' : null)}
       />
 
       {currentRow && (
@@ -24,11 +25,13 @@ export function TasksDialogs() {
           <TasksMutateDrawer
             key={`task-update-${currentRow.id}`}
             open={open === 'update'}
-            onOpenChange={() => {
-              setOpen('update')
-              setTimeout(() => {
-                setCurrentRow(null)
-              }, 500)
+            onOpenChange={(isOpen) => {
+              setOpen(isOpen ? 'update' : null)
+              if (!isOpen) {
+                setTimeout(() => {
+                  setCurrentRow(null)
+                }, 300)
+              }
             }}
             currentRow={currentRow}
           />
@@ -37,11 +40,13 @@ export function TasksDialogs() {
             key='task-delete'
             destructive
             open={open === 'delete'}
-            onOpenChange={() => {
-              setOpen('delete')
-              setTimeout(() => {
-                setCurrentRow(null)
-              }, 500)
+            onOpenChange={(isOpen) => {
+              setOpen(isOpen ? 'delete' : null)
+              if (!isOpen) {
+                setTimeout(() => {
+                  setCurrentRow(null)
+                }, 300)
+              }
             }}
             handleConfirm={() => {
               if (currentRow) {
@@ -50,18 +55,18 @@ export function TasksDialogs() {
               setOpen(null)
               setTimeout(() => {
                 setCurrentRow(null)
-              }, 500)
+              }, 300)
             }}
             className='max-w-md'
             title={`Delete this task: ${currentRow.id} ?`}
             desc={
               <>
-                You are about to delete a task with the ID{' '}
-                <strong>{currentRow.id}</strong>. <br />
-                This action cannot be undone.
+                You are about to delete task{' '}
+                <strong>{currentRow.id}</strong> ("{currentRow.title}"). <br />
+                This action will remove it from the pipeline.
               </>
             }
-            confirmText='Delete'
+            confirmText='Delete Task'
           />
         </>
       )}

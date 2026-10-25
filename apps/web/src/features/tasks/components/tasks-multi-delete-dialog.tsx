@@ -4,11 +4,12 @@ import { useState } from 'react'
 import { type Table } from '@tanstack/react-table'
 import { AlertTriangle } from 'lucide-react'
 import { toast } from 'sonner'
-import { sleep } from '@/lib/utils'
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { ConfirmDialog } from '@/components/confirm-dialog'
+import { useTasks } from './tasks-provider'
+import { type Task } from '../data/schema'
 
 type TaskMultiDeleteDialogProps<TData> = {
   open: boolean
@@ -24,28 +25,22 @@ export function TasksMultiDeleteDialog<TData>({
   table,
 }: TaskMultiDeleteDialogProps<TData>) {
   const [value, setValue] = useState('')
+  const { bulkDeleteTasks } = useTasks()
 
   const selectedRows = table.getFilteredSelectedRowModel().rows
 
-  const handleDelete = () => {
+  const handleDelete = async () => {
     if (value.trim() !== CONFIRM_WORD) {
       toast.error(`Please type "${CONFIRM_WORD}" to confirm.`)
       return
     }
 
+    const ids = selectedRows.map((r) => (r.original as Task).id)
     onOpenChange(false)
+    setValue('')
 
-    toast.promise(sleep(2000), {
-      loading: 'Deleting tasks...',
-      success: () => {
-        setValue('')
-        table.resetRowSelection()
-        return `Deleted ${selectedRows.length} ${
-          selectedRows.length > 1 ? 'tasks' : 'task'
-        }`
-      },
-      error: 'Error',
-    })
+    await bulkDeleteTasks(ids)
+    table.resetRowSelection()
   }
 
   return (
@@ -75,12 +70,13 @@ export function TasksMultiDeleteDialog<TData>({
         >
           <p className='mb-2'>
             Are you sure you want to delete the selected tasks? <br />
-            This action cannot be undone.
+            This action will delete them from the database and cannot be undone.
           </p>
 
           <Label className='my-4 flex flex-col items-start gap-1.5'>
             <span className=''>Confirm by typing "{CONFIRM_WORD}":</span>
             <Input
+              id='input-multi-delete-confirm'
               value={value}
               onChange={(e) => setValue(e.target.value)}
               placeholder={`Type "${CONFIRM_WORD}" to confirm.`}
@@ -91,7 +87,7 @@ export function TasksMultiDeleteDialog<TData>({
           <Alert variant='destructive'>
             <AlertTitle>Warning!</AlertTitle>
             <AlertDescription>
-              Please be careful, this operation can not be rolled back.
+              Please be careful, this operation removes records permanently across the platform.
             </AlertDescription>
           </Alert>
         </form>

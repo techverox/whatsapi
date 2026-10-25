@@ -19,10 +19,12 @@ import { aiRouter } from './routes/ai.route.js'
 import { chatbotRouter } from './routes/chatbot.route.js'
 import { flowsRouter } from './routes/flows.route.js'
 import { projectsRouter } from './routes/projects.route.js'
+import { enterpriseTasksRouter } from './routes/tasks.route.js'
 import { whatsAppService } from './services/whatsapp.service.js'
 import { integrationsService } from './services/integrations.service.js'
 import { flowsService } from './services/flows.service.js'
 import { projectsService } from './services/projects.service.js'
+import { enterpriseTasksService } from './services/tasks.service.js'
 
 dotenv.config()
 
@@ -46,6 +48,7 @@ whatsAppService.onEvent = (type, payload) => broadcastRealtime(type, payload)
 integrationsService.onEvent = (type, payload) => broadcastRealtime(type, payload)
 flowsService.onEvent = (type, payload) => broadcastRealtime(type, payload)
 projectsService.onEvent = (type, payload) => broadcastRealtime(type, payload)
+enterpriseTasksService.onEvent = (type, payload) => broadcastRealtime(type, payload)
 
 // Attach WebSocket client handlers
 wss.on('connection', (ws: WebSocket) => {
@@ -428,6 +431,7 @@ app.use('/api/ai', aiRouter)
 app.use('/api/chatbot', chatbotRouter)
 app.use('/api/flows', flowsRouter)
 app.use('/api/projects', projectsRouter)
+app.use('/api/tasks', enterpriseTasksRouter)
 app.use('/api', whatsappRouter)
 
 app.use('/api/v1/contacts', contactsRouter)
@@ -446,6 +450,7 @@ app.use('/api/v1/ai', aiRouter)
 app.use('/api/v1/chatbot', chatbotRouter)
 app.use('/api/v1/flows', flowsRouter)
 app.use('/api/v1/projects', projectsRouter)
+app.use('/api/v1/tasks', enterpriseTasksRouter)
 app.use('/api/v1', whatsappRouter)
 
 // Direct Inbound Flows Webhook callback (/api/v2/webhook/flows/:flowUid)

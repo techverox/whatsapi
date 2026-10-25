@@ -1,3 +1,4 @@
+import { useEffect } from 'react'
 import { z } from 'zod'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
@@ -49,13 +50,34 @@ export function TasksMutateDrawer({
 
   const form = useForm<TaskForm>({
     resolver: zodResolver(formSchema),
-    defaultValues: currentRow ?? {
+    defaultValues: {
       title: '',
       status: 'todo',
       label: 'feature',
       priority: 'medium',
     },
   })
+
+  // Synchronize form values whenever currentRow or open state changes
+  useEffect(() => {
+    if (open) {
+      if (currentRow) {
+        form.reset({
+          title: currentRow.title,
+          status: currentRow.status,
+          label: currentRow.label,
+          priority: currentRow.priority,
+        })
+      } else {
+        form.reset({
+          title: '',
+          status: 'todo',
+          label: 'feature',
+          priority: 'medium',
+        })
+      }
+    }
+  }, [open, currentRow, form])
 
   const onSubmit = (data: TaskForm) => {
     if (isUpdate && currentRow) {
@@ -72,12 +94,12 @@ export function TasksMutateDrawer({
       open={open}
       onOpenChange={(v) => {
         onOpenChange(v)
-        form.reset()
+        if (!v) form.reset()
       }}
     >
       <SheetContent className='flex flex-col'>
         <SheetHeader className='text-start'>
-          <SheetTitle>{isUpdate ? 'Update' : 'Create'} Task</SheetTitle>
+          <SheetTitle id='tasks-drawer-title'>{isUpdate ? 'Update' : 'Create'} Task</SheetTitle>
           <SheetDescription>
             {isUpdate
               ? 'Update the task by providing necessary info.'
@@ -98,7 +120,11 @@ export function TasksMutateDrawer({
                 <FormItem>
                   <FormLabel>Title</FormLabel>
                   <FormControl>
-                    <Input {...field} placeholder='Enter a title' />
+                    <Input
+                      id='input-task-title'
+                      {...field}
+                      placeholder='Enter task title (e.g. Configure Surat Webhook)'
+                    />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
@@ -113,7 +139,7 @@ export function TasksMutateDrawer({
                   <SelectDropdown
                     defaultValue={field.value}
                     onValueChange={field.onChange}
-                    placeholder='Select dropdown'
+                    placeholder='Select status'
                     items={[
                       { label: 'In Progress', value: 'in progress' },
                       { label: 'Backlog', value: 'backlog' },
@@ -135,28 +161,32 @@ export function TasksMutateDrawer({
                   <FormControl>
                     <RadioGroup
                       onValueChange={field.onChange}
-                      defaultValue={field.value}
+                      value={field.value}
                       className='flex flex-col space-y-1'
                     >
-                      <FormItem className='flex items-center'>
+                      <FormItem className='flex items-center space-x-2 space-y-0'>
                         <FormControl>
-                          <RadioGroupItem value='documentation' />
+                          <RadioGroupItem id='radio-label-doc' value='documentation' />
                         </FormControl>
-                        <FormLabel className='font-normal'>
+                        <FormLabel htmlFor='radio-label-doc' className='font-normal cursor-pointer'>
                           Documentation
                         </FormLabel>
                       </FormItem>
-                      <FormItem className='flex items-center'>
+                      <FormItem className='flex items-center space-x-2 space-y-0'>
                         <FormControl>
-                          <RadioGroupItem value='feature' />
+                          <RadioGroupItem id='radio-label-feature' value='feature' />
                         </FormControl>
-                        <FormLabel className='font-normal'>Feature</FormLabel>
+                        <FormLabel htmlFor='radio-label-feature' className='font-normal cursor-pointer'>
+                          Feature
+                        </FormLabel>
                       </FormItem>
-                      <FormItem className='flex items-center'>
+                      <FormItem className='flex items-center space-x-2 space-y-0'>
                         <FormControl>
-                          <RadioGroupItem value='bug' />
+                          <RadioGroupItem id='radio-label-bug' value='bug' />
                         </FormControl>
-                        <FormLabel className='font-normal'>Bug</FormLabel>
+                        <FormLabel htmlFor='radio-label-bug' className='font-normal cursor-pointer'>
+                          Bug
+                        </FormLabel>
                       </FormItem>
                     </RadioGroup>
                   </FormControl>
@@ -173,26 +203,32 @@ export function TasksMutateDrawer({
                   <FormControl>
                     <RadioGroup
                       onValueChange={field.onChange}
-                      defaultValue={field.value}
+                      value={field.value}
                       className='flex flex-col space-y-1'
                     >
-                      <FormItem className='flex items-center'>
+                      <FormItem className='flex items-center space-x-2 space-y-0'>
                         <FormControl>
-                          <RadioGroupItem value='high' />
+                          <RadioGroupItem id='radio-priority-high' value='high' />
                         </FormControl>
-                        <FormLabel className='font-normal'>High</FormLabel>
+                        <FormLabel htmlFor='radio-priority-high' className='font-normal cursor-pointer'>
+                          High
+                        </FormLabel>
                       </FormItem>
-                      <FormItem className='flex items-center'>
+                      <FormItem className='flex items-center space-x-2 space-y-0'>
                         <FormControl>
-                          <RadioGroupItem value='medium' />
+                          <RadioGroupItem id='radio-priority-medium' value='medium' />
                         </FormControl>
-                        <FormLabel className='font-normal'>Medium</FormLabel>
+                        <FormLabel htmlFor='radio-priority-medium' className='font-normal cursor-pointer'>
+                          Medium
+                        </FormLabel>
                       </FormItem>
-                      <FormItem className='flex items-center'>
+                      <FormItem className='flex items-center space-x-2 space-y-0'>
                         <FormControl>
-                          <RadioGroupItem value='low' />
+                          <RadioGroupItem id='radio-priority-low' value='low' />
                         </FormControl>
-                        <FormLabel className='font-normal'>Low</FormLabel>
+                        <FormLabel htmlFor='radio-priority-low' className='font-normal cursor-pointer'>
+                          Low
+                        </FormLabel>
                       </FormItem>
                     </RadioGroup>
                   </FormControl>
@@ -204,9 +240,16 @@ export function TasksMutateDrawer({
         </Form>
         <SheetFooter className='gap-2'>
           <SheetClose asChild>
-            <Button variant='outline'>Close</Button>
+            <Button id='btn-task-cancel' variant='outline'>
+              Close
+            </Button>
           </SheetClose>
-          <Button form='tasks-form' type='submit'>
+          <Button
+            id='btn-task-save'
+            form='tasks-form'
+            type='submit'
+            className='bg-orange-600 hover:bg-orange-700 text-white font-semibold'
+          >
             Save changes
           </Button>
         </SheetFooter>

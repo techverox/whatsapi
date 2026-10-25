@@ -608,6 +608,68 @@ export const whatsapiApi = {
     request('/api/projects/reset', {
       method: 'POST',
     }),
+
+  // Enterprise Task Pipeline
+  getEnterpriseTasks: (params?: {
+    search?: string
+    status?: string
+    priority?: string
+    label?: string
+  }) => {
+    const query = new URLSearchParams()
+    if (params?.search) query.set('search', params.search)
+    if (params?.status && params.status !== 'All') query.set('status', params.status)
+    if (params?.priority && params.priority !== 'All') query.set('priority', params.priority)
+    if (params?.label && params.label !== 'All') query.set('label', params.label)
+    const qs = query.toString() ? `?${query.toString()}` : ''
+    return request(`/api/tasks${qs}`)
+  },
+  getEnterpriseTaskStats: () => request('/api/tasks/stats'),
+  getEnterpriseTask: (id: string) => request(`/api/tasks/${id}`),
+  createEnterpriseTask: (data: {
+    title: string
+    status?: string
+    label?: string
+    priority?: string
+    assignee?: string
+  }) =>
+    request('/api/tasks', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    }),
+  updateEnterpriseTask: (id: string, data: any) =>
+    request(`/api/tasks/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(data),
+    }),
+  deleteEnterpriseTask: (id: string) =>
+    request(`/api/tasks/${id}`, {
+      method: 'DELETE',
+    }),
+  bulkDeleteEnterpriseTasks: (ids: string[]) =>
+    request('/api/tasks/bulk-delete', {
+      method: 'POST',
+      body: JSON.stringify({ ids }),
+    }),
+  bulkUpdateEnterpriseTaskStatus: (ids: string[], status: string) =>
+    request('/api/tasks/bulk-status', {
+      method: 'POST',
+      body: JSON.stringify({ ids, status }),
+    }),
+  bulkUpdateEnterpriseTaskPriority: (ids: string[], priority: string) =>
+    request('/api/tasks/bulk-priority', {
+      method: 'POST',
+      body: JSON.stringify({ ids, priority }),
+    }),
+  importEnterpriseTasks: (tasks: any[]) =>
+    request('/api/tasks/import', {
+      method: 'POST',
+      body: JSON.stringify({ tasks }),
+    }),
+  resetEnterpriseTasks: () =>
+    request('/api/tasks/reset', {
+      method: 'POST',
+    }),
 }
 
 // Backward compatibility alias
