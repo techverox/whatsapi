@@ -12,6 +12,8 @@ import {
   TagItem,
   ColumnItem,
   ColumnDataType,
+  OptsConfig,
+  defaultOptsConfig,
 } from '../data/mock-store.js'
 
 class DatabaseService {
@@ -24,6 +26,7 @@ class DatabaseService {
   public campaigns: CampaignItem[] = [...initialCampaigns]
   public tags: TagItem[] = [...initialTags]
   public columns: ColumnItem[] = [...initialColumns]
+  public optsConfig: OptsConfig = { ...defaultOptsConfig }
 
   constructor() {
     this.initPrisma()
@@ -420,6 +423,132 @@ class DatabaseService {
       success: true,
       message: `Column "${deleted.name}" deleted and decoupled from contacts.`,
     }
+  }
+
+  // --- Opts & Compliance Management ---
+  public getOptsConfig(): OptsConfig & {
+    optInCount: number
+    optOutCount: number
+    totalContacts: number
+  } {
+    const activeContacts = this.contacts.filter((c) => c.status !== 'deleted')
+    const optInCount = activeContacts.filter((c) => c.optIn === true).length
+    const optOutCount = activeContacts.filter((c) => c.optIn === false).length
+
+    return {
+      ...this.optsConfig,
+      optInCount,
+      optOutCount,
+      totalContacts: activeContacts.length,
+    }
+  }
+
+  public updateOptsConfig(config: Partial<OptsConfig>): OptsConfig {
+    if (Array.isArray(config.optOutKeywords)) {
+      this.optsConfig.optOutKeywords = Array.from(
+        new Set(
+          config.optOutKeywords
+            .map((k) => (typeof k === 'string' ? k.trim().toUpperCase() : ''))
+            .filter(Boolean)
+        )
+      )
+    }
+
+    if (Array.isArray(config.optInKeywords)) {
+      this.optsConfig.optInKeywords = Array.from(
+        new Set(
+          config.optInKeywords
+            .map((k) => (typeof k === 'string' ? k.trim().toUpperCase() : ''))
+            .filter(Boolean)
+        )
+      )
+    }
+
+    if (config.autoReplyOnOptOut !== undefined) {
+      this.optsConfig.autoReplyOnOptOut = Boolean(config.autoReplyOnOptOut)
+    }
+    if (config.optOutReplyText !== undefined && config.optOutReplyText.trim()) {
+      this.optsConfig.optOutReplyText = config.optOutReplyText.trim()
+    }
+
+    if (config.autoReplyOnOptIn !== undefined) {
+      this.optsConfig.autoReplyOnOptIn = Boolean(config.autoReplyOnOptIn)
+    }
+    if (config.optInReplyText !== undefined && config.optInReplyText.trim()) {
+      this.optsConfig.optInReplyText = config.optInReplyText.trim()
+    }
+
+    this.optsConfig.lastUpdated = new Date().toISOString()
+    return this.optsConfig
+  }
+
+  public resetOptsConfig(): OptsConfig {
+    this.optsConfig = {
+      ...defaultOptsConfig,
+      lastUpdated: new Date().toISOString(),
+    }
+    return this.optsConfig
+  }
+
+  public processOptKeyword(
+    phone: string,
+    text: string
+  ): {
+    matched: 'opt_out' | 'opt_in' | null
+    actionTaken: string | null
+    replyText?: string
+  } {
+    const clean = text.trim().toUpperCase()
+    const cleanWords = clean.split(/\s+/)
+    const contact = this.contacts.find((c) => c.phone === phone)
+
+    // Check opt-out keywords first
+    const isOptOut = this.optsConfig.optOutKeywords.some((kw) => {
+      const kwClean = kw.trim().toUpperCase()
+      return (
+        clean === kwClean ||
+        cleanWords.includes(kwClean) ||
+        clean.startsWith(`${kwClean} `) ||
+        clean.endsWith(` ${kwClean}`) ||
+        clean.includes(` ${kwClean} `)
+      )
+    })
+
+    if (isOptOut) {
+      if (contact) {
+        contact.optIn = false
+      }
+      return {
+        matched: 'opt_out',
+        actionTaken: 'Contact marked as Opted-Out. Marketing broadcasts paused.',
+        replyText: this.optsConfig.autoReplyOnOptOut ? this.optsConfig.optOutReplyText : undefined,
+      }
+    }
+
+    // Check opt-in keywords
+    const isOptIn = this.optsConfig.optInKeywords.some((kw) => {
+      const kwClean = kw.trim().toUpperCase()
+      return (
+        clean === kwClean ||
+        cleanWords.includes(kwClean) ||
+        clean.startsWith(`${kwClean} `) ||
+        clean.endsWith(` ${kwClean}`) ||
+        clean.includes(` ${kwClean} `)
+      )
+    })
+
+    if (isOptIn) {
+      if (contact) {
+        contact.optIn = true
+      }
+      return {
+        matched: 'opt_in',
+        actionTaken: 'Contact marked as Opted-In. Eligible for broadcasts.',
+        replyText: this.optsConfig.autoReplyOnOptIn ? this.optsConfig.optInReplyText : undefined,
+      }
+    }
+
+    return { matched: null, actionTaken: null }
   }
 }
 

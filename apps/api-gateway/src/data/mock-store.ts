@@ -336,3 +336,24 @@ export const initialCampaigns: CampaignItem[] = [
     createdAt: '2026-10-22T15:00:00Z',
   },
 ]
+
+export interface OptsConfig {
+  optOutKeywords: string[]
+  optInKeywords: string[]
+  autoReplyOnOptOut: boolean
+  optOutReplyText: string
+  autoReplyOnOptIn: boolean
+  optInReplyText: string
+  lastUpdated: string
+}
+
+export const defaultOptsConfig: OptsConfig = {
+  optOutKeywords: ['STOP', 'UNSUBSCRIBE', 'CANCEL', 'QUIT', 'ROKO', 'BAND KARO'],
+  optInKeywords: ['START', 'JOIN', 'CHALU', 'YES', 'SUBSCRIBE', 'HAAN'],
+  autoReplyOnOptOut: true,
+  optOutReplyText:
+    'You have been unsubscribed from WhatsApp promotional updates. Reply START or CHALU anytime to subscribe again.',
+  autoReplyOnOptIn: true,
+  optInReplyText: 'Welcome! You have been successfully opted-in to receive WhatsApp updates.',
+  lastUpdated: '2026-10-25T10:00:00.000Z',
+}

@@ -299,6 +299,30 @@ export const whatsapiApi = {
       method: 'DELETE',
     }),
   getColumnStats: (id: string) => request(`/api/columns/${id}/stats`),
+
+  // Opts Compliance Management
+  getOptsConfig: () => request('/api/opts'),
+  updateOptsConfig: (data: {
+    optOutKeywords?: string[]
+    optInKeywords?: string[]
+    autoReplyOnOptOut?: boolean
+    optOutReplyText?: string
+    autoReplyOnOptIn?: boolean
+    optInReplyText?: string
+  }) =>
+    request('/api/opts', {
+      method: 'PUT',
+      body: JSON.stringify(data),
+    }),
+  resetOptsConfig: () =>
+    request('/api/opts/reset', {
+      method: 'POST',
+    }),
+  testOptMessage: (message: string, phone?: string) =>
+    request('/api/opts/test', {
+      method: 'POST',
+      body: JSON.stringify({ message, phone }),
+    }),
 }
 
 // Backward compatibility alias

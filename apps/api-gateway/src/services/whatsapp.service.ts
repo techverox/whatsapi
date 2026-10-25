@@ -201,6 +201,19 @@ export class WhatsAppCloudService {
       })
     }
 
+    // 4.5 Evaluate Opts & Compliance Keywords (STOP, UNSUBSCRIBE, START, CHALU, etc.)
+    const optResult = dbService.processOptKeyword(contact.phone, messageBody)
+    if (optResult.matched) {
+      console.log(
+        `🛡️ [Opts Compliance] Inbound message triggered "${optResult.matched.toUpperCase()}": ${optResult.actionTaken}`
+      )
+      if (optResult.replyText) {
+        this.sendTextMessage(contact.phone, optResult.replyText).catch((err) => {
+          console.error('Failed to send opt compliance auto-reply:', err)
+        })
+      }
+    }
+
     // 5. Evaluate Bot & Flow Automations (FAQ Bot & Keyword Triggers)
     botService.evaluateMessage(contact.phone, messageBody, conversation.id).catch((err) => {
       console.error('Error evaluating bot rules:', err)
