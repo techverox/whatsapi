@@ -416,6 +416,8 @@ app.use('/api/opts', optsRouter)
 app.use('/api/templates', templatesRouter)
 app.use('/api/integrations', integrationsRouter)
 app.use('/api/media', mediaRouter)
+app.use('/api/bot', botRouter)
+app.use('/api/ai', aiRouter)
 app.use('/api', whatsappRouter)
 
 app.use('/api/v1/contacts', contactsRouter)

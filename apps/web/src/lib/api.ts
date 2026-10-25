@@ -366,6 +366,70 @@ export const whatsapiApi = {
     request('/api/media/sync', {
       method: 'POST',
     }),
+
+  // FAQ Bot & NLP Keyword Automation
+  getBotRules: (params?: { category?: string; search?: string; activeOnly?: boolean }) => {
+    const q = new URLSearchParams()
+    if (params?.category && params.category !== 'all') q.set('category', params.category)
+    if (params?.search) q.set('search', params.search)
+    if (params?.activeOnly) q.set('activeOnly', 'true')
+    const qs = q.toString()
+    return request(`/api/bot/rules${qs ? `?${qs}` : ''}`)
+  },
+  getBotStats: () => request('/api/bot/stats'),
+  getBotRule: (id: string) => request(`/api/bot/rules/${id}`),
+  createBotRule: (data: {
+    name?: string
+    keywords: string[] | string
+    replyText: string
+    reply?: string
+    responseType?: 'text' | 'template' | 'handoff' | 'optout'
+    category?: 'Sales' | 'Operations' | 'Support' | 'Compliance' | 'General'
+    targetAgentName?: string
+    templateName?: string
+    priority?: number
+  }) =>
+    request('/api/bot/rules', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    }),
+  updateBotRule: (
+    id: string,
+    data: {
+      name?: string
+      keywords?: string[] | string
+      replyText?: string
+      reply?: string
+      responseType?: 'text' | 'template' | 'handoff' | 'optout'
+      category?: 'Sales' | 'Operations' | 'Support' | 'Compliance' | 'General'
+      targetAgentName?: string
+      templateName?: string
+      active?: boolean
+      priority?: number
+    }
+  ) =>
+    request(`/api/bot/rules/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(data),
+    }),
+  deleteBotRule: (id: string) =>
+    request(`/api/bot/rules/${id}`, {
+      method: 'DELETE',
+    }),
+  toggleBotRule: (id: string, active?: boolean) =>
+    request(`/api/bot/rules/${id}/toggle`, {
+      method: 'POST',
+      body: JSON.stringify({ active }),
+    }),
+  testBotQuery: (query: string) =>
+    request('/api/bot/test', {
+      method: 'POST',
+      body: JSON.stringify({ query }),
+    }),
+  resetBotRules: () =>
+    request('/api/bot/reset', {
+      method: 'POST',
+    }),
 }
 
 // Backward compatibility alias
