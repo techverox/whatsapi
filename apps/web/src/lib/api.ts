@@ -726,6 +726,67 @@ export const whatsapiApi = {
     request('/api/settings/reset', {
       method: 'POST',
     }),
+
+  // Knowledge Base Documentation & AI Vector Store
+  getKnowledgeBaseCategories: (search?: string) => {
+    const qs = search ? `?search=${encodeURIComponent(search)}` : ''
+    return request(`/api/knowledge-base/categories${qs}`)
+  },
+  createKnowledgeCategory: (data: { name: string; iconColor?: string; description?: string }) =>
+    request('/api/knowledge-base/categories', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    }),
+  updateKnowledgeCategory: (id: string, data: any) =>
+    request(`/api/knowledge-base/categories/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(data),
+    }),
+  deleteKnowledgeCategory: (id: string) =>
+    request(`/api/knowledge-base/categories/${id}`, {
+      method: 'DELETE',
+    }),
+  getKnowledgeArticles: (params?: { search?: string; categoryId?: string; featured?: boolean }) => {
+    const query = new URLSearchParams()
+    if (params?.search) query.set('search', params.search)
+    if (params?.categoryId) query.set('categoryId', params.categoryId)
+    if (params?.featured !== undefined) query.set('featured', String(params.featured))
+    const qs = query.toString() ? `?${query.toString()}` : ''
+    return request(`/api/knowledge-base/articles${qs}`)
+  },
+  getKnowledgeArticle: (id: string) => request(`/api/knowledge-base/articles/${id}`),
+  createKnowledgeArticle: (data: {
+    title: string
+    categoryId: string
+    content: string
+    summary?: string
+    routeLink?: string
+    featured?: boolean
+    tags?: string[]
+  }) =>
+    request('/api/knowledge-base/articles', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    }),
+  updateKnowledgeArticle: (id: string, data: any) =>
+    request(`/api/knowledge-base/articles/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(data),
+    }),
+  deleteKnowledgeArticle: (id: string) =>
+    request(`/api/knowledge-base/articles/${id}`, {
+      method: 'DELETE',
+    }),
+  syncKnowledgeBaseToAI: () =>
+    request('/api/knowledge-base/sync-ai', {
+      method: 'POST',
+    }),
+  getKnowledgeBaseStats: () => request('/api/knowledge-base/stats'),
+  exportKnowledgeBase: () => request('/api/knowledge-base/export'),
+  resetKnowledgeBase: () =>
+    request('/api/knowledge-base/reset', {
+      method: 'POST',
+    }),
 }
 
 // Backward compatibility alias

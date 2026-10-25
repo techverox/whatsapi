@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import {
   Folder,
   ChevronRight,
@@ -12,6 +12,14 @@ import {
   ArrowRight,
   FileText,
   Lightbulb,
+  Edit3,
+  FolderPlus,
+  Download,
+  RotateCcw,
+  Sparkles,
+  CheckCircle2,
+  Database,
+  Cpu,
 } from 'lucide-react'
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
@@ -33,6 +41,7 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog'
 import { Link } from '@tanstack/react-router'
+import { veroxApi } from '@/lib/api'
 
 export interface ArticleItem {
   id: string
@@ -45,403 +54,22 @@ export interface ArticleItem {
   updatedAt: string
   featured?: boolean
   routeLink?: string
+  categoryId?: string
+  tags?: string[]
 }
 
 export interface CategoryGroup {
   id: string
   name: string
   iconColor: string
+  description?: string
+  displayOrder?: number
   articles: ArticleItem[]
 }
 
-const defaultCategories: CategoryGroup[] = [
-  {
-    id: 'dashboard',
-    name: 'Dashboard',
-    iconColor: 'bg-orange-500',
-    articles: [
-      {
-        id: 'dash-1',
-        title: 'Dashboard Overview & Real-time KPI Metrics',
-        summary: 'Learn how to monitor active flows, chatbots, message delivery analytics, and project timeline tracking.',
-        readTime: '3 min read',
-        tokens: 1850,
-        chunks: 6,
-        updatedAt: '24 Oct 2026',
-        featured: true,
-        routeLink: '/dashboard',
-        content: `### 1. Overview
-The Whatsapi Dashboard delivers a 360-degree real-time operational cockpit for commercial fleet and enterprise WhatsApp marketing.
-
-### 2. Key Metrics Tracked
-- **Total Flows**: Count of active vs inactive event-driven automated workflows.
-- **Total Chatbots**: Live visual bot configurations deployed to inbound customer numbers.
-- **Message Volume**: Daily, monthly, and yearly breakdown of sent vs received WhatsApp messages.
-- **Project Planner**: Interactive Gantt-style timeline tracking active client deployments and tasks.
-
-### 3. Tips for Performance
-Always verify that your Meta WhatsApp Business API webhook is verified with status 200 OK so that all analytics reflect instantaneously.`,
-      },
-      {
-        id: 'dash-2',
-        title: 'Message Analytics & Response Rate Optimization',
-        summary: 'How to interpret inbound customer queries, peak interaction hours, and automated AI resolution rates.',
-        readTime: '2 min read',
-        tokens: 1420,
-        chunks: 5,
-        updatedAt: '22 Oct 2026',
-        content: `### Understanding Response Analytics
-Whatsapi logs every incoming customer message alongside the automated reply timestamp.
-
-1. **Inbound Traffic Spikes**: Peak hours are typically 10:00 AM to 1:00 PM and 4:00 PM to 7:00 PM.
-2. **AI Resolution Rate**: Over 84% of commercial fleet queries (pricing, FASTAG balance, GPS tracking) are answered in under 2 seconds without human agent intervention.
-3. **Escalations**: Queries tagged as complex or requesting human assistance are routed to assigned agents within 15 seconds.`,
-      },
-    ],
-  },
-  {
-    id: 'manage',
-    name: 'Manage Section',
-    iconColor: 'bg-amber-500',
-    articles: [
-      {
-        id: 'man-1',
-        title: 'WhatsApp Message Templates & Meta Approvals',
-        summary: 'Guidelines for creating marketing, utility, and authentication templates that comply with Meta 2026 policies.',
-        readTime: '4 min read',
-        tokens: 2400,
-        chunks: 8,
-        updatedAt: '24 Oct 2026',
-        featured: true,
-        routeLink: '/manage/templates',
-        content: `### WhatsApp Cloud API Template Rules
-Meta requires pre-approval for outbound messages initiated outside the 24-hour customer service window.
-
-### Category Breakdown
-- **MARKETING**: Promotions, festive discounts, fleet upgrades, and catalog announcements.
-- **UTILITY**: Transaction receipts, GPS installation confirmations, and order updates.
-- **AUTHENTICATION**: One-time login passcodes (OTP) with zero-click autofill buttons.
-
-### Creating a Template
-1. Navigate to **Manage > Whatsapp Templates**.
-2. Click **+ Create Template**.
-3. Choose Language (e.g. *English (US)*, *Hindi (hi)*, or *Gujarati (gu)*).
-4. Add Header (Image, Document, or Text), Body with dynamic variables \`{{1}}\`, and Quick Reply buttons.`,
-      },
-      {
-        id: 'man-2',
-        title: 'Custom WhatsApp Forms & Lead Capture',
-        summary: 'Build native multi-step forms directly inside WhatsApp without redirecting customers to external browsers.',
-        readTime: '3 min read',
-        tokens: 1750,
-        chunks: 6,
-        updatedAt: '20 Oct 2026',
-        routeLink: '/manage/forms',
-        content: `### Native WhatsApp Flows & Forms
-Collect structured lead information—such as vehicle registration numbers, fleet size, and preferred installation city—directly inside the WhatsApp conversation window.
-
-### Advantages:
-- 3.5x higher conversion rate than external web landing pages.
-- Auto-syncs response fields to the Contacts CRM.
-- Triggers instant notification to the sales desk.`,
-      },
-      {
-        id: 'man-3',
-        title: 'Contact Tags & Opts Management',
-        summary: 'Maintain compliance with STOP/UNSUBSCRIBE keywords and organize leads using tags.',
-        readTime: '2 min read',
-        tokens: 1200,
-        chunks: 4,
-        updatedAt: '18 Oct 2026',
-        routeLink: '/manage/tags',
-        content: `### Compliance & Tagging Rules
-- Every campaign recipient must have opt-in consent.
-- Automated Opt-Out: If a user sends "STOP" or "UNSUBSCRIBE", Whatsapi automatically marks them as \`Opt In: No\` and suspends promotional broadcasts.`,
-      },
-    ],
-  },
-  {
-    id: 'integrations',
-    name: 'Integrations',
-    iconColor: 'bg-blue-500',
-    articles: [
-      {
-        id: 'int-1',
-        title: 'Meta WhatsApp Business Cloud API Integration',
-        summary: 'Step-by-step setup for permanent system user access tokens, WABA ID, and webhook endpoints.',
-        readTime: '5 min read',
-        tokens: 3100,
-        chunks: 10,
-        updatedAt: '24 Oct 2026',
-        featured: true,
-        routeLink: '/apps',
-        content: `### Connecting Meta Cloud API
-Whatsapi connects natively to Meta's official Graph API (v20.0+).
-
-### Required Credentials:
-1. **Phone Number ID**: Found in Meta Developer Dashboard under *WhatsApp > API Setup*.
-2. **WABA ID (WhatsApp Business Account ID)**: Unique identifier for your business account.
-3. **Permanent Access Token**: Generated via Meta Business Manager System User with \`whatsapp_business_messaging\` permissions.
-4. **Webhook Callback URL**: Set to \`https://app.whatsapi.io/api/v2/webhook/whatsapp\`.
-5. **Verify Token**: Your custom security token configured in **Settings > Developer**.`,
-      },
-      {
-        id: 'int-2',
-        title: 'IndiaMart & Facebook Lead Ads Push Integration',
-        summary: 'Capture buyer leads from IndiaMart and Facebook Ads in under 500ms with instant WhatsApp auto-replies.',
-        readTime: '3 min read',
-        tokens: 2100,
-        chunks: 7,
-        updatedAt: '21 Oct 2026',
-        routeLink: '/apps',
-        content: `### 24/7 Lead Ingestion
-- **IndiaMart Push API**: Paste your CRM Webhook URL into the IndiaMart Lead Manager settings. Incoming buyer inquiries are parsed and tagged with #indiamart-buyer.
-- **Facebook Lead Ads**: Connect your Facebook Page to trigger a personalized WhatsApp catalog within 30 seconds of form submission.`,
-      },
-    ],
-  },
-  {
-    id: 'gallery',
-    name: 'Gallery',
-    iconColor: 'bg-emerald-500',
-    articles: [
-      {
-        id: 'gal-1',
-        title: 'Media Asset Management & Permanent CDN URLs',
-        summary: 'Upload and organize product brochures, AIS-140 GPS product spec sheets, and marketing flyers.',
-        readTime: '2 min read',
-        tokens: 1350,
-        chunks: 4,
-        updatedAt: '23 Oct 2026',
-        routeLink: '/gallery',
-        content: `### High-Speed Media CDN
-All assets uploaded to the Gallery are hosted on an enterprise CDN optimized for high-speed WhatsApp media delivery.
-
-- **Supported Formats**: JPEG, PNG, WEBP, PDF, MP4, MP3.
-- **Max File Size**: 16 MB for photos and audio; 100 MB for PDF documents.
-- **1-Click Copy**: Copy direct public URLs for use in Broadcast campaigns and Flow templates.`,
-      },
-    ],
-  },
-  {
-    id: 'inbox',
-    name: 'Inbox Section',
-    iconColor: 'bg-teal-500',
-    articles: [
-      {
-        id: 'inb-1',
-        title: 'Omnichannel Live Chat & Agent Desk Workflow',
-        summary: 'Master the unified multi-agent inbox, customer tag filters, sound alerts, and AI copilot suggestions.',
-        readTime: '4 min read',
-        tokens: 2600,
-        chunks: 9,
-        updatedAt: '24 Oct 2026',
-        featured: true,
-        routeLink: '/chats',
-        content: `### Unified Team Inbox
-The Inbox allows your entire sales and support staff to handle incoming customer queries simultaneously.
-
-### Key Capabilities:
-- **Conversation Tag Filter**: Filter chats by \`All\`, \`English\`, \`FASTAG\`, \`Fleet Mgmt\`, \`GPS\`, or \`hot-lead\`.
-- **Quick Replies**: Press \`/\` in the message composer to insert pre-approved canned responses.
-- **Rich Media**: Send GPS spec sheets, quote PDFs, and voice notes directly from the composer.
-- **Agent Hand-off**: Toggle between automated AI chatbot response and human takeover with a single click.`,
-      },
-    ],
-  },
-  {
-    id: 'contacts',
-    name: 'Contacts',
-    iconColor: 'bg-purple-500',
-    articles: [
-      {
-        id: 'con-1',
-        title: 'Contacts CRM & Advanced Segmentation',
-        summary: 'Managing phone numbers, WABA accounts, opt-in statuses, and automated sales desk assignment.',
-        readTime: '3 min read',
-        tokens: 1950,
-        chunks: 6,
-        updatedAt: '24 Oct 2026',
-        routeLink: '/users',
-        content: `### Enterprise Contact Management
-The Contacts CRM provides complete audit history for every commercial fleet lead and customer.
-
-- **Bulk Actions**: Select multiple contacts to trigger targeted WhatsApp broadcasts or assign tags.
-- **CSV Import/Export**: Import spreadsheets of fleet owners with phone numbers and custom vehicle attributes.
-- **Column Customization**: Toggle visibility of GPS Client, Assigned To, and WABA Phone Number columns.`,
-      },
-    ],
-  },
-  {
-    id: 'campaigns',
-    name: 'Campaigns',
-    iconColor: 'bg-rose-500',
-    articles: [
-      {
-        id: 'cam-1',
-        title: 'Broadcasting Targeted WhatsApp Campaigns',
-        summary: 'Plan, schedule, and execute high-throughput promotional and festive broadcasts with real-time delivery reports.',
-        readTime: '4 min read',
-        tokens: 2200,
-        chunks: 7,
-        updatedAt: '23 Oct 2026',
-        routeLink: '/campaigns',
-        content: `### WhatsApp Broadcast Engine
-Reach thousands of opt-in customers instantly using Meta-approved templates.
-
-### Best Practices for High Open Rates:
-1. Segment recipients by interest (e.g. #gps-inquiry vs #fastag-fleet).
-2. Schedule broadcasts during business hours (10:30 AM to 6:30 PM).
-3. Include clear Call-to-Action buttons (e.g. "Chat with Sales" or "Download Brochure").`,
-      },
-    ],
-  },
-  {
-    id: 'faq-bot',
-    name: 'FAQ Bot',
-    iconColor: 'bg-indigo-500',
-    articles: [
-      {
-        id: 'faq-1',
-        title: 'Keyword Intent Matching & 24/7 FAQ Responses',
-        summary: 'Configure automated trigger rules, confidence thresholds, and multi-lingual customer query resolution.',
-        readTime: '3 min read',
-        tokens: 1800,
-        chunks: 6,
-        updatedAt: '24 Oct 2026',
-        routeLink: '/faq-bot',
-        content: `### Instant 24/7 Auto-Responder
-Configure keyword patterns and conversational matching for frequent questions.
-
-- **Matching Modes**: Exact match, phrase contains, or fuzzy semantic matching.
-- **Multi-language Support**: Handles English, Hindi, and Gujarati phrasing.
-- **Interactive Simulator**: Test questions in the live simulator to verify match accuracy before deployment.`,
-      },
-    ],
-  },
-  {
-    id: 'chatbot',
-    name: 'Chatbot',
-    iconColor: 'bg-cyan-500',
-    articles: [
-      {
-        id: 'bot-1',
-        title: 'Visual Chatbot Canvas & Interactive Menus',
-        summary: 'Design multi-turn conversational trees with quick reply buttons, branch routing, and CRM updates.',
-        readTime: '4 min read',
-        tokens: 2500,
-        chunks: 8,
-        updatedAt: '24 Oct 2026',
-        routeLink: '/chatbot',
-        content: `### Visual Chatbot Builder
-Create complex customer interaction flows without writing code.
-
-### Node Types:
-- **Welcome Trigger**: Activates on new conversation or keyword match.
-- **Button Menu**: Presents up to 3 interactive reply buttons (e.g. "Buy GPS", "Recharge FASTAG", "Support").
-- **Data Capture**: Requests vehicle registration or email and validates format.
-- **Transfer Node**: Hands over conversation to a human agent when customer requests live help.`,
-      },
-    ],
-  },
-  {
-    id: 'ai-assistant',
-    name: 'AI assistant',
-    iconColor: 'bg-violet-500',
-    articles: [
-      {
-        id: 'ai-1',
-        title: 'RAG Grounded AI Assistant with GPT-4o-mini',
-        summary: 'How Whatsapi uses retrieval-augmented generation to answer technical fleet questions using this Knowledge Base.',
-        readTime: '4 min read',
-        tokens: 2800,
-        chunks: 9,
-        updatedAt: '24 Oct 2026',
-        featured: true,
-        routeLink: '/ai-assistant',
-        content: `### Grounded Intelligence (RAG)
-Whatsapi incorporates an enterprise RAG (Retrieval-Augmented Generation) pipeline.
-
-### How It Works:
-1. When a customer sends a query, the system converts the query into a high-dimensional vector.
-2. It retrieves the top matching knowledge articles from this Knowledge Base.
-3. The LLM (e.g. **gpt-4o-mini**) synthesizes a polite, factual answer strictly grounded in your verified business documentation.
-4. If no reliable answer is found, the assistant automatically routes the customer to human support without hallucinating.`,
-      },
-    ],
-  },
-  {
-    id: 'flows',
-    name: 'Flows',
-    iconColor: 'bg-orange-600',
-    articles: [
-      {
-        id: 'flow-1',
-        title: 'Visual Flow Automation Studio & Live Debugging',
-        summary: 'Detailed guide to building event-driven flows matching BizAutomation with real-time test execution.',
-        readTime: '5 min read',
-        tokens: 3400,
-        chunks: 11,
-        updatedAt: '24 Oct 2026',
-        featured: true,
-        routeLink: '/flows',
-        content: `### BizAutomation-Grade Flow Studio
-Whatsapi provides a visual canvas for event-driven marketing and CRM automation.
-
-### Architecture:
-- **Trigger Node**: Inbound WhatsApp text message, webhook trigger, or campaign event.
-- **Condition Filter**: Conditional logic (e.g. \`message.text contains ["price", "gps"]\`).
-- **Action Node**: Dispatches templates, sends media, or updates contact tags.
-- **Test Debugger**: Run real-time simulations to inspect Input, Output, and Error JSON payloads with line numbers.`,
-      },
-    ],
-  },
-  {
-    id: 'developers',
-    name: 'Developers',
-    iconColor: 'bg-slate-600',
-    articles: [
-      {
-        id: 'dev-1',
-        title: 'WhatsApp REST API & Webhook Specifications',
-        summary: 'Direct REST endpoints for sending text messages, media, document attachments, and OTP authentication.',
-        readTime: '4 min read',
-        tokens: 2900,
-        chunks: 9,
-        updatedAt: '24 Oct 2026',
-        routeLink: '/developers/docs',
-        content: `### WhatsApp REST API Documentation
-Send WhatsApp messages programmatically from your backend systems.
-
-### Send Text Message Endpoint
-\`\`\`bash
-curl -X POST https://app.whatsapi.io/api/v2/whatsapp/messages \\
-  -H "Authorization: Bearer YOUR_API_KEY" \\
-  -H "Content-Type: application/json" \\
-  -d '{
-    "to": "919825100001",
-    "type": "text",
-    "text": { "body": "Hello from Whatsapi!" }
-  }'
-\`\`\`
-
-### Webhook Verification:
-Meta sends a GET request to verify your webhook with \`hub.challenge\` and \`hub.verify_token\`. Whatsapi automatically returns the challenge with 200 OK.`,
-      },
-    ],
-  },
-]
-
 export function KnowledgeBase() {
-  const [categories, setCategories] = useState<CategoryGroup[]>(() => {
-    try {
-      const saved = localStorage.getItem('whatsapi_kb_categories_v2')
-      if (saved) return JSON.parse(saved)
-    } catch (_err) {
-      // Use defaults
-    }
-    return defaultCategories
-  })
+  const [categories, setCategories] = useState<CategoryGroup[]>([])
+  const [loading, setLoading] = useState<boolean>(true)
 
   // Selected state
   const [selectedCategoryId, setSelectedCategoryId] = useState<string>('dashboard')
@@ -464,20 +92,84 @@ export function KnowledgeBase() {
   const [searchQuery, setSearchQuery] = useState('')
   const [isSyncingAI, setIsSyncingAI] = useState(false)
 
-  // New Article Modal
+  // Modals state
   const [addModalOpen, setAddModalOpen] = useState(false)
+  const [editModalOpen, setEditModalOpen] = useState(false)
+  const [addCategoryModalOpen, setAddCategoryModalOpen] = useState(false)
+
+  // Form states - Add Article
   const [newTitle, setNewTitle] = useState('')
   const [newCategoryTarget, setNewCategoryTarget] = useState('dashboard')
   const [newContent, setNewContent] = useState('')
 
-  const persistCategories = (updated: CategoryGroup[]) => {
-    setCategories(updated)
+  // Form states - Edit Article
+  const [editArticleId, setEditArticleId] = useState('')
+  const [editTitle, setEditTitle] = useState('')
+  const [editCategoryTarget, setEditCategoryTarget] = useState('dashboard')
+  const [editContent, setEditContent] = useState('')
+
+  // Form states - Add Category
+  const [newCategoryName, setNewCategoryName] = useState('')
+  const [newCategoryColor, setNewCategoryColor] = useState('bg-orange-500')
+
+  // Load from API
+  const loadCategories = useCallback(async (query?: string) => {
     try {
-      localStorage.setItem('whatsapi_kb_categories_v2', JSON.stringify(updated))
+      const res = await veroxApi.getKnowledgeBaseCategories(query)
+      if (res?.data && Array.isArray(res.data)) {
+        setCategories(res.data)
+        // Auto-expand categories with articles
+        const expandMap: Record<string, boolean> = {}
+        res.data.forEach((c: CategoryGroup, idx: number) => {
+          expandMap[c.id] = idx < 3 || c.articles.length > 0
+        })
+        setExpandedCategories((prev) => ({ ...expandMap, ...prev }))
+      }
     } catch (_err) {
-      // Ignore storage error
+      // Graceful local cache fallback
+      try {
+        const saved = localStorage.getItem('whatsapi_kb_categories_v2')
+        if (saved) setCategories(JSON.parse(saved))
+      } catch (_e) {
+        // ignore
+      }
+    } finally {
+      setLoading(false)
     }
-  }
+  }, [])
+
+  useEffect(() => {
+    loadCategories()
+
+    // Realtime WebSocket listener for knowledge base sync
+    let ws: WebSocket | null = null
+    try {
+      ws = new WebSocket('ws://localhost:4000')
+      ws.onmessage = (event) => {
+        try {
+          const msg = JSON.parse(event.data)
+          if (
+            msg.type === 'kb_article_created' ||
+            msg.type === 'kb_article_updated' ||
+            msg.type === 'kb_article_deleted' ||
+            msg.type === 'kb_category_created' ||
+            msg.type === 'kb_synced_ai' ||
+            msg.type === 'kb_reset_defaults'
+          ) {
+            loadCategories()
+          }
+        } catch (_err) {
+          // ignore
+        }
+      }
+    } catch (_err) {
+      // ignore
+    }
+
+    return () => {
+      if (ws) ws.close()
+    }
+  }, [loadCategories])
 
   const toggleCategoryExpand = (catId: string) => {
     setExpandedCategories((prev) => ({
@@ -497,110 +189,192 @@ export function KnowledgeBase() {
       : null
 
   // Filtered categories based on search
-  const filteredCategories = categories.map((cat) => {
-    if (!searchQuery.trim()) return cat
-    const q = searchQuery.toLowerCase()
-    const matchingArticles = cat.articles.filter(
-      (a) =>
-        a.title.toLowerCase().includes(q) ||
-        a.summary.toLowerCase().includes(q) ||
-        a.content.toLowerCase().includes(q)
-    )
-    return {
-      ...cat,
-      articles: matchingArticles,
-    }
-  }).filter((cat) => cat.articles.length > 0 || !searchQuery.trim())
+  const filteredCategories = categories
+    .map((cat) => {
+      if (!searchQuery.trim()) return cat
+      const q = searchQuery.toLowerCase()
+      const matchingArticles = cat.articles.filter(
+        (a) =>
+          a.title.toLowerCase().includes(q) ||
+          a.summary.toLowerCase().includes(q) ||
+          a.content.toLowerCase().includes(q)
+      )
+      return {
+        ...cat,
+        articles: matchingArticles,
+      }
+    })
+    .filter((cat) => cat.articles.length > 0 || !searchQuery.trim())
 
   const handleSelectArticle = (catId: string, articleId: string) => {
     setSelectedCategoryId(catId)
     setSelectedArticleId(articleId)
   }
 
+  // 1. Sync to AI
   const handleSyncToAI = async () => {
     setIsSyncingAI(true)
-    toast.info('Synchronizing Knowledge Base with AI Assistant...', {
-      description: 'Generating high-dimensional vector embeddings for all articles.',
+    toast.info('Vectorizing Knowledge Base for AI Assistant...', {
+      description: 'Generating high-dimensional vector embeddings across all active categories.',
     })
 
-    const totalArticles = categories.reduce((sum, c) => sum + c.articles.length, 0)
-    const totalTokens = categories.reduce(
-      (sum, c) => sum + c.articles.reduce((aSum, a) => aSum + a.tokens, 0),
-      0
-    )
-
     try {
-      await fetch('http://localhost:4000/api/v1/ai/knowledge', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          syncTimestamp: Date.now(),
-          articlesCount: totalArticles,
-          categories: categories.map((c) => ({ id: c.id, name: c.name, count: c.articles.length })),
-        }),
+      const res = await veroxApi.syncKnowledgeBaseToAI()
+      const totalArticles = res?.data?.totalArticles || categories.reduce((sum, c) => sum + c.articles.length, 0)
+      const totalTokens = res?.data?.totalTokens || categories.reduce(
+        (sum, c) => sum + c.articles.reduce((aSum, a) => aSum + a.tokens, 0),
+        0
+      )
+      toast.success('RAG Knowledge Base 100% Synchronized!', {
+        description: `${totalArticles} verified articles (${totalTokens.toLocaleString()} tokens) are active and queryable by AI Assistant.`,
       })
     } catch (_err) {
-      // API gateway offline fallback
-    }
-
-    setTimeout(() => {
+      toast.error('AI Sync request failed. Check API Gateway status.')
+    } finally {
       setIsSyncingAI(false)
-      toast.success('RAG Knowledge Base 100% Synchronized!', {
-        description: `${totalArticles} verified articles (${totalTokens.toLocaleString()} tokens) are live and queryable by AI Assistant.`,
-      })
-    }, 900)
+    }
   }
 
-  const handleCreateArticle = () => {
+  // 2. Create Article
+  const handleCreateArticle = async () => {
     if (!newTitle.trim() || !newContent.trim()) {
       toast.error('Please enter article title and documentation content.')
       return
     }
 
-    const newArticle: ArticleItem = {
-      id: `art-${Date.now()}`,
-      title: newTitle.trim(),
-      summary: newContent.slice(0, 130) + '...',
-      content: newContent.trim(),
-      tokens: Math.max(120, Math.round(newContent.length * 0.75)),
-      chunks: Math.max(1, Math.round(newContent.length / 320)),
-      readTime: `${Math.max(1, Math.round(newContent.length / 600))} min read`,
-      updatedAt: 'Just now',
-      featured: false,
+    try {
+      const res = await veroxApi.createKnowledgeArticle({
+        title: newTitle.trim(),
+        categoryId: newCategoryTarget,
+        content: newContent.trim(),
+      })
+
+      if (res?.data) {
+        const created = res.data
+        setSelectedCategoryId(newCategoryTarget)
+        setSelectedArticleId(created.id)
+        setExpandedCategories((prev) => ({ ...prev, [newCategoryTarget]: true }))
+        setNewTitle('')
+        setNewContent('')
+        setAddModalOpen(false)
+        await loadCategories()
+        toast.success('Article Created & Vectorized!', {
+          description: `"${created.title}" added to ${newCategoryTarget} category and synced with AI store.`,
+        })
+      }
+    } catch (err: any) {
+      toast.error(err.message || 'Failed to create article.')
+    }
+  }
+
+  // 3. Open Edit Article Modal
+  const handleOpenEditArticle = (art: ArticleItem, catId: string) => {
+    setEditArticleId(art.id)
+    setEditTitle(art.title)
+    setEditCategoryTarget(catId)
+    setEditContent(art.content)
+    setEditModalOpen(true)
+  }
+
+  // 4. Update Article
+  const handleUpdateArticle = async () => {
+    if (!editTitle.trim() || !editContent.trim()) {
+      toast.error('Article title and content cannot be empty.')
+      return
     }
 
-    const updated = categories.map((cat) => {
-      if (cat.id === newCategoryTarget) {
-        return {
-          ...cat,
-          articles: [newArticle, ...cat.articles],
-        }
+    try {
+      const res = await veroxApi.updateKnowledgeArticle(editArticleId, {
+        title: editTitle.trim(),
+        categoryId: editCategoryTarget,
+        content: editContent.trim(),
+      })
+
+      if (res?.data) {
+        setEditModalOpen(false)
+        await loadCategories()
+        toast.success('Article Updated & Re-indexed!', {
+          description: `"${res.data.title}" has been updated with fresh embeddings.`,
+        })
       }
-      return cat
-    })
-
-    persistCategories(updated)
-    setSelectedCategoryId(newCategoryTarget)
-    setSelectedArticleId(newArticle.id)
-    setExpandedCategories((prev) => ({ ...prev, [newCategoryTarget]: true }))
-    setNewTitle('')
-    setNewContent('')
-    setAddModalOpen(false)
-
-    toast.success('Article Created & Vectorized!', {
-      description: `"${newArticle.title}" added to ${newCategoryTarget} category and synced with AI store.`,
-    })
+    } catch (err: any) {
+      toast.error(err.message || 'Failed to update article.')
+    }
   }
 
-  const handleDeleteArticle = (articleId: string) => {
-    const updated = categories.map((cat) => ({
-      ...cat,
-      articles: cat.articles.filter((a) => a.id !== articleId),
-    }))
-    persistCategories(updated)
-    setSelectedArticleId(null)
-    toast.info('Article removed from Knowledge Base.')
+  // 5. Delete Article
+  const handleDeleteArticle = async (articleId: string) => {
+    try {
+      await veroxApi.deleteKnowledgeArticle(articleId)
+      setSelectedArticleId(null)
+      await loadCategories()
+      toast.info('Article removed from Knowledge Base.')
+    } catch (err: any) {
+      toast.error(err.message || 'Failed to delete article.')
+    }
   }
+
+  // 6. Create New Category
+  const handleCreateCategory = async () => {
+    if (!newCategoryName.trim()) {
+      toast.error('Category name is required.')
+      return
+    }
+
+    try {
+      const res = await veroxApi.createKnowledgeCategory({
+        name: newCategoryName.trim(),
+        iconColor: newCategoryColor,
+      })
+
+      if (res?.data) {
+        setAddCategoryModalOpen(false)
+        setNewCategoryName('')
+        await loadCategories()
+        toast.success(`Category "${res.data.name}" Created!`)
+      }
+    } catch (err: any) {
+      toast.error(err.message || 'Failed to create category.')
+    }
+  }
+
+  // 7. Export Knowledge Base JSON
+  const handleExportKB = async () => {
+    try {
+      const res = await veroxApi.exportKnowledgeBase()
+      const dataStr = 'data:text/json;charset=utf-8,' + encodeURIComponent(JSON.stringify(res?.data || categories, null, 2))
+      const downloadAnchor = document.createElement('a')
+      downloadAnchor.setAttribute('href', dataStr)
+      downloadAnchor.setAttribute('download', `whatsapi_kb_export_${Date.now()}.json`)
+      document.body.appendChild(downloadAnchor)
+      downloadAnchor.click()
+      downloadAnchor.remove()
+      toast.success('Knowledge Base exported as JSON!')
+    } catch (_err) {
+      toast.error('Failed to export Knowledge Base.')
+    }
+  }
+
+  // 8. Reset to Defaults
+  const handleResetDefaults = async () => {
+    if (!window.confirm('Reset all knowledge base documentation to default factory seed articles?')) {
+      return
+    }
+    try {
+      await veroxApi.resetKnowledgeBase()
+      await loadCategories()
+      setSelectedArticleId(null)
+      toast.success('Knowledge Base restored to factory defaults.')
+    } catch (err: any) {
+      toast.error(err.message || 'Failed to reset Knowledge Base.')
+    }
+  }
+
+  const totalArticlesCount = categories.reduce((acc, c) => acc + c.articles.length, 0)
+  const totalTokensCount = categories.reduce(
+    (acc, c) => acc + c.articles.reduce((aAcc, a) => aAcc + (a.tokens || 0), 0),
+    0
+  )
 
   return (
     <>
@@ -623,7 +397,11 @@ export function KnowledgeBase() {
                 Knowledge Base
               </h1>
               <Badge variant='outline' className='text-xs font-mono border-orange-500/40 text-orange-600 dark:text-orange-400'>
-                {categories.reduce((acc, c) => acc + c.articles.length, 0)} Articles Active
+                {totalArticlesCount} Articles Active
+              </Badge>
+              <Badge variant='secondary' className='text-[10px] font-mono gap-1 hidden sm:flex'>
+                <Cpu className='h-3 w-3 text-emerald-500' />
+                {totalTokensCount.toLocaleString()} Tokens Vectorized
               </Badge>
             </div>
             <p className='text-xs text-muted-foreground mt-0.5'>
@@ -631,20 +409,57 @@ export function KnowledgeBase() {
             </p>
           </div>
 
-          <div className='flex items-center gap-2 shrink-0'>
+          <div className='flex items-center gap-2 shrink-0 flex-wrap'>
             <Button
+              id='btn-export-kb'
+              variant='outline'
+              size='sm'
+              onClick={handleExportKB}
+              className='h-8 text-xs gap-1.5 cursor-pointer font-medium'
+              title='Export complete documentation as JSON'
+            >
+              <Download className='h-3.5 w-3.5' />
+              Export
+            </Button>
+            <Button
+              id='btn-reset-kb'
+              variant='outline'
+              size='sm'
+              onClick={handleResetDefaults}
+              className='h-8 text-xs gap-1.5 cursor-pointer font-medium text-muted-foreground hover:text-foreground'
+              title='Reset to initial factory documentation'
+            >
+              <RotateCcw className='h-3.5 w-3.5' />
+              Reset
+            </Button>
+            <Button
+              id='btn-sync-ai'
               variant='outline'
               size='sm'
               disabled={isSyncingAI}
               onClick={handleSyncToAI}
-              className='h-8 text-xs gap-1.5 cursor-pointer font-medium'
+              className='h-8 text-xs gap-1.5 cursor-pointer font-medium border-orange-500/40 text-orange-700 dark:text-orange-400 hover:bg-orange-50 dark:hover:bg-orange-950/20'
             >
               <RefreshCw className={`h-3.5 w-3.5 ${isSyncingAI ? 'animate-spin text-orange-600' : ''}`} />
               {isSyncingAI ? 'Syncing Embeddings...' : 'Sync to AI Chatbot'}
             </Button>
             <Button
+              id='btn-add-category'
+              variant='outline'
               size='sm'
-              onClick={() => setAddModalOpen(true)}
+              onClick={() => setAddCategoryModalOpen(true)}
+              className='h-8 text-xs gap-1.5 cursor-pointer font-medium'
+            >
+              <FolderPlus className='h-3.5 w-3.5 text-orange-600' />
+              + Category
+            </Button>
+            <Button
+              id='btn-add-article'
+              size='sm'
+              onClick={() => {
+                setNewCategoryTarget(selectedCategoryId || categories[0]?.id || 'dashboard')
+                setAddModalOpen(true)
+              }}
               className='h-8 text-xs bg-orange-600 hover:bg-orange-700 text-white font-semibold gap-1.5 cursor-pointer shadow-xs'
             >
               <Plus className='h-3.5 w-3.5' />
@@ -653,22 +468,28 @@ export function KnowledgeBase() {
           </div>
         </div>
 
-        {/* 2-Pane BizAutomation Knowledge Base Studio */}
+        {/* 2-Pane Knowledge Base Studio */}
         <div className='grid grid-cols-1 md:grid-cols-12 gap-5 min-h-[640px] items-start'>
-          {/* LEFT SIDEBAR: Browse Categories (Matches BizAutomation Screenshot) */}
+          {/* LEFT SIDEBAR: Browse Categories */}
           <div className='md:col-span-4 lg:col-span-3 rounded-xl border border-border/70 bg-card p-3 shadow-xs flex flex-col space-y-3 sticky top-20'>
             {/* Sidebar Title */}
-            <div className='flex items-center gap-2 px-1 pt-1'>
-              <Folder className='h-4 w-4 text-orange-600' />
-              <h2 className='text-xs font-bold uppercase tracking-wider text-foreground'>
-                Browse Categories
-              </h2>
+            <div className='flex items-center justify-between px-1 pt-1'>
+              <div className='flex items-center gap-2'>
+                <Folder className='h-4 w-4 text-orange-600' />
+                <h2 className='text-xs font-bold uppercase tracking-wider text-foreground'>
+                  Browse Categories
+                </h2>
+              </div>
+              <span className='text-[10px] font-mono text-muted-foreground'>
+                {categories.length} folders
+              </span>
             </div>
 
             {/* Search Input */}
             <div className='relative'>
               <Search className='absolute left-2.5 top-2.5 h-3.5 w-3.5 text-muted-foreground' />
               <Input
+                id='input-kb-search'
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 placeholder='Search...'
@@ -678,75 +499,93 @@ export function KnowledgeBase() {
 
             {/* Categories Accordion List */}
             <div className='space-y-1 overflow-y-auto max-h-[540px] pr-1'>
-              {filteredCategories.map((category) => {
-                const isExpanded = expandedCategories[category.id] ?? false
-                const isCatActive = selectedCategoryId === category.id
+              {loading && categories.length === 0 ? (
+                <div className='p-6 text-center text-xs text-muted-foreground animate-pulse'>
+                  Loading categories...
+                </div>
+              ) : filteredCategories.length === 0 ? (
+                <div className='p-6 text-center text-xs text-muted-foreground'>
+                  No matching documentation found.
+                </div>
+              ) : (
+                filteredCategories.map((category) => {
+                  const isExpanded = expandedCategories[category.id] ?? false
+                  const isCatActive = selectedCategoryId === category.id
 
-                return (
-                  <div key={category.id} className='rounded-lg border border-border/30 overflow-hidden bg-muted/5'>
-                    {/* Category Header Item */}
-                    <button
-                      type='button'
-                      onClick={() => toggleCategoryExpand(category.id)}
-                      className={`w-full flex items-center justify-between p-2 text-xs font-medium cursor-pointer transition-colors text-start ${
-                        isCatActive ? 'bg-orange-500/10 text-orange-600 dark:text-orange-400 font-semibold' : 'hover:bg-muted/30 text-foreground'
-                      }`}
+                  return (
+                    <div
+                      key={category.id}
+                      id={`cat-item-${category.id}`}
+                      className='rounded-lg border border-border/30 overflow-hidden bg-muted/5'
                     >
-                      <div className='flex items-center gap-2 truncate'>
-                        <span className={`h-2 w-2 rounded-full ${category.iconColor || 'bg-orange-500'} shrink-0`} />
-                        <span className='truncate'>{category.name}</span>
-                      </div>
-                      <div className='flex items-center gap-1.5 shrink-0 text-muted-foreground'>
-                        <span className='text-[10px] font-mono'>{category.articles.length}</span>
-                        {isExpanded ? (
-                          <ChevronDown className='h-3.5 w-3.5' />
-                        ) : (
-                          <ChevronRight className='h-3.5 w-3.5' />
-                        )}
-                      </div>
-                    </button>
+                      {/* Category Header Item */}
+                      <button
+                        type='button'
+                        id={`cat-toggle-${category.id}`}
+                        onClick={() => toggleCategoryExpand(category.id)}
+                        className={`w-full flex items-center justify-between p-2 text-xs font-medium cursor-pointer transition-colors text-start ${
+                          isCatActive
+                            ? 'bg-orange-500/10 text-orange-600 dark:text-orange-400 font-semibold'
+                            : 'hover:bg-muted/30 text-foreground'
+                        }`}
+                      >
+                        <div className='flex items-center gap-2 truncate'>
+                          <span className={`h-2 w-2 rounded-full ${category.iconColor || 'bg-orange-500'} shrink-0`} />
+                          <span className='truncate'>{category.name}</span>
+                        </div>
+                        <div className='flex items-center gap-1.5 shrink-0 text-muted-foreground'>
+                          <span className='text-[10px] font-mono'>{category.articles.length}</span>
+                          {isExpanded ? (
+                            <ChevronDown className='h-3.5 w-3.5' />
+                          ) : (
+                            <ChevronRight className='h-3.5 w-3.5' />
+                          )}
+                        </div>
+                      </button>
 
-                    {/* Articles under this category */}
-                    {isExpanded && (
-                      <div className='p-1 space-y-0.5 bg-background border-t border-border/20 text-xs'>
-                        {category.articles.length === 0 ? (
-                          <div className='p-2 text-[11px] text-muted-foreground italic text-center'>
-                            No articles found
-                          </div>
-                        ) : (
-                          category.articles.map((art) => {
-                            const isSelected = selectedArticleId === art.id
-                            return (
-                              <button
-                                key={art.id}
-                                type='button'
-                                onClick={() => handleSelectArticle(category.id, art.id)}
-                                className={`w-full text-start p-2 rounded-md transition-all flex items-start gap-2 cursor-pointer ${
-                                  isSelected
-                                    ? 'bg-orange-600 text-white font-medium shadow-xs'
-                                    : 'hover:bg-muted/40 text-muted-foreground hover:text-foreground'
-                                }`}
-                              >
-                                <FileText className={`h-3.5 w-3.5 shrink-0 mt-0.5 ${isSelected ? 'text-white' : 'text-muted-foreground'}`} />
-                                <div className='truncate flex-1'>
-                                  <div className='truncate text-xs'>{art.title}</div>
-                                  <div className={`text-[10px] truncate ${isSelected ? 'text-white/80' : 'text-muted-foreground'}`}>
-                                    {art.readTime}
+                      {/* Articles under this category */}
+                      {isExpanded && (
+                        <div className='p-1 space-y-0.5 bg-background border-t border-border/20 text-xs'>
+                          {category.articles.length === 0 ? (
+                            <div className='p-2 text-[11px] text-muted-foreground italic text-center'>
+                              No articles in this folder
+                            </div>
+                          ) : (
+                            category.articles.map((art) => {
+                              const isSelected = selectedArticleId === art.id
+                              return (
+                                <button
+                                  key={art.id}
+                                  id={`article-item-${art.id}`}
+                                  type='button'
+                                  onClick={() => handleSelectArticle(category.id, art.id)}
+                                  className={`w-full text-start p-2 rounded-md transition-all flex items-start gap-2 cursor-pointer ${
+                                    isSelected
+                                      ? 'bg-orange-600 text-white font-medium shadow-xs'
+                                      : 'hover:bg-muted/40 text-muted-foreground hover:text-foreground'
+                                  }`}
+                                >
+                                  <FileText className={`h-3.5 w-3.5 shrink-0 mt-0.5 ${isSelected ? 'text-white' : 'text-muted-foreground'}`} />
+                                  <div className='truncate flex-1'>
+                                    <div className='truncate text-xs'>{art.title}</div>
+                                    <div className={`text-[10px] truncate ${isSelected ? 'text-white/80' : 'text-muted-foreground'}`}>
+                                      {art.readTime}
+                                    </div>
                                   </div>
-                                </div>
-                              </button>
-                            )
-                          })
-                        )}
-                      </div>
-                    )}
-                  </div>
-                )
-              })}
+                                </button>
+                              )
+                            })
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  )
+                })
+              )}
             </div>
           </div>
 
-          {/* RIGHT PANE: Article Reader / Welcome Empty State (Exact match to BizAutomation) */}
+          {/* RIGHT PANE: Article Reader / Welcome Empty State */}
           <div className='md:col-span-8 lg:col-span-9 rounded-xl border border-border/70 bg-card p-6 shadow-xs min-h-[640px] flex flex-col justify-start'>
             {activeArticle ? (
               /* ACTIVE ARTICLE VIEW */
@@ -764,7 +603,7 @@ export function KnowledgeBase() {
                     <h2 className='text-xl font-bold text-foreground mt-2'>
                       {activeArticle.title}
                     </h2>
-                    <div className='flex items-center gap-3 mt-2 text-xs text-muted-foreground'>
+                    <div className='flex items-center gap-3 mt-2 text-xs text-muted-foreground flex-wrap'>
                       <Badge variant='outline' className='text-[10px] border-orange-500/30 text-orange-600'>
                         {activeCategory?.name}
                       </Badge>
@@ -774,10 +613,11 @@ export function KnowledgeBase() {
                     </div>
                   </div>
 
-                  <div className='flex items-center gap-2 shrink-0'>
+                  <div className='flex items-center gap-2 shrink-0 flex-wrap'>
                     {activeArticle.routeLink && (
                       <Link to={activeArticle.routeLink}>
                         <Button
+                          id='btn-open-feature'
                           variant='outline'
                           size='sm'
                           className='h-8 text-xs gap-1.5 text-orange-600 hover:text-orange-700 cursor-pointer'
@@ -787,6 +627,16 @@ export function KnowledgeBase() {
                       </Link>
                     )}
                     <Button
+                      id='btn-edit-article'
+                      variant='outline'
+                      size='sm'
+                      onClick={() => handleOpenEditArticle(activeArticle, activeCategory?.id || 'dashboard')}
+                      className='h-8 px-2.5 text-xs text-foreground hover:bg-muted cursor-pointer gap-1'
+                    >
+                      <Edit3 className='h-3.5 w-3.5' /> Edit
+                    </Button>
+                    <Button
+                      id='btn-delete-article'
                       variant='ghost'
                       size='sm'
                       onClick={() => handleDeleteArticle(activeArticle.id)}
@@ -803,17 +653,29 @@ export function KnowledgeBase() {
                     <Lightbulb className='h-4 w-4 shrink-0 text-orange-600 mt-0.5' />
                     <div>
                       <span className='font-bold'>AI Grounded Source: </span>
-                      This document is automatically embedded in the AI Assistant vector store. When customers ask about this topic on WhatsApp, the AI cites these verified facts.
+                      This document is automatically embedded in the AI Assistant vector store. When customers ask questions on WhatsApp, the AI cites these verified facts with zero hallucination.
                     </div>
                   </div>
 
-                  <div className='whitespace-pre-line text-xs font-sans text-muted-foreground leading-relaxed'>
+                  <div className='whitespace-pre-line text-xs font-sans text-muted-foreground leading-relaxed bg-muted/10 p-4 rounded-lg border border-border/30'>
                     {activeArticle.content}
+                  </div>
+                </div>
+
+                {/* Audit & Compliance Footer */}
+                <div className='pt-6 border-t border-border/30 flex items-center justify-between text-[11px] text-muted-foreground'>
+                  <div className='flex items-center gap-1.5'>
+                    <CheckCircle2 className='h-3.5 w-3.5 text-emerald-500' />
+                    <span>State Scope: <strong>Gujarat (GJ) Commercial Fleet</strong></span>
+                  </div>
+                  <div className='flex items-center gap-1.5 font-mono text-[10px]'>
+                    <Database className='h-3 w-3 text-orange-500' />
+                    <span>ID: {activeArticle.id}</span>
                   </div>
                 </div>
               </div>
             ) : (
-              /* WELCOME EMPTY STATE (Exact Match to BizAutomation Screenshot) */
+              /* WELCOME EMPTY STATE */
               <div className='flex-1 flex flex-col items-center justify-center text-center p-8 max-w-md mx-auto'>
                 <div className='h-16 w-16 rounded-2xl bg-orange-500/10 text-orange-600 dark:text-orange-400 flex items-center justify-center mb-4 shadow-xs'>
                   <BookOpen className='h-8 w-8' />
@@ -842,6 +704,7 @@ export function KnowledgeBase() {
 
                 <div className='mt-6 flex items-center gap-3'>
                   <Button
+                    id='btn-read-first-article'
                     size='sm'
                     onClick={() => {
                       if (categories[0]?.articles[0]) {
@@ -860,7 +723,7 @@ export function KnowledgeBase() {
 
         {/* CREATE ARTICLE MODAL */}
         <Dialog open={addModalOpen} onOpenChange={setAddModalOpen}>
-          <DialogContent className='sm:max-w-lg'>
+          <DialogContent id='modal-add-article' className='sm:max-w-lg'>
             <DialogHeader>
               <DialogTitle className='flex items-center gap-2 text-base'>
                 <Plus className='h-4 w-4 text-orange-600' />
@@ -875,6 +738,7 @@ export function KnowledgeBase() {
               <div>
                 <Label className='text-xs font-semibold'>Article Title</Label>
                 <Input
+                  id='input-article-title'
                   value={newTitle}
                   onChange={(e) => setNewTitle(e.target.value)}
                   placeholder='e.g., Commercial Fleet Fastag Issuance SOP'
@@ -885,6 +749,7 @@ export function KnowledgeBase() {
               <div>
                 <Label className='text-xs font-semibold'>Target Category</Label>
                 <select
+                  id='select-article-category'
                   value={newCategoryTarget}
                   onChange={(e) => setNewCategoryTarget(e.target.value)}
                   className='h-8 w-full rounded-md border border-border bg-background px-3 text-xs mt-1 outline-hidden'
@@ -900,6 +765,7 @@ export function KnowledgeBase() {
               <div>
                 <Label className='text-xs font-semibold'>Article Documentation Content</Label>
                 <Textarea
+                  id='textarea-article-content'
                   value={newContent}
                   onChange={(e) => setNewContent(e.target.value)}
                   rows={6}
@@ -919,11 +785,152 @@ export function KnowledgeBase() {
                 Cancel
               </Button>
               <Button
+                id='btn-article-submit'
                 size='sm'
                 onClick={handleCreateArticle}
                 className='h-8 text-xs bg-orange-600 hover:bg-orange-700 text-white font-semibold cursor-pointer'
               >
                 Save & Vectorize
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+
+        {/* EDIT ARTICLE MODAL */}
+        <Dialog open={editModalOpen} onOpenChange={setEditModalOpen}>
+          <DialogContent id='modal-edit-article' className='sm:max-w-lg'>
+            <DialogHeader>
+              <DialogTitle className='flex items-center gap-2 text-base'>
+                <Edit3 className='h-4 w-4 text-orange-600' />
+                Edit Knowledge Article
+              </DialogTitle>
+              <DialogDescription className='text-xs'>
+                Update documentation content, revise guidelines, and re-compute vector embeddings.
+              </DialogDescription>
+            </DialogHeader>
+
+            <div className='space-y-3.5 py-2 text-xs'>
+              <div>
+                <Label className='text-xs font-semibold'>Article Title</Label>
+                <Input
+                  id='input-edit-article-title'
+                  value={editTitle}
+                  onChange={(e) => setEditTitle(e.target.value)}
+                  className='h-8 text-xs mt-1'
+                />
+              </div>
+
+              <div>
+                <Label className='text-xs font-semibold'>Category</Label>
+                <select
+                  id='select-edit-article-category'
+                  value={editCategoryTarget}
+                  onChange={(e) => setEditCategoryTarget(e.target.value)}
+                  className='h-8 w-full rounded-md border border-border bg-background px-3 text-xs mt-1 outline-hidden'
+                >
+                  {categories.map((c) => (
+                    <option key={c.id} value={c.id}>
+                      {c.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div>
+                <Label className='text-xs font-semibold'>Documentation Content</Label>
+                <Textarea
+                  id='textarea-edit-article-content'
+                  value={editContent}
+                  onChange={(e) => setEditContent(e.target.value)}
+                  rows={6}
+                  className='text-xs mt-1'
+                />
+              </div>
+            </div>
+
+            <DialogFooter className='gap-2 sm:gap-0'>
+              <Button
+                variant='outline'
+                size='sm'
+                onClick={() => setEditModalOpen(false)}
+                className='h-8 text-xs cursor-pointer'
+              >
+                Cancel
+              </Button>
+              <Button
+                id='btn-article-update-submit'
+                size='sm'
+                onClick={handleUpdateArticle}
+                className='h-8 text-xs bg-orange-600 hover:bg-orange-700 text-white font-semibold cursor-pointer'
+              >
+                Update & Re-index
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+
+        {/* ADD CATEGORY MODAL */}
+        <Dialog open={addCategoryModalOpen} onOpenChange={setAddCategoryModalOpen}>
+          <DialogContent id='modal-add-category' className='sm:max-w-md'>
+            <DialogHeader>
+              <DialogTitle className='flex items-center gap-2 text-base'>
+                <FolderPlus className='h-4 w-4 text-orange-600' />
+                Create Documentation Category
+              </DialogTitle>
+              <DialogDescription className='text-xs'>
+                Group related SOPs, manuals, or training documents into a structured folder.
+              </DialogDescription>
+            </DialogHeader>
+
+            <div className='space-y-3.5 py-2 text-xs'>
+              <div>
+                <Label className='text-xs font-semibold'>Category Name</Label>
+                <Input
+                  id='input-new-category-name'
+                  value={newCategoryName}
+                  onChange={(e) => setNewCategoryName(e.target.value)}
+                  placeholder='e.g., Billing & Accounts SOP'
+                  className='h-8 text-xs mt-1'
+                />
+              </div>
+
+              <div>
+                <Label className='text-xs font-semibold'>Badge Accent Color</Label>
+                <select
+                  id='select-new-category-color'
+                  value={newCategoryColor}
+                  onChange={(e) => setNewCategoryColor(e.target.value)}
+                  className='h-8 w-full rounded-md border border-border bg-background px-3 text-xs mt-1 outline-hidden'
+                >
+                  <option value='bg-orange-500'>Orange (Default)</option>
+                  <option value='bg-amber-500'>Amber</option>
+                  <option value='bg-blue-500'>Blue</option>
+                  <option value='bg-emerald-500'>Emerald</option>
+                  <option value='bg-teal-500'>Teal</option>
+                  <option value='bg-purple-500'>Purple</option>
+                  <option value='bg-rose-500'>Rose</option>
+                  <option value='bg-indigo-500'>Indigo</option>
+                  <option value='bg-cyan-500'>Cyan</option>
+                </select>
+              </div>
+            </div>
+
+            <DialogFooter className='gap-2 sm:gap-0'>
+              <Button
+                variant='outline'
+                size='sm'
+                onClick={() => setAddCategoryModalOpen(false)}
+                className='h-8 text-xs cursor-pointer'
+              >
+                Cancel
+              </Button>
+              <Button
+                id='btn-category-submit'
+                size='sm'
+                onClick={handleCreateCategory}
+                className='h-8 text-xs bg-orange-600 hover:bg-orange-700 text-white font-semibold cursor-pointer'
+              >
+                Create Category
               </Button>
             </DialogFooter>
           </DialogContent>
