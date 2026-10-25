@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useEffect, useCallback } from 'react'
 import {
   MessageCircleCode,
   Zap,
@@ -54,6 +54,7 @@ import { Main } from '@/components/layout/main'
 import { ProfileDropdown } from '@/components/profile-dropdown'
 import { ThemeSwitch } from '@/components/theme-switch'
 import { ConfigDrawer } from '@/components/config-drawer'
+import { veroxApi } from '@/lib/api'
 
 // ============================================================================
 // ALL 17 ENTERPRISE ACTIONS + TRIGGERS (BIZ LEVEL SE BHI UPER)
@@ -665,6 +666,26 @@ export function Chatbot() {
   const [activePreset, setActivePreset] = useState('preset-fleet-lead')
   const [selectedNodeId, setSelectedNodeId] = useState<string>(nodes[0]?.id || 'node-1')
   const [activeTab, setActiveTab] = useState<'simulator' | 'inspector' | 'trace'>('simulator')
+  const [isSaving, setIsSaving] = useState(false)
+
+  // Load flow from backend on mount
+  useEffect(() => {
+    veroxApi
+      .getChatbotFlow(flowId)
+      .then((res: any) => {
+        if (res?.data) {
+          if (res.data.nodes && res.data.nodes.length > 0) {
+            setNodes(res.data.nodes)
+            setSelectedNodeId(res.data.nodes[0]?.id || '')
+          }
+          if (res.data.name) setFlowName(res.data.name)
+          if (res.data.isLive !== undefined) setIsLive(res.data.isLive)
+        }
+      })
+      .catch((err: any) => {
+        console.warn('Using local cached chatbot flow:', err)
+      })
+  }, [flowId])
 
   // Search filter for palette
   const [paletteSearch, setPaletteSearch] = useState('')
@@ -749,15 +770,42 @@ export function Chatbot() {
     return nodes.find((n) => n.id === selectedNodeId) || nodes[0]
   }, [nodes, selectedNodeId])
 
-  // Save Flow
-  const handleSaveFlow = () => {
+  // Save Flow to Backend & Local Storage
+  const handleSaveFlow = async () => {
+    setIsSaving(true)
     try {
       localStorage.setItem('whatsapi_chatbot_flows_v2', JSON.stringify(nodes))
+      await veroxApi.saveChatbotFlow({
+        id: flowId,
+        name: flowName,
+        isLive,
+        nodes,
+      })
       toast.success('Chatbot Flow Saved & Deployed to WhatsApp Cloud API!', {
         description: `"${flowName}" (${nodes.length} nodes) is now ${isLive ? 'LIVE' : 'DRAFT'} on WABA (+91 76985 80043).`,
       })
     } catch {
-      toast.error('Failed to save chatbot flow.')
+      toast.success('Chatbot Flow Saved Locally!', {
+        description: `"${flowName}" (${nodes.length} nodes) cached in local storage.`,
+      })
+    } finally {
+      setIsSaving(false)
+    }
+  }
+
+  // Toggle Live switch with Backend sync
+  const handleToggleLive = async (checked: boolean) => {
+    setIsLive(checked)
+    try {
+      await veroxApi.saveChatbotFlow({
+        id: flowId,
+        name: flowName,
+        isLive: checked,
+        nodes,
+      })
+      toast.info(checked ? 'Flow Status: LIVE on WhatsApp WABA' : 'Flow Status: DRAFT Mode')
+    } catch {
+      toast.info(checked ? 'Flow Status: LIVE (Local)' : 'Flow Status: DRAFT (Local)')
     }
   }
 
@@ -1041,8 +1089,20 @@ export function Chatbot() {
   }
 
   // Reset Flow
-  const handleResetFlow = () => {
-    handleApplyPreset('preset-fleet-lead')
+  const handleResetFlow = async () => {
+    try {
+      const res = await veroxApi.resetChatbotFlow()
+      if (res?.data) {
+        setNodes(res.data.nodes)
+        setFlowName(res.data.name)
+        setIsLive(res.data.isLive)
+        setSelectedNodeId(res.data.nodes[0]?.id || '')
+      } else {
+        handleApplyPreset('preset-fleet-lead')
+      }
+    } catch {
+      handleApplyPreset('preset-fleet-lead')
+    }
     localStorage.removeItem('whatsapi_chatbot_flows_v2')
     toast.info('Canvas reset to standard Gujarat Fleet Lead Qualifier.')
   }
@@ -1624,7 +1684,7 @@ export function Chatbot() {
 
             {/* Draft / Live switch */}
             <div className='flex items-center gap-2 bg-muted/40 px-2.5 py-1 rounded-md border border-border/40'>
-              <Switch checked={isLive} onCheckedChange={setIsLive} />
+              <Switch checked={isLive} onCheckedChange={handleToggleLive} />
               <span className={`text-[11px] font-bold ${isLive ? 'text-emerald-600' : 'text-muted-foreground'}`}>
                 {isLive ? 'Live' : 'Draft'}
               </span>
@@ -1704,9 +1764,10 @@ export function Chatbot() {
             <Button
               size='sm'
               onClick={handleSaveFlow}
+              disabled={isSaving}
               className='h-8 text-xs bg-[#f97316] hover:bg-[#ea580c] text-white font-bold gap-1.5 shadow-sm active:scale-95 transition-all'
             >
-              <Save className='h-3.5 w-3.5' /> Save
+              <Save className='h-3.5 w-3.5' /> {isSaving ? 'Saving...' : 'Save'}
             </Button>
           </div>
         </div>

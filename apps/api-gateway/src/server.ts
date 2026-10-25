@@ -16,6 +16,7 @@ import { botRouter } from './routes/bot.route.js'
 import { integrationsRouter } from './routes/integrations.route.js'
 import { mediaRouter } from './routes/media.route.js'
 import { aiRouter } from './routes/ai.route.js'
+import { chatbotRouter } from './routes/chatbot.route.js'
 import { whatsAppService } from './services/whatsapp.service.js'
 import { integrationsService } from './services/integrations.service.js'
 
@@ -418,6 +419,7 @@ app.use('/api/integrations', integrationsRouter)
 app.use('/api/media', mediaRouter)
 app.use('/api/bot', botRouter)
 app.use('/api/ai', aiRouter)
+app.use('/api/chatbot', chatbotRouter)
 app.use('/api', whatsappRouter)
 
 app.use('/api/v1/contacts', contactsRouter)
@@ -433,6 +435,7 @@ app.use('/api/v1/bot', botRouter)
 app.use('/api/v1/integrations', integrationsRouter)
 app.use('/api/v1/media', mediaRouter)
 app.use('/api/v1/ai', aiRouter)
+app.use('/api/v1/chatbot', chatbotRouter)
 app.use('/api/v1', whatsappRouter)
 
 // Global Root Information

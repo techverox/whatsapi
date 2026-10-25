@@ -430,6 +430,44 @@ export const whatsapiApi = {
     request('/api/bot/reset', {
       method: 'POST',
     }),
+
+  // Enterprise Visual Chatbot Studio & Flow Engine
+  getChatbotFlow: (id?: string) => {
+    const q = id ? `?id=${encodeURIComponent(id)}` : ''
+    return request(`/api/chatbot/flow${q}`)
+  },
+  getChatbotStats: () => request('/api/chatbot/stats'),
+  getChatbotFlows: () => request('/api/chatbot/flows'),
+  saveChatbotFlow: (data: {
+    id?: string
+    name?: string
+    isLive?: boolean
+    wabaPhone?: string
+    nodes: any[]
+    description?: string
+  }) =>
+    request('/api/chatbot/save', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    }),
+  deployChatbotFlow: (id?: string) =>
+    request('/api/chatbot/deploy', {
+      method: 'POST',
+      body: JSON.stringify({ id }),
+    }),
+  simulateChatbotStep: (data: {
+    nodeIndex?: number
+    nodeId?: string
+    userReply?: string
+  }) =>
+    request('/api/chatbot/simulate', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    }),
+  resetChatbotFlow: () =>
+    request('/api/chatbot/reset', {
+      method: 'POST',
+    }),
 }
 
 // Backward compatibility alias
