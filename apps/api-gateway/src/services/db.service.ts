@@ -170,8 +170,94 @@ class DatabaseService {
   }
 
   // --- Tags ---
-  public getTags() {
-    return this.tags
+  public getTags(): (TagItem & { count: number; createdAt: string })[] {
+    return this.tags.map((tag) => {
+      const contactCount = this.contacts.filter(
+        (c) =>
+          c.status !== 'deleted' &&
+          c.tags.some((t) => t.id === tag.id || t.name.toLowerCase() === tag.name.toLowerCase())
+      ).length
+      return {
+        ...tag,
+        count: contactCount,
+        createdAt: tag.createdAt || '2026-10-18T10:00:00.000Z',
+      }
+    })
+  }
+
+  public getTagById(id: string): TagItem | undefined {
+    return this.tags.find((t) => t.id === id || t.name.toLowerCase() === id.toLowerCase())
+  }
+
+  public createTag(data: { name: string; color?: string }): TagItem {
+    const cleanName = data.name.trim()
+    const existing = this.tags.find((t) => t.name.toLowerCase() === cleanName.toLowerCase())
+    if (existing) {
+      throw new Error(`Tag with name "${cleanName}" already exists.`)
+    }
+
+    const newTag: TagItem = {
+      id: `tag-${Date.now()}`,
+      name: cleanName,
+      color: data.color || 'bg-orange-500/15 text-orange-600',
+      createdAt: new Date().toISOString(),
+      count: 0,
+    }
+
+    this.tags.unshift(newTag)
+    return newTag
+  }
+
+  public updateTag(id: string, data: { name?: string; color?: string }): TagItem | null {
+    const tag = this.tags.find((t) => t.id === id || t.name.toLowerCase() === id.toLowerCase())
+    if (!tag) return null
+
+    const oldName = tag.name
+    if (data.name && data.name.trim()) {
+      tag.name = data.name.trim()
+    }
+    if (data.color && data.color.trim()) {
+      tag.color = data.color.trim()
+    }
+
+    // Cascade update to contacts containing this tag
+    this.contacts.forEach((contact) => {
+      contact.tags = contact.tags.map((t) => {
+        if (t.id === tag.id || t.name.toLowerCase() === oldName.toLowerCase()) {
+          return { ...t, name: tag.name, color: tag.color }
+        }
+        return t
+      })
+    })
+
+    return tag
+  }
+
+  public deleteTag(id: string): boolean {
+    const index = this.tags.findIndex((t) => t.id === id || t.name.toLowerCase() === id.toLowerCase())
+    if (index === -1) return false
+
+    const [deletedTag] = this.tags.splice(index, 1)
+
+    // Cascade decouple: remove tag from all active contacts
+    this.contacts.forEach((contact) => {
+      contact.tags = contact.tags.filter(
+        (t) => t.id !== deletedTag.id && t.name.toLowerCase() !== deletedTag.name.toLowerCase()
+      )
+    })
+
+    return true
+  }
+
+  public getContactsByTag(idOrName: string): ContactItem[] {
+    const tag = this.getTagById(idOrName)
+    const targetName = tag ? tag.name.toLowerCase() : idOrName.toLowerCase()
+
+    return this.contacts.filter(
+      (c) =>
+        c.status !== 'deleted' &&
+        c.tags.some((t) => t.id === idOrName || t.name.toLowerCase() === targetName)
+    )
   }
 }
 

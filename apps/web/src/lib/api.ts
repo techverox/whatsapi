@@ -256,6 +256,16 @@ export const whatsapiApi = {
       method: 'POST',
       body: JSON.stringify({ name, color }),
     }),
+  updateTag: (id: string, name: string, color?: string) =>
+    request(`/api/tags/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify({ name, color }),
+    }),
+  deleteTag: (id: string) =>
+    request(`/api/tags/${id}`, {
+      method: 'DELETE',
+    }),
+  getTagContacts: (id: string) => request(`/api/tags/${id}/contacts`),
 }
 
 // Backward compatibility alias

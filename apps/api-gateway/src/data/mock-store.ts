@@ -2,6 +2,8 @@ export interface TagItem {
   id: string
   name: string
   color: string
+  createdAt?: string
+  count?: number
 }
 
 export interface ContactItem {
