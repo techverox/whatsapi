@@ -251,16 +251,45 @@ export const whatsapiApi = {
     }),
 
   // AI Assistant & RAG Knowledge
+  getAiStats: () => request('/api/v1/ai/stats'),
+  getAiConfig: () => request('/api/v1/ai/config'),
+  saveAiConfig: (config: {
+    model?: string
+    temperature?: string
+    prompt?: string
+    autoReply?: boolean
+    confidenceThreshold?: string
+  }) =>
+    request('/api/v1/ai/config', {
+      method: 'POST',
+      body: JSON.stringify(config),
+    }),
   getAiKnowledge: () => request('/api/v1/ai/knowledge'),
   addAiKnowledge: (doc: { title: string; category?: string; content: string }) =>
     request('/api/v1/ai/knowledge', {
       method: 'POST',
       body: JSON.stringify(doc),
     }),
+  updateAiKnowledge: (
+    id: string,
+    doc: { title?: string; category?: string; content?: string }
+  ) =>
+    request(`/api/v1/ai/knowledge/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(doc),
+    }),
+  deleteAiKnowledge: (id: string) =>
+    request(`/api/v1/ai/knowledge/${id}`, {
+      method: 'DELETE',
+    }),
   askAi: (query: string) =>
     request('/api/v1/ai/ask', {
       method: 'POST',
       body: JSON.stringify({ query }),
+    }),
+  resetAiAssistant: () =>
+    request('/api/v1/ai/reset', {
+      method: 'POST',
     }),
 
   // Tags

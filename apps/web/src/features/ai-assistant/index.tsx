@@ -118,6 +118,20 @@ function generateKbId(): string {
   return `kb-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`
 }
 
+interface AiStats {
+  modelCore: string
+  modelFullName: string
+  totalDocs: number
+  totalChunks: number
+  confidenceGuard: string
+  confidenceThreshold: number
+  wabaTrigger: string
+  queriesResolved: number
+  escalationRate: string
+  avgLatencyMs: number
+  temperature: string
+}
+
 export function AIAssistant() {
   const [savedConfig] = useState<StoredAiConfig | null>(() => getStoredAiConfig())
   const [activeTab, setActiveTab] = useState<'personality' | 'rag'>('personality')
@@ -126,6 +140,8 @@ export function AIAssistant() {
   const [temperature, setTemperature] = useState(savedConfig?.temperature || '0.3')
   const [prompt, setPrompt] = useState(savedConfig?.prompt || defaultPromptPresets.fleet)
   const [confidenceThreshold, setConfidenceThreshold] = useState(savedConfig?.confidenceThreshold || '65')
+  const [stats, setStats] = useState<AiStats | null>(null)
+  const [isSavingConfig, setIsSavingConfig] = useState(false)
 
   // RAG Knowledge State
   const [knowledgeDocs, setKnowledgeDocs] = useState<KnowledgeDoc[]>(initialKnowledgeFallback)
@@ -155,23 +171,41 @@ export function AIAssistant() {
   const [isGenerating, setIsGenerating] = useState(false)
   const chatBottomRef = useRef<HTMLDivElement>(null)
 
-  // Fetch knowledge documents from API Gateway
+  // Fetch knowledge documents, config and stats from API Gateway
   const loadKnowledgeFromGateway = useCallback(async () => {
     setIsSyncingKnowledge(true)
     try {
-      const res = await veroxApi.getAiKnowledge()
-      if (res.success && res.data && Array.isArray(res.data)) {
+      const [kbRes, cfgRes, statsRes] = await Promise.all([
+        veroxApi.getAiKnowledge(),
+        veroxApi.getAiConfig(),
+        veroxApi.getAiStats(),
+      ])
+
+      if (kbRes?.success && kbRes.data && Array.isArray(kbRes.data)) {
         setKnowledgeDocs(
-          (res.data as Array<Record<string, unknown>>).map((d) => ({
-            id: (typeof d.id === 'string' ? d.id : undefined) || generateKbId(),
+          kbRes.data.map((d: any) => ({
+            id: d.id || generateKbId(),
             title: String(d.title || 'Untitled'),
             category: String(d.category || 'General'),
             content: String(d.content || ''),
-            chunks: Math.max(1, Math.round(String(d.content || '').length / 150)),
+            chunks: d.chunks || Math.max(1, Math.round(String(d.content || '').length / 150)),
             updatedAt: d.updatedAt ? new Date(String(d.updatedAt)).toLocaleDateString() : 'Active',
           }))
         )
       }
+
+      if (cfgRes?.success && cfgRes.data) {
+        if (cfgRes.data.model) setModel(cfgRes.data.model)
+        if (cfgRes.data.temperature) setTemperature(cfgRes.data.temperature)
+        if (cfgRes.data.prompt) setPrompt(cfgRes.data.prompt)
+        if (cfgRes.data.autoReply !== undefined) setAutoReply(cfgRes.data.autoReply)
+        if (cfgRes.data.confidenceThreshold) setConfidenceThreshold(cfgRes.data.confidenceThreshold)
+      }
+
+      if (statsRes?.success && statsRes.data) {
+        setStats(statsRes.data)
+      }
+      toast.success('RAG Vector Store & AI Knowledge Synchronized!')
     } catch (_err) {
       // Fallback in memory is already set
     } finally {
@@ -195,7 +229,8 @@ export function AIAssistant() {
     chatBottomRef.current?.scrollIntoView({ behavior: 'smooth' })
   }, [chatMessages, isGenerating])
 
-  const handleSaveConfig = () => {
+  const handleSaveConfig = async () => {
+    setIsSavingConfig(true)
     try {
       localStorage.setItem(
         'verox_ai_config',
@@ -208,11 +243,24 @@ export function AIAssistant() {
           updatedAt: new Date().toISOString(),
         })
       )
+
+      await veroxApi.saveAiConfig({
+        model,
+        temperature,
+        prompt,
+        autoReply,
+        confidenceThreshold,
+      })
+
+      veroxApi.getAiStats().then((s) => s?.data && setStats(s.data)).catch(() => {})
+
       toast.success('AI Configuration Saved & Applied!', {
         description: `Architecture: ${model} | Temp: ${temperature} | Grounded on ${knowledgeDocs.length} RAG documents.`,
       })
     } catch {
       toast.success('Configuration saved.')
+    } finally {
+      setIsSavingConfig(false)
     }
   }
 
@@ -230,35 +278,67 @@ export function AIAssistant() {
 
     try {
       const res = await veroxApi.addAiKnowledge(payload)
-      if (res.success) {
+      if (res?.success && res.data) {
+        const serverDoc = res.data as KnowledgeDoc
+        setKnowledgeDocs((prev) => [
+          {
+            ...serverDoc,
+            chunks: serverDoc.chunks || Math.max(1, Math.round(serverDoc.content.length / 140)),
+            updatedAt: 'Just now',
+          },
+          ...prev,
+        ])
         toast.success('Knowledge Document Ingested!', {
           description: `"${payload.title}" vector embeddings generated & synced with RAG pipeline.`,
         })
+      } else {
+        const newDoc: KnowledgeDoc = {
+          id: generateKbId(),
+          title: payload.title,
+          category: payload.category,
+          content: payload.content,
+          chunks: Math.max(1, Math.round(payload.content.length / 120)),
+          updatedAt: 'Just now',
+        }
+        setKnowledgeDocs((prev) => [newDoc, ...prev])
+        toast.success('Knowledge Document Ingested!', {
+          description: `"${payload.title}" indexed.`,
+        })
       }
+      veroxApi.getAiStats().then((s) => s?.data && setStats(s.data)).catch(() => {})
     } catch (_err) {
-      // Local fallback continues
+      const newDoc: KnowledgeDoc = {
+        id: generateKbId(),
+        title: payload.title,
+        category: payload.category,
+        content: payload.content,
+        chunks: Math.max(1, Math.round(payload.content.length / 120)),
+        updatedAt: 'Just now',
+      }
+      setKnowledgeDocs((prev) => [newDoc, ...prev])
+      toast.success('Knowledge Document Ingested!', {
+        description: `"${payload.title}" indexed locally.`,
+      })
     }
 
-    const newDoc: KnowledgeDoc = {
-      id: generateKbId(),
-      title: payload.title,
-      category: payload.category,
-      content: payload.content,
-      chunks: Math.max(1, Math.round(payload.content.length / 120)),
-      updatedAt: 'Just now',
-    }
-
-    setKnowledgeDocs((prev) => [newDoc, ...prev])
     setNewDocTitle('')
     setNewDocContent('')
     setAddDocModal(false)
   }
 
-  const handleDeleteKnowledgeDoc = (id: string, title: string) => {
+  const handleDeleteKnowledgeDoc = async (id: string, title: string) => {
     setKnowledgeDocs((prev) => prev.filter((d) => d.id !== id))
-    toast.success('Document Removed from Vector Store', {
-      description: `Removed "${title}" from AI context.`,
-    })
+    try {
+      await veroxApi.deleteAiKnowledge(id)
+      veroxApi.getAiStats().then((s) => s?.data && setStats(s.data)).catch(() => {})
+      toast.success('Document Removed from Vector Store', {
+        description: `Removed "${title}" from AI context.`,
+      })
+    } catch {
+      toast.success('Document Removed from Vector Store', {
+        description: `Removed "${title}" from AI context.`,
+      })
+    }
   }
 
   const handleSendQuery = async (queryText?: string) => {
@@ -287,8 +367,8 @@ export function AIAssistant() {
       let confidence = 0.95
       let escalated = false
 
-      if (res.success && res.data) {
-        const d = res.data as {
+      if (res?.success) {
+        const d = (res.data || res) as {
           answer?: string
           groundedSources?: string[]
           confidence?: number
@@ -348,8 +428,9 @@ export function AIAssistant() {
         {
           role: 'assistant',
           text: 'Namaste! Truck Sathi AIS-140 GPS & FASTAG system 100% active hai. Live support officer ko aapki inquiry assign kar di gayi hai.',
-          sources: ['Fallback Local Engine'],
-          confidence: 0.88,
+          sources: ['System Safeguard'],
+          confidence: 0.85,
+          escalated: true,
           timestamp: timeStr,
         },
       ])
@@ -424,9 +505,10 @@ export function AIAssistant() {
             <Button
               size='sm'
               onClick={handleSaveConfig}
+              disabled={isSavingConfig}
               className='bg-orange-600 hover:bg-orange-700 text-white gap-1.5 cursor-pointer text-xs h-9 font-semibold shadow-xs'
             >
-              <Save className='h-3.5 w-3.5' /> Save Configuration
+              <Save className='h-3.5 w-3.5' /> {isSavingConfig ? 'Saving...' : 'Save Configuration'}
             </Button>
           </div>
         </div>
@@ -479,6 +561,7 @@ export function AIAssistant() {
               {/* Tab Switcher */}
               <div className='flex items-center gap-2 border-b border-border/60 pb-3'>
                 <button
+                  id='tab-personality'
                   onClick={() => setActiveTab('personality')}
                   className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
                     activeTab === 'personality'
@@ -489,6 +572,7 @@ export function AIAssistant() {
                   <Sliders className='h-3.5 w-3.5' /> Model & Personality
                 </button>
                 <button
+                  id='tab-rag'
                   onClick={() => setActiveTab('rag')}
                   className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
                     activeTab === 'rag'
