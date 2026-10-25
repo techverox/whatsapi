@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useMemo } from 'react'
 import { Link } from '@tanstack/react-router'
 import {
   Search as SearchIcon,
@@ -21,6 +21,8 @@ import {
   CheckCircle2,
   AlertCircle,
   Server,
+  Layers,
+  Sparkles,
 } from 'lucide-react'
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
@@ -390,10 +392,14 @@ interface WebhookLogItem {
   timestamp: string
 }
 
+type TabCategory = 'All' | 'Featured' | 'Flows' | 'AI & LLM' | 'Helpers'
+
 export function Apps() {
-  const [activeTab, setActiveTab] = useState<'All' | 'Featured' | 'Flows'>('All')
+  const [activeTab, setActiveTab] = useState<TabCategory>('All')
   const [search, setSearch] = useState('')
   const [appList, setAppList] = useState<IntegrationApp[]>(initialApps)
+  const [connectedOnly, setConnectedOnly] = useState(false)
+  const [isRefreshing, setIsRefreshing] = useState(false)
 
   // Modal State for Configuration
   const [selectedApp, setSelectedApp] = useState<IntegrationApp | null>(null)
@@ -411,13 +417,15 @@ export function Apps() {
   const [waAppSecret, setWaAppSecret] = useState('')
   const [showToken, setShowToken] = useState(false)
   const [waMetaResult, setWaMetaResult] = useState<MetaConnectionResult | null>(null)
-  const [testSendPhone, setTestSendPhone] = useState('+919825102938')
+  const [testSendPhone, setTestSendPhone] = useState('+919825100001')
   const [testSendMessage, setTestSendMessage] = useState('Hello! Official Meta WhatsApp Cloud API connection test from VEROX CRM.')
   const [isSendingTestMsg, setIsSendingTestMsg] = useState(false)
 
   // Webhook Logs Modal State
   const [showLogs, setShowLogs] = useState(false)
   const [logs, setLogs] = useState<WebhookLogItem[]>([])
+  const [logFilterSource, setLogFilterSource] = useState('All')
+  const [isSimulatingLog, setIsSimulatingLog] = useState(false)
 
   // Load connectors and configurations from API Gateway
   const loadWebhookLogs = async () => {
@@ -445,6 +453,40 @@ export function Apps() {
       // Use default placeholders
     }
   }, [])
+
+  // Manual Refresh of Connectors
+  const handleRefreshConnectors = async () => {
+    setIsRefreshing(true)
+    try {
+      const res = await veroxApi.getIntegrations()
+      if (res.success && Array.isArray(res.data) && res.data.length > 0) {
+        const serverMap = new Map((res.data as Array<Partial<IntegrationApp>>).map((item) => [item.id, item]))
+        setAppList((prev) =>
+          prev.map((app) => {
+            const serverItem = serverMap.get(app.id)
+            if (serverItem) {
+              return {
+                ...app,
+                connected: serverItem.connected ?? app.connected,
+                apiConfig: {
+                  ...app.apiConfig,
+                  ...(serverItem.apiConfig || {}),
+                },
+              }
+            }
+            return app
+          })
+        )
+        toast.success('Connectors synchronized with API Gateway!')
+      } else {
+        toast.info('Connectors loaded from resilient cache')
+      }
+    } catch {
+      toast.info('Connectors loaded from resilient cache')
+    } finally {
+      setIsRefreshing(false)
+    }
+  }
 
   useEffect(() => {
     let mounted = true
@@ -500,6 +542,31 @@ export function Apps() {
       loadWhatsAppConfig()
       veroxApi.testMetaConnection().then((r) => {
         if (r.data) setWaMetaResult(r.data)
+      })
+    }
+  }
+
+  // Quick 1-click Toggle directly on card
+  const handleQuickToggle = async (app: IntegrationApp, e: React.MouseEvent) => {
+    e.stopPropagation()
+    const nextStatus = !app.connected
+    try {
+      await veroxApi.toggleIntegration(app.id, nextStatus)
+    } catch {
+      // Local fallback
+    }
+
+    setAppList((prev) =>
+      prev.map((a) => (a.id === app.id ? { ...a, connected: nextStatus } : a))
+    )
+
+    if (nextStatus) {
+      toast.success(`${app.name} connected & active!`, {
+        description: 'Inbound webhooks and automated triggers are now listening.',
+      })
+    } else {
+      toast.info(`${app.name} paused.`, {
+        description: 'Inbound ingestion paused.',
       })
     }
   }
@@ -670,31 +737,42 @@ export function Apps() {
   }
 
   const handleSimulateWebhook = async () => {
-    await veroxApi.testIntegration('indiamart', {
-      name: 'VEROX Realtime Inbound Event',
-      phone: '+919825012345',
-    })
-    await loadWebhookLogs()
-    toast.success('Simulated test webhook received & logged!')
+    setIsSimulatingLog(true)
+    try {
+      await veroxApi.testIntegration('indiamart', {
+        name: 'VEROX Realtime Inbound Event',
+        phone: '+919825012345',
+      })
+      await loadWebhookLogs()
+      toast.success('Simulated test webhook received & logged!')
+    } finally {
+      setIsSimulatingLog(false)
+    }
   }
 
-  const filtered = appList.filter((app) => {
-    const matchesTab =
-      activeTab === 'All'
-        ? true
-        : activeTab === 'Featured'
-        ? app.category === 'Featured'
-        : app.category === 'Flows' ||
-          app.category === 'Helpers' ||
-          app.category === 'AI & LLM'
+  // Filtered Apps
+  const filtered = useMemo(() => {
+    return appList.filter((app) => {
+      const matchesTab = activeTab === 'All' ? true : app.category === activeTab
+      const matchesConnected = connectedOnly ? app.connected : true
+      const matchesSearch =
+        app.name.toLowerCase().includes(search.toLowerCase()) ||
+        app.description.toLowerCase().includes(search.toLowerCase()) ||
+        app.tag.toLowerCase().includes(search.toLowerCase())
 
-    const matchesSearch =
-      app.name.toLowerCase().includes(search.toLowerCase()) ||
-      app.description.toLowerCase().includes(search.toLowerCase()) ||
-      app.tag.toLowerCase().includes(search.toLowerCase())
+      return matchesTab && matchesConnected && matchesSearch
+    })
+  }, [appList, activeTab, connectedOnly, search])
 
-    return matchesTab && matchesSearch
-  })
+  // Aggregate Metrics
+  const connectedCount = useMemo(() => appList.filter((a) => a.connected).length, [appList])
+  const totalCount = appList.length
+
+  // Filtered Logs
+  const filteredLogs = useMemo(() => {
+    if (logFilterSource === 'All') return logs
+    return logs.filter((l) => l.source.toLowerCase().includes(logFilterSource.toLowerCase()))
+  }, [logs, logFilterSource])
 
   return (
     <>
@@ -705,22 +783,32 @@ export function Apps() {
         <ProfileDropdown />
       </Header>
 
-      <Main className='space-y-4 p-4'>
+      <Main className='space-y-4 p-4 max-w-7xl mx-auto'>
         {/* Title Header */}
         <div className='flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between border-b border-border/40 pb-3'>
           <div>
             <div className='flex items-center gap-2'>
               <h1 className='text-2xl font-bold tracking-tight'>Integrations & Connected Apps</h1>
-              <Badge className='bg-emerald-500/15 text-emerald-600 border-0'>
-                27+ Pre-Built Connectors
+              <Badge className='bg-emerald-500/15 text-emerald-600 border-0 text-xs font-semibold'>
+                {totalCount}+ Pre-Built Connectors
               </Badge>
             </div>
             <p className='text-xs text-muted-foreground'>
-              Connect WhatsApp Cloud API to lead generation platforms, CRM datastores, and AI engines.
+              Connect WhatsApp Cloud API to lead generation platforms, CRM datastores, e-commerce, and AI engines.
             </p>
           </div>
 
           <div className='flex items-center gap-2'>
+            <Button
+              variant='outline'
+              size='sm'
+              onClick={handleRefreshConnectors}
+              disabled={isRefreshing}
+              className='h-8 text-xs gap-1.5 cursor-pointer'
+            >
+              <RefreshCw className={`h-3.5 w-3.5 ${isRefreshing ? 'animate-spin text-orange-600' : ''}`} />
+              {isRefreshing ? 'Syncing...' : 'Refresh'}
+            </Button>
             <Button
               variant='outline'
               size='sm'
@@ -732,7 +820,7 @@ export function Apps() {
             </Button>
             <Button
               size='sm'
-              className='h-8 text-xs bg-orange-600 hover:bg-orange-700 text-white cursor-pointer'
+              className='h-8 text-xs bg-orange-600 hover:bg-orange-700 text-white cursor-pointer shadow-xs font-semibold'
               asChild
             >
               <Link to='/flows'>
@@ -743,25 +831,109 @@ export function Apps() {
           </div>
         </div>
 
-        {/* Tab Selector & Search */}
-        <div className='flex flex-wrap items-center justify-between gap-3'>
-          <div className='flex items-center rounded-lg border border-border/60 p-0.5 bg-muted/40'>
-            {(['All', 'Featured', 'Flows'] as const).map((tab) => (
-              <button
-                key={tab}
-                onClick={() => setActiveTab(tab)}
-                className={`rounded-md px-4 py-1.5 text-xs font-semibold transition-all cursor-pointer ${
-                  activeTab === tab
-                    ? 'bg-orange-600 text-white shadow-xs'
-                    : 'text-muted-foreground hover:text-foreground'
-                }`}
-              >
-                {tab}
-              </button>
-            ))}
+        {/* Enterprise Integration Metric Cards */}
+        <div className='grid grid-cols-2 md:grid-cols-4 gap-3'>
+          <div className='p-3.5 rounded-xl border border-border/60 bg-card shadow-2xs'>
+            <div className='flex items-center justify-between text-muted-foreground mb-1'>
+              <span className='text-xs font-medium'>Available Connectors</span>
+              <Layers className='h-4 w-4 text-orange-600' />
+            </div>
+            <div className='text-2xl font-bold tracking-tight text-foreground'>
+              {totalCount}
+            </div>
+            <div className='text-[10px] text-muted-foreground mt-0.5'>
+              Ready for immediate activation
+            </div>
           </div>
 
-          <div className='relative w-full max-w-xs'>
+          <div className='p-3.5 rounded-xl border border-border/60 bg-card shadow-2xs'>
+            <div className='flex items-center justify-between text-muted-foreground mb-1'>
+              <span className='text-xs font-medium'>Active Connections</span>
+              <CheckCircle2 className='h-4 w-4 text-emerald-600' />
+            </div>
+            <div className='text-2xl font-bold tracking-tight text-emerald-600'>
+              {connectedCount}
+            </div>
+            <div className='text-[10px] text-muted-foreground mt-0.5'>
+              Bi-directional sync active
+            </div>
+          </div>
+
+          <div className='p-3.5 rounded-xl border border-border/60 bg-card shadow-2xs'>
+            <div className='flex items-center justify-between text-muted-foreground mb-1'>
+              <span className='text-xs font-medium'>Webhook Gateways</span>
+              <Server className='h-4 w-4 text-sky-600' />
+            </div>
+            <div className='text-2xl font-bold tracking-tight text-sky-600'>
+              Port 4000
+            </div>
+            <div className='text-[10px] text-muted-foreground mt-0.5'>
+              Meta, IndiaMart, FB & Shopify
+            </div>
+          </div>
+
+          <div className='p-3.5 rounded-xl border border-border/60 bg-card shadow-2xs'>
+            <div className='flex items-center justify-between text-muted-foreground mb-1'>
+              <span className='text-xs font-medium'>Security Protocol</span>
+              <ShieldCheck className='h-4 w-4 text-purple-600' />
+            </div>
+            <div className='text-2xl font-bold tracking-tight text-purple-600'>
+              HMAC SHA-256
+            </div>
+            <div className='text-[10px] text-muted-foreground mt-0.5'>
+              Encrypted handshake verification
+            </div>
+          </div>
+        </div>
+
+        {/* Tab Selector, Connected Filter & Search Bar */}
+        <div className='flex flex-wrap items-center justify-between gap-3 pt-1'>
+          <div className='flex flex-wrap items-center gap-2'>
+            <div className='flex items-center rounded-lg border border-border/60 p-0.5 bg-muted/40'>
+              {(
+                [
+                  { key: 'All', label: 'All', count: appList.length },
+                  { key: 'Featured', label: 'Featured', count: appList.filter((a) => a.category === 'Featured').length },
+                  { key: 'Flows', label: 'Flows & E-comm', count: appList.filter((a) => a.category === 'Flows').length },
+                  { key: 'AI & LLM', label: 'AI & LLM', count: appList.filter((a) => a.category === 'AI & LLM').length },
+                  { key: 'Helpers', label: 'Logic & Helpers', count: appList.filter((a) => a.category === 'Helpers').length },
+                ] as const
+              ).map((tab) => (
+                <button
+                  key={tab.key}
+                  onClick={() => setActiveTab(tab.key)}
+                  className={`rounded-md px-3 py-1.5 text-xs font-semibold transition-all cursor-pointer flex items-center gap-1.5 ${
+                    activeTab === tab.key
+                      ? 'bg-orange-600 text-white shadow-xs'
+                      : 'text-muted-foreground hover:text-foreground'
+                  }`}
+                >
+                  <span>{tab.label}</span>
+                  <span
+                    className={`text-[10px] rounded-full px-1.5 py-0.2 ${
+                      activeTab === tab.key ? 'bg-orange-700/60 text-white' : 'bg-muted text-muted-foreground'
+                    }`}
+                  >
+                    {tab.count}
+                  </span>
+                </button>
+              ))}
+            </div>
+
+            <Button
+              variant={connectedOnly ? 'default' : 'outline'}
+              size='sm'
+              onClick={() => setConnectedOnly(!connectedOnly)}
+              className={`h-8 text-xs gap-1.5 cursor-pointer font-medium ${
+                connectedOnly ? 'bg-emerald-600 hover:bg-emerald-700 text-white border-0' : 'text-muted-foreground'
+              }`}
+            >
+              <CheckCircle2 className='h-3.5 w-3.5' />
+              Connected Only ({connectedCount})
+            </Button>
+          </div>
+
+          <div className='relative w-full sm:w-64'>
             <SearchIcon className='absolute left-2.5 top-2.5 h-3.5 w-3.5 text-muted-foreground pointer-events-none' />
             <input
               type='search'
@@ -771,9 +943,6 @@ export function Apps() {
               autoCorrect='off'
               autoCapitalize='off'
               spellCheck='false'
-              data-lpignore='true'
-              data-form-type='other'
-              data-1p-ignore='true'
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               placeholder='Search integrations...'
@@ -816,6 +985,16 @@ export function Apps() {
                   Clear Search Filter
                 </Button>
               )}
+              {connectedOnly && (
+                <Button
+                  variant='outline'
+                  size='sm'
+                  onClick={() => setConnectedOnly(false)}
+                  className='h-8 text-xs cursor-pointer'
+                >
+                  Show All Available
+                </Button>
+              )}
               {activeTab !== 'All' && (
                 <Button
                   variant='ghost'
@@ -833,7 +1012,9 @@ export function Apps() {
             {filtered.map((app) => (
               <div
                 key={app.id}
-                className='flex flex-col justify-between rounded-lg border border-border/60 bg-card p-4 shadow-xs transition-all hover:border-orange-500/50 hover:shadow-sm'
+                className={`flex flex-col justify-between rounded-xl border bg-card p-4 shadow-xs transition-all hover:border-orange-500/50 hover:shadow-sm ${
+                  app.connected ? 'border-border/80' : 'border-border/40 opacity-90'
+                }`}
               >
                 <div>
                   <div className='flex items-center justify-between mb-3'>
@@ -842,19 +1023,29 @@ export function Apps() {
                     >
                       {app.name.slice(0, 2).toUpperCase()}
                     </div>
-                    <Badge
-                      variant='outline'
-                      className={`text-[10px] ${
-                        app.connected
-                          ? 'border-emerald-500/40 text-emerald-600 bg-emerald-500/10'
-                          : 'text-muted-foreground'
-                      }`}
+                    <button
+                      type='button'
+                      onClick={(e) => handleQuickToggle(app, e)}
+                      title={app.connected ? 'Click to disconnect' : 'Click to connect'}
+                      className='cursor-pointer'
                     >
-                      {app.connected ? 'Connected' : 'Available'}
-                    </Badge>
+                      <Badge
+                        variant='outline'
+                        className={`text-[10px] transition-colors ${
+                          app.connected
+                            ? 'border-emerald-500/40 text-emerald-600 bg-emerald-500/10 hover:bg-emerald-500/20'
+                            : 'text-muted-foreground hover:text-foreground'
+                        }`}
+                      >
+                        {app.connected ? '🟢 Connected' : '⚪ Available'}
+                      </Badge>
+                    </button>
                   </div>
 
-                  <h3 className='font-bold text-sm text-foreground'>{app.name}</h3>
+                  <h3 className='font-bold text-sm text-foreground flex items-center justify-between'>
+                    <span>{app.name}</span>
+                    {app.category === 'AI & LLM' && <Sparkles className='h-3 w-3 text-purple-600' />}
+                  </h3>
                   <span className='inline-block text-[10px] text-orange-600 font-semibold mb-1'>
                     {app.tag}
                   </span>
@@ -1091,7 +1282,7 @@ export function Apps() {
                         type='text'
                         value={testSendPhone}
                         onChange={(e) => setTestSendPhone(e.target.value)}
-                        placeholder='+919825102938'
+                        placeholder='+919825100001'
                         className='h-8 text-xs font-mono col-span-1'
                       />
                       <Input
@@ -1274,7 +1465,7 @@ export function Apps() {
 
       {/* 2. REAL-TIME WEBHOOK LOGS MODAL */}
       <Dialog open={showLogs} onOpenChange={setShowLogs}>
-        <DialogContent className='sm:max-w-2xl'>
+        <DialogContent className='sm:max-w-2xl max-h-[85vh] flex flex-col'>
           <DialogHeader>
             <div className='flex items-center justify-between'>
               <div>
@@ -1290,21 +1481,42 @@ export function Apps() {
                 size='sm'
                 variant='outline'
                 onClick={handleSimulateWebhook}
+                disabled={isSimulatingLog}
                 className='h-7 text-xs gap-1.5'
               >
-                <Zap className='h-3 w-3 text-orange-600' />
-                Trigger Test Event
+                <Zap className={`h-3 w-3 text-orange-600 ${isSimulatingLog ? 'animate-bounce' : ''}`} />
+                {isSimulatingLog ? 'Ingesting...' : 'Trigger Test Event'}
               </Button>
             </div>
           </DialogHeader>
 
-          <div className='space-y-2 max-h-[380px] overflow-y-auto pr-1'>
-            {logs.length === 0 ? (
-              <div className='text-center py-6 text-xs text-muted-foreground'>
-                No webhook events logged yet. Trigger a test event or send a message.
+          {/* Filter Bar for Logs */}
+          <div className='flex items-center gap-2 py-1 border-b border-border/40 text-xs'>
+            <span className='text-muted-foreground text-[11px] font-medium'>Source Filter:</span>
+            <div className='flex items-center gap-1 overflow-x-auto py-1'>
+              {(['All', 'IndiaMart', 'Meta WhatsApp', 'Facebook', 'Razorpay'] as const).map((src) => (
+                <button
+                  key={src}
+                  onClick={() => setLogFilterSource(src)}
+                  className={`px-2 py-0.5 rounded text-[10px] font-medium transition-colors ${
+                    logFilterSource === src
+                      ? 'bg-orange-600 text-white font-bold'
+                      : 'bg-muted text-muted-foreground hover:text-foreground'
+                  }`}
+                >
+                  {src}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          <div className='space-y-2 flex-1 overflow-y-auto pr-1 py-2'>
+            {filteredLogs.length === 0 ? (
+              <div className='text-center py-8 text-xs text-muted-foreground'>
+                No webhook events found matching "{logFilterSource}". Click "Trigger Test Event" to simulate one.
               </div>
             ) : (
-              logs.map((item) => (
+              filteredLogs.map((item) => (
                 <div
                   key={item.id}
                   className='rounded-md border border-border/60 bg-muted/20 p-2.5 space-y-1.5 text-xs'
