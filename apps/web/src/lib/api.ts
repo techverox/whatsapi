@@ -536,6 +536,78 @@ export const whatsapiApi = {
     request('/api/flows/reset', {
       method: 'POST',
     }),
+
+  // Agency Project & Client Planner
+  getProjects: (params?: { status?: string; search?: string }) => {
+    const query = new URLSearchParams()
+    if (params?.status && params.status !== 'All') query.set('status', params.status)
+    if (params?.search) query.set('search', params.search)
+    const qs = query.toString() ? `?${query.toString()}` : ''
+    return request(`/api/projects${qs}`)
+  },
+  getProject: (id: string) => request(`/api/projects/${id}`),
+  getProjectStats: () => request('/api/projects/stats'),
+  createProject: (data: {
+    name: string
+    client: string
+    status?: string
+    startDate?: string
+    dueDate?: string
+    priority?: string
+    description?: string
+    budget?: string
+  }) =>
+    request('/api/projects', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    }),
+  updateProject: (id: string, data: any) =>
+    request(`/api/projects/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(data),
+    }),
+  deleteProject: (id: string) =>
+    request(`/api/projects/${id}`, {
+      method: 'DELETE',
+    }),
+  getProjectTasks: (params?: { projectId?: string; status?: string; search?: string }) => {
+    const query = new URLSearchParams()
+    if (params?.projectId) query.set('projectId', params.projectId)
+    if (params?.status && params.status !== 'All') query.set('status', params.status)
+    if (params?.search) query.set('search', params.search)
+    const qs = query.toString() ? `?${query.toString()}` : ''
+    return request(`/api/projects/tasks${qs}`)
+  },
+  createProjectTask: (data: {
+    title: string
+    project: string
+    projectId?: string
+    assignee?: string
+    priority?: string
+    status?: string
+    dueDate?: string
+  }) =>
+    request('/api/projects/tasks', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    }),
+  updateProjectTask: (id: string, data: any) =>
+    request(`/api/projects/tasks/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(data),
+    }),
+  toggleProjectTask: (id: string) =>
+    request(`/api/projects/tasks/${id}/toggle`, {
+      method: 'PATCH',
+    }),
+  deleteProjectTask: (id: string) =>
+    request(`/api/projects/tasks/${id}`, {
+      method: 'DELETE',
+    }),
+  resetProjects: () =>
+    request('/api/projects/reset', {
+      method: 'POST',
+    }),
 }
 
 // Backward compatibility alias

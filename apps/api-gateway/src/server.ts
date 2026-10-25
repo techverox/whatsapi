@@ -18,9 +18,11 @@ import { mediaRouter } from './routes/media.route.js'
 import { aiRouter } from './routes/ai.route.js'
 import { chatbotRouter } from './routes/chatbot.route.js'
 import { flowsRouter } from './routes/flows.route.js'
+import { projectsRouter } from './routes/projects.route.js'
 import { whatsAppService } from './services/whatsapp.service.js'
 import { integrationsService } from './services/integrations.service.js'
 import { flowsService } from './services/flows.service.js'
+import { projectsService } from './services/projects.service.js'
 
 dotenv.config()
 
@@ -43,6 +45,7 @@ export const broadcastRealtime = (type: string, payload: any) => {
 whatsAppService.onEvent = (type, payload) => broadcastRealtime(type, payload)
 integrationsService.onEvent = (type, payload) => broadcastRealtime(type, payload)
 flowsService.onEvent = (type, payload) => broadcastRealtime(type, payload)
+projectsService.onEvent = (type, payload) => broadcastRealtime(type, payload)
 
 // Attach WebSocket client handlers
 wss.on('connection', (ws: WebSocket) => {
@@ -424,6 +427,7 @@ app.use('/api/bot', botRouter)
 app.use('/api/ai', aiRouter)
 app.use('/api/chatbot', chatbotRouter)
 app.use('/api/flows', flowsRouter)
+app.use('/api/projects', projectsRouter)
 app.use('/api', whatsappRouter)
 
 app.use('/api/v1/contacts', contactsRouter)
@@ -441,6 +445,7 @@ app.use('/api/v1/media', mediaRouter)
 app.use('/api/v1/ai', aiRouter)
 app.use('/api/v1/chatbot', chatbotRouter)
 app.use('/api/v1/flows', flowsRouter)
+app.use('/api/v1/projects', projectsRouter)
 app.use('/api/v1', whatsappRouter)
 
 // Direct Inbound Flows Webhook callback (/api/v2/webhook/flows/:flowUid)
@@ -481,6 +486,8 @@ app.get('/', (_req: Request, res: Response) => {
       facebookDirect: '/webhook/facebook',
       aiAssistant: '/api/v1/ai/ask',
       flows: '/api/v1/flows',
+      projects: '/api/v1/projects',
+      tasks: '/api/v1/projects/tasks',
     },
   })
 })

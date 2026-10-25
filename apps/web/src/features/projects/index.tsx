@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import {
   FolderKanban,
   Plus,
@@ -8,8 +8,15 @@ import {
   Trash2,
   Search,
   Check,
+  RefreshCw,
+  Clock,
+  RotateCcw,
+  Loader2,
+  Calendar,
+  AlertCircle,
 } from 'lucide-react'
 import { toast } from 'sonner'
+import { veroxApi } from '@/lib/api'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Input } from '@/components/ui/input'
@@ -28,7 +35,7 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog'
 
-interface ProjectItem {
+export interface ProjectItem {
   id: string
   name: string
   client: string
@@ -37,27 +44,22 @@ interface ProjectItem {
   dueDate: string
   priority: 'High' | 'Medium' | 'Low'
   description?: string
+  budget?: string
+  category?: string
 }
 
-interface TaskItem {
+export interface TaskItem {
   id: string
   title: string
   project: string
+  projectId?: string
   assignee: string
   priority: 'High' | 'Medium' | 'Low'
   status: 'Todo' | 'In Progress' | 'Done'
   dueDate: string
 }
 
-function generateProjectId(): string {
-  return `p-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`
-}
-
-function generateTaskId(): string {
-  return `t-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`
-}
-
-const initialProjects: ProjectItem[] = [
+const fallbackProjects: ProjectItem[] = [
   {
     id: 'p-1',
     name: 'Truck Sathi GPS Automation',
@@ -90,7 +92,7 @@ const initialProjects: ProjectItem[] = [
   },
 ]
 
-const initialTasks: TaskItem[] = [
+const fallbackTasks: TaskItem[] = [
   {
     id: 't-1',
     title: 'Verify AIS-140 GPS Webhook Challenge on Meta',
@@ -140,10 +142,12 @@ const initialTasks: TaskItem[] = [
 
 export function Projects() {
   const [tab, setTab] = useState<'projects' | 'tasks'>('projects')
-  const [projects, setProjects] = useState<ProjectItem[]>(initialProjects)
-  const [tasks, setTasks] = useState<TaskItem[]>(initialTasks)
+  const [projects, setProjects] = useState<ProjectItem[]>(fallbackProjects)
+  const [tasks, setTasks] = useState<TaskItem[]>(fallbackTasks)
   const [search, setSearch] = useState('')
   const [statusFilter, setStatusFilter] = useState<string>('All')
+  const [loading, setLoading] = useState(false)
+  const [isRefreshing, setIsRefreshing] = useState(false)
 
   // Modals State
   const [projectModal, setProjectModal] = useState(false)
@@ -154,24 +158,75 @@ export function Projects() {
   const [projName, setProjName] = useState('')
   const [projClient, setProjClient] = useState('')
   const [projPriority, setProjPriority] = useState<'High' | 'Medium' | 'Low'>('High')
-  const [projDue, setProjDue] = useState('11/15/2026')
+  const [projDue, setProjDue] = useState('2026-11-15')
   const [projDesc, setProjDesc] = useState('')
+  const [projSubmitting, setProjSubmitting] = useState(false)
 
   // New Task Form
   const [taskTitle, setTaskTitle] = useState('')
-  const [taskProject, setTaskProject] = useState(projects[0]?.name || '')
-  const [taskAssignee, setTaskAssignee] = useState('Truck Sathi Admin')
+  const [taskProject, setTaskProject] = useState(projects[0]?.name || 'Truck Sathi GPS Automation')
+  const [taskAssignee, setTaskAssignee] = useState('Antigravity Engineer')
   const [taskPriority, setTaskPriority] = useState<'High' | 'Medium' | 'Low'>('High')
-  const [taskDue, setTaskDue] = useState('11/01/2026')
+  const [taskDue, setTaskDue] = useState('2026-11-01')
+  const [taskSubmitting, setTaskSubmitting] = useState(false)
 
   // Inline milestone adder in Project Details modal
   const [newMilestoneTitle, setNewMilestoneTitle] = useState('')
+  const [milestoneSubmitting, setMilestoneSubmitting] = useState(false)
+
+  // Load data from Backend Gateway API
+  const loadData = useCallback(async (showToast = false) => {
+    try {
+      setIsRefreshing(true)
+      const [projRes, taskRes]: any = await Promise.all([
+        veroxApi.getProjects(),
+        veroxApi.getProjectTasks(),
+      ])
+
+      const fetchedProjects = projRes?.data || (Array.isArray(projRes) ? projRes : null)
+      if (fetchedProjects && Array.isArray(fetchedProjects)) {
+        setProjects(fetchedProjects)
+        if (fetchedProjects.length > 0 && !taskProject) {
+          setTaskProject(fetchedProjects[0].name)
+        }
+      }
+
+      const fetchedTasks = taskRes?.data || (Array.isArray(taskRes) ? taskRes : null)
+      if (fetchedTasks && Array.isArray(fetchedTasks)) {
+        setTasks(fetchedTasks)
+      }
+
+      if (showToast) {
+        toast.success('Projects & Tasks synchronized with Gateway API!')
+      }
+    } catch (err: any) {
+      console.warn('Backend API sync notice:', err?.message || err)
+    } finally {
+      setIsRefreshing(false)
+      setLoading(false)
+    }
+  }, [taskProject])
+
+  useEffect(() => {
+    loadData(false)
+  }, [loadData])
+
+  // Sync selected project with updated project list
+  useEffect(() => {
+    if (selectedProject) {
+      const updated = projects.find((p) => p.id === selectedProject.id)
+      if (updated) {
+        setSelectedProject(updated)
+      }
+    }
+  }, [projects])
 
   const filteredProjects = projects.filter((p) => {
     const matchStatus = statusFilter === 'All' || p.status === statusFilter
     const matchSearch =
       p.name.toLowerCase().includes(search.toLowerCase()) ||
-      p.client.toLowerCase().includes(search.toLowerCase())
+      p.client.toLowerCase().includes(search.toLowerCase()) ||
+      (p.description && p.description.toLowerCase().includes(search.toLowerCase()))
     return matchStatus && matchSearch
   })
 
@@ -184,94 +239,195 @@ export function Projects() {
     return matchStatus && matchSearch
   })
 
-  const handleCreateProject = () => {
+  const handleCreateProject = async () => {
     if (!projName.trim() || !projClient.trim()) {
       toast.error('Please enter Project Name and Client.')
       return
     }
 
-    const newP: ProjectItem = {
-      id: generateProjectId(),
-      name: projName.trim(),
-      client: projClient.trim(),
-      status: 'In Progress',
-      startDate: new Date().toLocaleDateString('en-US'),
-      dueDate: projDue,
-      priority: projPriority,
-      description: projDesc.trim() || 'Client WhatsApp marketing and bot automation sprint.',
+    setProjSubmitting(true)
+    try {
+      const payload = {
+        name: projName.trim(),
+        client: projClient.trim(),
+        status: 'In Progress' as const,
+        startDate: new Date().toLocaleDateString('en-US'),
+        dueDate: projDue,
+        priority: projPriority,
+        description: projDesc.trim() || 'Client WhatsApp marketing and bot automation sprint.',
+      }
+
+      const res: any = await veroxApi.createProject(payload)
+      const created = res?.data || { ...payload, id: `p-${Date.now()}` }
+
+      setProjects((prev) => [created, ...prev])
+      setProjName('')
+      setProjClient('')
+      setProjDesc('')
+      setProjectModal(false)
+
+      toast.success('Project Created Successfully!', {
+        description: `"${created.name}" added to agency pipeline.`,
+      })
+    } catch (err: any) {
+      toast.error('Failed to create project', {
+        description: err?.message || 'Server error',
+      })
+    } finally {
+      setProjSubmitting(false)
     }
-
-    setProjects([newP, ...projects])
-    setProjName('')
-    setProjClient('')
-    setProjDesc('')
-    setProjectModal(false)
-
-    toast.success('Project Created Successfully!', {
-      description: `"${newP.name}" added to agency pipeline.`,
-    })
   }
 
-  const handleCreateTask = () => {
+  const handleCreateTask = async () => {
     if (!taskTitle.trim()) {
       toast.error('Please enter a task title.')
       return
     }
 
-    const newT: TaskItem = {
-      id: generateTaskId(),
-      title: taskTitle.trim(),
-      project: taskProject,
-      assignee: taskAssignee,
-      priority: taskPriority,
-      status: 'Todo',
-      dueDate: taskDue,
-    }
+    setTaskSubmitting(true)
+    try {
+      const targetProj = projects.find((p) => p.name === taskProject)
+      const payload = {
+        title: taskTitle.trim(),
+        project: taskProject,
+        projectId: targetProj?.id,
+        assignee: taskAssignee,
+        priority: taskPriority,
+        status: 'Todo' as const,
+        dueDate: taskDue,
+      }
 
-    setTasks([newT, ...tasks])
-    setTaskTitle('')
-    setTaskModal(false)
+      const res: any = await veroxApi.createProjectTask(payload)
+      const created = res?.data || { ...payload, id: `t-${Date.now()}` }
 
-    toast.success('Task Added Successfully!', {
-      description: `"${newT.title}" assigned to ${newT.assignee}.`,
-    })
-  }
+      setTasks((prev) => [created, ...prev])
+      setTaskTitle('')
+      setTaskModal(false)
 
-  const handleToggleTaskStatus = (id: string) => {
-    setTasks(
-      tasks.map((t) => {
-        if (t.id === id) {
-          const nextStatus = t.status === 'Done' ? 'In Progress' : 'Done'
-          toast.success(`Task marked as ${nextStatus}`)
-          return { ...t, status: nextStatus }
-        }
-        return t
+      toast.success('Task Added Successfully!', {
+        description: `"${created.title}" assigned to ${created.assignee}.`,
       })
+    } catch (err: any) {
+      toast.error('Failed to create task', {
+        description: err?.message || 'Server error',
+      })
+    } finally {
+      setTaskSubmitting(false)
+    }
+  }
+
+  const handleToggleTaskStatus = async (id: string) => {
+    const current = tasks.find((t) => t.id === id)
+    if (!current) return
+    const nextStatus = current.status === 'Done' ? 'In Progress' : 'Done'
+
+    // Optimistic UI update
+    setTasks((prev) =>
+      prev.map((t) => (t.id === id ? { ...t, status: nextStatus } : t))
     )
+
+    try {
+      await veroxApi.toggleProjectTask(id)
+      toast.success(`Task status updated to "${nextStatus}"`)
+    } catch (err: any) {
+      // Revert if API failed
+      setTasks((prev) =>
+        prev.map((t) => (t.id === id ? { ...t, status: current.status } : t))
+      )
+      toast.error('Failed to update task status')
+    }
   }
 
-  const handleDeleteProject = (id: string, name: string) => {
-    setProjects(projects.filter((p) => p.id !== id))
+  const handleDeleteTask = async (id: string, e?: React.MouseEvent) => {
+    if (e) e.stopPropagation()
+    const taskToDelete = tasks.find((t) => t.id === id)
+    setTasks((prev) => prev.filter((t) => t.id !== id))
+
+    try {
+      await veroxApi.deleteProjectTask(id)
+      toast.info(`Task "${taskToDelete?.title || id}" deleted.`)
+    } catch (err: any) {
+      loadData(false)
+      toast.error('Failed to delete task')
+    }
+  }
+
+  const handleDeleteProject = async (id: string, name: string) => {
+    // Optimistic local state update
+    setProjects((prev) => prev.filter((p) => p.id !== id))
+    setTasks((prev) => prev.filter((t) => t.projectId !== id && t.project !== name))
     setSelectedProject(null)
-    toast.info(`Project "${name}" removed.`)
+
+    try {
+      await veroxApi.deleteProject(id)
+      toast.info(`Project "${name}" and linked tasks removed.`)
+    } catch (err: any) {
+      loadData(false)
+      toast.error('Failed to delete project')
+    }
   }
 
-  const handleAddMilestone = () => {
+  const handleUpdateProjectStatus = async (status: ProjectItem['status']) => {
+    if (!selectedProject) return
+    const prevStatus = selectedProject.status
+    const updated = { ...selectedProject, status }
+
+    setSelectedProject(updated)
+    setProjects((prev) => prev.map((p) => (p.id === selectedProject.id ? updated : p)))
+
+    try {
+      await veroxApi.updateProject(selectedProject.id, { status })
+      toast.success(`Project status updated to ${status}`)
+    } catch (err: any) {
+      setSelectedProject({ ...selectedProject, status: prevStatus })
+      setProjects((prev) =>
+        prev.map((p) => (p.id === selectedProject.id ? { ...p, status: prevStatus } : p))
+      )
+      toast.error('Failed to update project status')
+    }
+  }
+
+  const handleAddMilestone = async () => {
     if (!selectedProject || !newMilestoneTitle.trim()) return
 
-    const newT: TaskItem = {
-      id: generateTaskId(),
-      title: newMilestoneTitle.trim(),
-      project: selectedProject.name,
-      assignee: 'Antigravity Engineer',
-      priority: 'High',
-      status: 'Todo',
-      dueDate: selectedProject.dueDate,
-    }
+    setMilestoneSubmitting(true)
+    try {
+      const payload = {
+        title: newMilestoneTitle.trim(),
+        project: selectedProject.name,
+        projectId: selectedProject.id,
+        assignee: 'Antigravity Engineer',
+        priority: 'High' as const,
+        status: 'Todo' as const,
+        dueDate: selectedProject.dueDate,
+      }
 
-    setTasks([...tasks, newT])
-    setNewMilestoneTitle('')
-    toast.success('Milestone Task Added to Project!')
+      const res: any = await veroxApi.createProjectTask(payload)
+      const created = res?.data || { ...payload, id: `t-${Date.now()}` }
+
+      setTasks((prev) => [...prev, created])
+      setNewMilestoneTitle('')
+      toast.success('Milestone Task Added to Project!')
+    } catch (err: any) {
+      toast.error('Failed to add milestone')
+    } finally {
+      setMilestoneSubmitting(false)
+    }
+  }
+
+  const handleResetDefaults = async () => {
+    try {
+      setIsRefreshing(true)
+      await veroxApi.resetProjects()
+      await loadData(false)
+      toast.success('Reset to Default Agency Sprints & Milestones!')
+    } catch (err: any) {
+      setProjects(fallbackProjects)
+      setTasks(fallbackTasks)
+      toast.info('Reset local templates to default')
+    } finally {
+      setIsRefreshing(false)
+    }
   }
 
   const getProjectStats = (projectName: string) => {
@@ -281,6 +437,8 @@ export function Projects() {
     const percent = total > 0 ? Math.round((completed / total) * 100) : 0
     return { completed, total, percent }
   }
+
+  const inProgressCount = projects.filter((p) => p.status === 'In Progress').length
 
   return (
     <>
@@ -304,23 +462,54 @@ export function Projects() {
             <div className='flex items-center gap-2'>
               <h1 className='text-2xl font-bold tracking-tight'>Project Planner</h1>
               <Badge className='bg-emerald-500/15 text-emerald-600 border-0 text-[10px] font-semibold'>
-                {projects.filter((p) => p.status === 'In Progress').length} Sprints In Progress
+                {inProgressCount} Sprints In Progress
               </Badge>
             </div>
             <p className='text-xs text-muted-foreground mt-0.5'>
               Track client WhatsApp automation setups, marketing sprint milestones, and agent tasks
             </p>
           </div>
-          <div className='flex items-center gap-2'>
+          <div className='flex items-center gap-2 flex-wrap'>
             <Button
+              id='btn-reset-projects'
               size='sm'
               variant='outline'
-              onClick={() => setTaskModal(true)}
+              onClick={handleResetDefaults}
+              disabled={isRefreshing}
+              className='gap-1.5 text-xs h-9 cursor-pointer border-border/70 hover:bg-muted'
+              title='Reset to Agency Defaults'
+            >
+              <RotateCcw className={`h-3.5 w-3.5 ${isRefreshing ? 'animate-spin' : ''}`} />
+              <span className='hidden sm:inline'>Reset Defaults</span>
+            </Button>
+            <Button
+              id='btn-refresh-projects'
+              size='sm'
+              variant='outline'
+              onClick={() => loadData(true)}
+              disabled={isRefreshing}
+              className='gap-1.5 text-xs h-9 cursor-pointer'
+              title='Sync with API'
+            >
+              <RefreshCw className={`h-3.5 w-3.5 ${isRefreshing ? 'animate-spin' : ''}`} />
+              <span className='hidden sm:inline'>Sync</span>
+            </Button>
+            <Button
+              id='btn-new-task'
+              size='sm'
+              variant='outline'
+              onClick={() => {
+                if (projects.length > 0 && !taskProject) {
+                  setTaskProject(projects[0].name)
+                }
+                setTaskModal(true)
+              }}
               className='gap-1.5 text-xs h-9 cursor-pointer'
             >
               <Plus className='h-3.5 w-3.5' /> New Task
             </Button>
             <Button
+              id='btn-new-project'
               size='sm'
               onClick={() => setProjectModal(true)}
               className='bg-orange-600 hover:bg-orange-700 text-white gap-1.5 font-semibold shadow-xs text-xs h-9 cursor-pointer'
@@ -332,9 +521,10 @@ export function Projects() {
 
         {/* Tab & Search Filter Bar */}
         <div className='flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-muted/20 p-2.5 rounded-xl border border-border/40'>
-          <div className='flex items-center gap-2'>
+          <div className='flex items-center gap-2 flex-wrap'>
             <div className='flex items-center gap-1.5'>
               <button
+                id='btn-tab-projects'
                 onClick={() => {
                   setTab('projects')
                   setStatusFilter('All')
@@ -348,6 +538,7 @@ export function Projects() {
                 Projects ({projects.length})
               </button>
               <button
+                id='btn-tab-tasks'
                 onClick={() => {
                   setTab('tasks')
                   setStatusFilter('All')
@@ -368,25 +559,30 @@ export function Projects() {
               {(tab === 'projects'
                 ? ['All', 'In Progress', 'Completed', 'Planning']
                 : ['All', 'Done', 'In Progress', 'Todo']
-              ).map((s) => (
-                <button
-                  key={s}
-                  onClick={() => setStatusFilter(s)}
-                  className={`px-2 py-0.5 rounded text-[11px] font-medium transition-colors cursor-pointer ${
-                    statusFilter === s
-                      ? 'bg-foreground/10 text-foreground font-bold'
-                      : 'text-muted-foreground hover:text-foreground'
-                  }`}
-                >
-                  {s}
-                </button>
-              ))}
+              ).map((s) => {
+                const filterId = `filter-status-${s.toLowerCase().replace(/\s+/g, '-')}`
+                return (
+                  <button
+                    key={s}
+                    id={filterId}
+                    onClick={() => setStatusFilter(s)}
+                    className={`px-2 py-0.5 rounded text-[11px] font-medium transition-colors cursor-pointer ${
+                      statusFilter === s
+                        ? 'bg-foreground/10 text-foreground font-bold'
+                        : 'text-muted-foreground hover:text-foreground'
+                    }`}
+                  >
+                    {s}
+                  </button>
+                )
+              })}
             </div>
           </div>
 
           <div className='relative w-full sm:w-64'>
             <Search className='absolute left-2.5 top-2.5 h-3.5 w-3.5 text-muted-foreground' />
             <Input
+              id='input-search-projects'
               placeholder={`Search ${tab}...`}
               value={search}
               onChange={(e) => setSearch(e.target.value)}
@@ -474,6 +670,7 @@ export function Projects() {
                           </td>
                           <td className='p-3 text-right'>
                             <Button
+                              id={`btn-view-project-${p.id}`}
                               variant='ghost'
                               size='sm'
                               onClick={() => setSelectedProject(p)}
@@ -517,6 +714,7 @@ export function Projects() {
                         <td className='p-3 font-bold text-foreground'>
                           <div className='flex items-center gap-2'>
                             <button
+                              id={`btn-toggle-task-${t.id}`}
                               onClick={() => handleToggleTaskStatus(t.id)}
                               className={`h-4 w-4 rounded border flex items-center justify-center cursor-pointer transition-colors ${
                                 t.status === 'Done'
@@ -562,14 +760,27 @@ export function Projects() {
                         </td>
                         <td className='p-3 text-muted-foreground font-mono text-[11px]'>{t.dueDate}</td>
                         <td className='p-3 text-right'>
-                          <Button
-                            variant='ghost'
-                            size='sm'
-                            onClick={() => handleToggleTaskStatus(t.id)}
-                            className='h-7 text-xs text-orange-600 cursor-pointer font-semibold'
-                          >
-                            {t.status === 'Done' ? 'Reopen' : 'Mark Done'}
-                          </Button>
+                          <div className='flex items-center justify-end gap-1'>
+                            <Button
+                              id={`btn-action-task-${t.id}`}
+                              variant='ghost'
+                              size='sm'
+                              onClick={() => handleToggleTaskStatus(t.id)}
+                              className='h-7 text-xs text-orange-600 cursor-pointer font-semibold'
+                            >
+                              {t.status === 'Done' ? 'Reopen' : 'Mark Done'}
+                            </Button>
+                            <Button
+                              id={`btn-delete-task-${t.id}`}
+                              variant='ghost'
+                              size='icon'
+                              onClick={(e) => handleDeleteTask(t.id, e)}
+                              className='h-7 w-7 text-muted-foreground hover:text-red-600 cursor-pointer'
+                              title='Delete task'
+                            >
+                              <Trash2 className='h-3.5 w-3.5' />
+                            </Button>
+                          </div>
                         </td>
                       </tr>
                     ))
@@ -586,20 +797,25 @@ export function Projects() {
         {selectedProject && (
           <DialogContent className='sm:max-w-xl'>
             <DialogHeader>
-              <div className='flex items-center justify-between'>
+              <div className='flex items-center justify-between gap-2 flex-wrap'>
                 <DialogTitle className='flex items-center gap-2'>
                   <FolderKanban className='h-4 w-4 text-orange-600' />
-                  {selectedProject.name}
+                  <span>{selectedProject.name}</span>
                 </DialogTitle>
-                <Badge
-                  className={`border-0 text-[10px] font-semibold ${
-                    selectedProject.status === 'Completed'
-                      ? 'bg-emerald-500/15 text-emerald-600'
-                      : 'bg-sky-500/15 text-sky-600'
-                  }`}
-                >
-                  {selectedProject.status}
-                </Badge>
+                <div className='flex items-center gap-2'>
+                  <select
+                    id='select-project-details-status'
+                    value={selectedProject.status}
+                    onChange={(e) =>
+                      handleUpdateProjectStatus(e.target.value as ProjectItem['status'])
+                    }
+                    className='rounded-md border border-input bg-background px-2.5 py-1 text-xs font-semibold shadow-2xs focus-visible:outline-none cursor-pointer'
+                  >
+                    <option value='In Progress'>In Progress</option>
+                    <option value='Completed'>Completed</option>
+                    <option value='Planning'>Planning</option>
+                  </select>
+                </div>
               </div>
               <DialogDescription className='text-xs'>
                 Client: <span className='font-semibold text-foreground'>{selectedProject.client}</span> • Target Due: {selectedProject.dueDate}
@@ -614,7 +830,9 @@ export function Projects() {
                   <div className='p-3 rounded-lg border border-border/60 bg-muted/20 space-y-2'>
                     <div className='flex justify-between font-semibold'>
                       <span>Sprint Milestones Progress</span>
-                      <span className='text-orange-600 font-mono'>{stats.completed}/{stats.total} Tasks ({stats.percent}%)</span>
+                      <span className='text-orange-600 font-mono'>
+                        {stats.completed}/{stats.total} Tasks ({stats.percent}%)
+                      </span>
                     </div>
                     <div className='h-2 w-full bg-muted rounded-full overflow-hidden'>
                       <div
@@ -628,7 +846,7 @@ export function Projects() {
 
               {/* Description */}
               <div>
-                <Label className='text-xs font-semibold'>Project Scope & Scope</Label>
+                <Label className='text-xs font-semibold'>Project Scope & Specifications</Label>
                 <p className='text-muted-foreground mt-1 leading-relaxed bg-muted/10 p-2.5 rounded-md border border-border/40'>
                   {selectedProject.description || 'Enterprise WhatsApp automation & CRM integration pipeline.'}
                 </p>
@@ -638,14 +856,19 @@ export function Projects() {
               <div className='space-y-2'>
                 <div className='font-semibold text-foreground flex items-center justify-between'>
                   <span>Milestone Checklist</span>
-                  <span className='text-[10px] text-muted-foreground'>Click checkbox to toggle complete</span>
+                  <span className='text-[10px] text-muted-foreground'>Click row or checkbox to toggle status</span>
                 </div>
                 <div className='space-y-1.5 max-h-48 overflow-y-auto pr-1'>
                   {tasks
-                    .filter((t) => t.project === selectedProject.name)
+                    .filter(
+                      (t) =>
+                        t.project === selectedProject.name ||
+                        (t.projectId && t.projectId === selectedProject.id)
+                    )
                     .map((task) => (
                       <div
                         key={task.id}
+                        id={`milestone-item-${task.id}`}
                         onClick={() => handleToggleTaskStatus(task.id)}
                         className='p-2 rounded border border-border/50 bg-background hover:bg-muted/30 transition-colors flex items-center justify-between gap-2 cursor-pointer'
                       >
@@ -659,13 +882,29 @@ export function Projects() {
                           >
                             {task.status === 'Done' && <Check className='h-3 w-3' />}
                           </div>
-                          <span className={task.status === 'Done' ? 'line-through text-muted-foreground' : 'font-medium'}>
+                          <span
+                            className={
+                              task.status === 'Done'
+                                ? 'line-through text-muted-foreground'
+                                : 'font-medium'
+                            }
+                          >
                             {task.title}
                           </span>
                         </div>
-                        <Badge variant='outline' className='text-[9px] shrink-0'>
-                          {task.assignee.split(' ')[0]}
-                        </Badge>
+                        <div className='flex items-center gap-1.5'>
+                          <Badge variant='outline' className='text-[9px] shrink-0'>
+                            {task.assignee.split(' ')[0]}
+                          </Badge>
+                          <button
+                            type='button'
+                            onClick={(e) => handleDeleteTask(task.id, e)}
+                            className='text-muted-foreground hover:text-red-600 p-0.5 rounded cursor-pointer'
+                            title='Delete milestone task'
+                          >
+                            <Trash2 className='h-3 w-3' />
+                          </button>
+                        </div>
                       </div>
                     ))}
                 </div>
@@ -673,6 +912,7 @@ export function Projects() {
                 {/* Inline Add Milestone */}
                 <div className='flex gap-2 pt-1'>
                   <Input
+                    id='input-milestone-title'
                     placeholder='Add new milestone task for this project...'
                     value={newMilestoneTitle}
                     onChange={(e) => setNewMilestoneTitle(e.target.value)}
@@ -680,11 +920,18 @@ export function Projects() {
                     className='h-8 text-xs'
                   />
                   <Button
+                    id='btn-add-milestone'
                     size='sm'
+                    disabled={milestoneSubmitting || !newMilestoneTitle.trim()}
                     onClick={handleAddMilestone}
                     className='h-8 px-3 text-xs bg-orange-600 hover:bg-orange-700 text-white shrink-0 cursor-pointer font-semibold'
                   >
-                    <Plus className='h-3 w-3' /> Add
+                    {milestoneSubmitting ? (
+                      <Loader2 className='h-3 w-3 animate-spin' />
+                    ) : (
+                      <Plus className='h-3 w-3' />
+                    )}
+                    <span>Add</span>
                   </Button>
                 </div>
               </div>
@@ -692,16 +939,18 @@ export function Projects() {
 
             <DialogFooter className='flex items-center justify-between pt-2 border-t border-border/50'>
               <Button
+                id='btn-delete-selected-project'
                 type='button'
                 variant='ghost'
                 size='sm'
                 onClick={() => handleDeleteProject(selectedProject.id, selectedProject.name)}
-                className='h-8 text-xs text-red-600 hover:bg-red-500/10 gap-1'
+                className='h-8 text-xs text-red-600 hover:bg-red-500/10 gap-1 cursor-pointer'
               >
                 <Trash2 className='h-3.5 w-3.5' /> Delete Project
               </Button>
               <div className='flex items-center gap-2'>
                 <Button
+                  id='btn-close-details'
                   type='button'
                   variant='outline'
                   size='sm'
@@ -711,15 +960,16 @@ export function Projects() {
                   Close
                 </Button>
                 <Button
+                  id='btn-save-details'
                   type='button'
                   size='sm'
                   onClick={() => {
-                    toast.success('Project details updated!')
+                    toast.success('Project details verified!')
                     setSelectedProject(null)
                   }}
                   className='h-8 text-xs bg-orange-600 hover:bg-orange-700 text-white cursor-pointer font-semibold'
                 >
-                  Save Changes
+                  Done
                 </Button>
               </div>
             </DialogFooter>
@@ -743,6 +993,7 @@ export function Projects() {
             <div className='space-y-1.5'>
               <Label className='text-xs font-semibold'>Project Title</Label>
               <Input
+                id='input-project-name'
                 placeholder='e.g. Surat Fleet Omnichannel CRM'
                 value={projName}
                 onChange={(e) => setProjName(e.target.value)}
@@ -753,6 +1004,7 @@ export function Projects() {
             <div className='space-y-1.5'>
               <Label className='text-xs font-semibold'>Client / Business Account</Label>
               <Input
+                id='input-project-client'
                 placeholder='e.g. Surat Express Logistics'
                 value={projClient}
                 onChange={(e) => setProjClient(e.target.value)}
@@ -763,6 +1015,7 @@ export function Projects() {
             <div className='space-y-1.5'>
               <Label className='text-xs font-semibold'>Scope / Description</Label>
               <Input
+                id='input-project-desc'
                 placeholder='e.g. Auto-qualification WhatsApp bot with FASTAG KYC verification'
                 value={projDesc}
                 onChange={(e) => setProjDesc(e.target.value)}
@@ -774,6 +1027,7 @@ export function Projects() {
               <div className='space-y-1.5'>
                 <Label className='text-xs font-semibold'>Priority</Label>
                 <select
+                  id='select-project-priority'
                   value={projPriority}
                   onChange={(e) => setProjPriority(e.target.value as ProjectItem['priority'])}
                   className='w-full rounded-md border border-input bg-background px-3 py-1.5 text-xs shadow-2xs focus-visible:outline-none'
@@ -787,6 +1041,7 @@ export function Projects() {
               <div className='space-y-1.5'>
                 <Label className='text-xs font-semibold'>Target Due Date</Label>
                 <Input
+                  id='input-project-due'
                   type='date'
                   value={projDue}
                   onChange={(e) => setProjDue(e.target.value)}
@@ -797,10 +1052,23 @@ export function Projects() {
           </div>
 
           <DialogFooter className='gap-2 sm:gap-0'>
-            <Button variant='outline' size='sm' onClick={() => setProjectModal(false)} className='text-xs'>
+            <Button
+              id='btn-cancel-new-project'
+              variant='outline'
+              size='sm'
+              onClick={() => setProjectModal(false)}
+              className='text-xs'
+            >
               Cancel
             </Button>
-            <Button size='sm' onClick={handleCreateProject} className='bg-orange-600 hover:bg-orange-700 text-white text-xs font-semibold'>
+            <Button
+              id='btn-submit-new-project'
+              size='sm'
+              disabled={projSubmitting}
+              onClick={handleCreateProject}
+              className='bg-orange-600 hover:bg-orange-700 text-white text-xs font-semibold'
+            >
+              {projSubmitting ? <Loader2 className='h-3 w-3 animate-spin mr-1.5' /> : null}
               Save Project
             </Button>
           </DialogFooter>
@@ -823,6 +1091,7 @@ export function Projects() {
             <div className='space-y-1.5'>
               <Label className='text-xs font-semibold'>Task Title</Label>
               <Input
+                id='input-task-title'
                 placeholder='e.g. Configure IndiaMart Webhook on Port 4000'
                 value={taskTitle}
                 onChange={(e) => setTaskTitle(e.target.value)}
@@ -833,6 +1102,7 @@ export function Projects() {
             <div className='space-y-1.5'>
               <Label className='text-xs font-semibold'>Link to Project</Label>
               <select
+                id='select-task-project'
                 value={taskProject}
                 onChange={(e) => setTaskProject(e.target.value)}
                 className='w-full rounded-md border border-input bg-background px-3 py-1.5 text-xs shadow-2xs focus-visible:outline-none'
@@ -849,6 +1119,7 @@ export function Projects() {
               <div className='space-y-1.5'>
                 <Label className='text-xs font-semibold'>Assignee</Label>
                 <Input
+                  id='input-task-assignee'
                   value={taskAssignee}
                   onChange={(e) => setTaskAssignee(e.target.value)}
                   className='text-xs'
@@ -858,6 +1129,7 @@ export function Projects() {
               <div className='space-y-1.5'>
                 <Label className='text-xs font-semibold'>Priority</Label>
                 <select
+                  id='select-task-priority'
                   value={taskPriority}
                   onChange={(e) => setTaskPriority(e.target.value as TaskItem['priority'])}
                   className='w-full rounded-md border border-input bg-background px-3 py-1.5 text-xs shadow-2xs focus-visible:outline-none'
@@ -872,6 +1144,7 @@ export function Projects() {
             <div className='space-y-1.5'>
               <Label className='text-xs font-semibold'>Due Date</Label>
               <Input
+                id='input-task-due'
                 type='date'
                 value={taskDue}
                 onChange={(e) => setTaskDue(e.target.value)}
@@ -881,10 +1154,23 @@ export function Projects() {
           </div>
 
           <DialogFooter className='gap-2 sm:gap-0'>
-            <Button variant='outline' size='sm' onClick={() => setTaskModal(false)} className='text-xs'>
+            <Button
+              id='btn-cancel-new-task'
+              variant='outline'
+              size='sm'
+              onClick={() => setTaskModal(false)}
+              className='text-xs'
+            >
               Cancel
             </Button>
-            <Button size='sm' onClick={handleCreateTask} className='bg-orange-600 hover:bg-orange-700 text-white text-xs font-semibold'>
+            <Button
+              id='btn-submit-new-task'
+              size='sm'
+              disabled={taskSubmitting}
+              onClick={handleCreateTask}
+              className='bg-orange-600 hover:bg-orange-700 text-white text-xs font-semibold'
+            >
+              {taskSubmitting ? <Loader2 className='h-3 w-3 animate-spin mr-1.5' /> : null}
               Create Task
             </Button>
           </DialogFooter>
