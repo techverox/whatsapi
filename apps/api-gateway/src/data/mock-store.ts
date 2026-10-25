@@ -14,7 +14,7 @@ export interface ContactItem {
   tags: TagItem[]
   assignedToName?: string
   assignedAt?: string
-  status: 'active' | 'archived'
+  status: 'active' | 'archived' | 'deleted'
   createdAt: string
   updatedAt: string
 }
