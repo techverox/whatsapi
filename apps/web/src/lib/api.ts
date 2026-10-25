@@ -497,6 +497,45 @@ export const whatsapiApi = {
     request('/api/chatbot/reset', {
       method: 'POST',
     }),
+
+  // Visual Automation Flows Engine
+  getFlows: (params?: { status?: string; search?: string }) => {
+    const query = new URLSearchParams()
+    if (params?.status && params.status !== 'All') query.set('status', params.status)
+    if (params?.search) query.set('search', params.search)
+    const qs = query.toString() ? `?${query.toString()}` : ''
+    return request(`/api/flows${qs}`)
+  },
+  getFlow: (id: string) => request(`/api/flows/${id}`),
+  getFlowStats: () => request('/api/flows/stats'),
+  createFlow: (data: { name: string; trigger?: string; nodes?: any[]; active?: boolean }) =>
+    request('/api/flows', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    }),
+  updateFlow: (id: string, data: any) =>
+    request(`/api/flows/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(data),
+    }),
+  togglePublishFlow: (id: string, active?: boolean) =>
+    request(`/api/flows/${id}/publish`, {
+      method: 'PATCH',
+      body: JSON.stringify({ active }),
+    }),
+  deleteFlow: (id: string) =>
+    request(`/api/flows/${id}`, {
+      method: 'DELETE',
+    }),
+  runFlowTest: (id: string, inputPayload?: any) =>
+    request(`/api/flows/${id}/test`, {
+      method: 'POST',
+      body: JSON.stringify({ inputPayload }),
+    }),
+  resetFlows: () =>
+    request('/api/flows/reset', {
+      method: 'POST',
+    }),
 }
 
 // Backward compatibility alias

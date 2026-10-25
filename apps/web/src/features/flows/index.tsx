@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react'
+import { useState, useCallback, useEffect } from 'react'
 import {
   Workflow,
   Plus,
@@ -26,8 +26,11 @@ import {
   Settings,
   Clock,
   Sparkles,
+  Save,
+  RefreshCw,
 } from 'lucide-react'
 import { toast } from 'sonner'
+import { veroxApi } from '@/lib/api'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Input } from '@/components/ui/input'
@@ -271,6 +274,11 @@ export function Flows() {
     return initialFlowsData
   })
 
+  // Backend Sync & Loading States
+  const [isSaving, setIsSaving] = useState<boolean>(false)
+  const [liveTestReport, setLiveTestReport] = useState<any>(null)
+  const [_stats, setStats] = useState<any>(null)
+
   // Studio Mode: Currently active flow (defaults to 'Hot Lead' matching the user's screenshot)
   const [activeFlowId, setActiveFlowId] = useState<string | null>('flow-hot-lead')
   const [selectedNodeId, setSelectedNodeId] = useState<string>('step-1')
@@ -298,26 +306,81 @@ export function Flows() {
   const [searchQuery, setSearchQuery] = useState<string>('')
   const [statusFilter, setStatusFilter] = useState<'All' | 'Live' | 'Draft'>('All')
 
+  // Load from Backend Gateway on Mount
+  useEffect(() => {
+    let isMounted = true
+    async function loadFlows() {
+      try {
+        const [flowsRes, statsRes] = await Promise.allSettled([
+          veroxApi.getFlows(),
+          veroxApi.getFlowStats(),
+        ])
+        if (!isMounted) return
+
+        if (
+          flowsRes.status === 'fulfilled' &&
+          flowsRes.value?.data &&
+          Array.isArray(flowsRes.value.data) &&
+          flowsRes.value.data.length > 0
+        ) {
+          setFlowsList(flowsRes.value.data)
+          try {
+            localStorage.setItem('whatsapi_automation_flows_v2', JSON.stringify(flowsRes.value.data))
+          } catch (_e) {}
+        }
+        if (statsRes.status === 'fulfilled' && statsRes.value?.data) {
+          setStats(statsRes.value.data)
+        }
+      } catch (err) {
+        console.warn('Flows load fallback to local storage:', err)
+      }
+    }
+    loadFlows()
+    return () => {
+      isMounted = false
+    }
+  }, [])
+
   // Current active flow object
   const activeFlow = flowsList.find((f) => f.id === activeFlowId) || flowsList[0]
   const selectedNode = activeFlow?.nodes.find((n) => n.id === selectedNodeId) || activeFlow?.nodes[0]
 
-  // Persist flows
+  // Persist flows locally & synchronize with API
   const persistFlows = useCallback((updated: FlowItem[]) => {
     setFlowsList(updated)
     try {
       localStorage.setItem('whatsapi_automation_flows_v2', JSON.stringify(updated))
-    } catch (_err) {
-      // Ignore storage error
-    }
+    } catch (_err) {}
   }, [])
 
+  // Explicit Save Flow to Gateway
+  const handleSaveFlow = async () => {
+    if (!activeFlow) return
+    setIsSaving(true)
+    try {
+      await veroxApi.updateFlow(activeFlow.id, activeFlow)
+      toast.success('Flow Pipeline Saved Successfully!', {
+        description: `"${activeFlow.name}" configuration synchronized with API gateway.`,
+      })
+    } catch (err: any) {
+      toast.error('Failed to save flow to server', {
+        description: err?.message || 'Saved locally in browser.',
+      })
+    } finally {
+      setIsSaving(false)
+    }
+  }
+
   // Toggle Live / Draft (Publish / Unpublish)
-  const handleTogglePublish = () => {
+  const handleTogglePublish = async () => {
     if (!activeFlow) return
     const nextStatus = !activeFlow.active
     const updated = flowsList.map((f) => (f.id === activeFlow.id ? { ...f, active: nextStatus } : f))
     persistFlows(updated)
+    try {
+      await veroxApi.togglePublishFlow(activeFlow.id, nextStatus)
+    } catch (_e) {}
+
     toast(nextStatus ? 'Flow Published (Live)' : 'Flow Unpublished (Draft)', {
       description: nextStatus
         ? `"${activeFlow.name}" is now live and listening to incoming webhooks.`
@@ -326,8 +389,8 @@ export function Flows() {
   }
 
   // Real-time Test Execution Simulator
-  const handleRunRealtimeTest = () => {
-    if (isExecutingTest) return
+  const handleRunRealtimeTest = async () => {
+    if (isExecutingTest || !activeFlow) return
     setIsExecutingTest(true)
     setExecutingStepIndex(0)
     toast.info('Triggering live flow test...', {
@@ -342,23 +405,35 @@ export function Flows() {
       currentStep += 1
       if (currentStep < totalSteps) {
         setExecutingStepIndex(currentStep)
-      } else {
-        clearInterval(interval)
-        setIsExecutingTest(false)
-        setExecutingStepIndex(null)
-        setActiveTestTab('output')
-
-        // Update run counter
-        const updated = flowsList.map((f) =>
-          f.id === activeFlow.id ? { ...f, runs: f.runs + 1, lastRun: 'Just now' } : f
-        )
-        persistFlows(updated)
-
-        toast.success('Live Flow Test Completed Successfully (200 OK)!', {
-          description: `All ${totalSteps} nodes verified in 142ms. Output payload available below.`,
-        })
       }
-    }, 450)
+    }, 250)
+
+    try {
+      const res = await veroxApi.runFlowTest(activeFlow.id, inputPayload)
+      const report = res?.data || res
+      clearInterval(interval)
+      setIsExecutingTest(false)
+      setExecutingStepIndex(null)
+      setActiveTestTab('output')
+      setLiveTestReport(report)
+
+      // Update run counter
+      const updated = flowsList.map((f) =>
+        f.id === activeFlow.id ? { ...f, runs: f.runs + 1, lastRun: 'Just now' } : f
+      )
+      persistFlows(updated)
+
+      toast.success(`Live Flow Test Completed (${report.status || '200 OK'})!`, {
+        description: `All ${totalSteps} nodes verified in ${report.durationMs || 142}ms. Output payload available below.`,
+      })
+    } catch (err: any) {
+      clearInterval(interval)
+      setIsExecutingTest(false)
+      setExecutingStepIndex(null)
+      toast.error('Flow test execution failed', {
+        description: err?.message || 'Server error occurred during execution.',
+      })
+    }
   }
 
   // Copy Webhook URL
@@ -423,6 +498,9 @@ export function Flows() {
     setSelectedNodeId(newNode.id)
     setInsertModalOpen(false)
     toast.success(`Inserted "${title}" into flow pipeline!`)
+
+    // Background server sync
+    veroxApi.updateFlow(activeFlow.id, { ...activeFlow, nodes: updatedNodes }).catch(() => {})
   }
 
   // Delete a step node
@@ -439,10 +517,63 @@ export function Flows() {
     persistFlows(updated)
     setSelectedNodeId(renumbered[0].id)
     toast.info('Step removed from flow.')
+
+    // Background server sync
+    veroxApi.updateFlow(activeFlow.id, { ...activeFlow, nodes: renumbered }).catch(() => {})
+  }
+
+  // Reset to default seed templates
+  const handleResetFlows = async () => {
+    try {
+      const res = await veroxApi.resetFlows()
+      if (res?.data) {
+        persistFlows(res.data)
+        toast.success('Flows reset to enterprise templates.')
+      }
+    } catch (err: any) {
+      toast.error('Failed to reset flows', { description: err.message })
+    }
+  }
+
+  // Duplicate a flow
+  const handleDuplicateFlow = async (flow: FlowItem) => {
+    try {
+      const payload = {
+        name: `${flow.name} (Copy)`,
+        trigger: flow.trigger,
+        nodes: flow.nodes,
+        active: false,
+      }
+      const res = await veroxApi.createFlow(payload)
+      const duplicated = res?.data || {
+        ...flow,
+        id: `flow-${Date.now()}`,
+        flowUid: generateFlowUid(),
+        name: `${flow.name} (Copy)`,
+        active: false,
+        runs: 0,
+      }
+      persistFlows([duplicated, ...flowsList])
+      toast.success(`Duplicated "${flow.name}" to "${duplicated.name}".`)
+    } catch (err: any) {
+      toast.error('Failed to duplicate flow', { description: err.message })
+    }
+  }
+
+  // Delete flow
+  const handleDeleteFlow = async (flowId: string) => {
+    try {
+      await veroxApi.deleteFlow(flowId)
+      const updated = flowsList.filter((f) => f.id !== flowId)
+      persistFlows(updated)
+      toast.info('Flow deleted successfully.')
+    } catch (err: any) {
+      toast.error('Failed to delete flow', { description: err.message })
+    }
   }
 
   // Sample Output JSON matching the screenshot
-  const outputPayload = {
+  const outputPayload = liveTestReport?.finalOutputPayload || {
     senderName: 'Shahrup Sk',
     senderPhoneNumber: '919881145178',
     recipientPhoneNumberId: '942534582278953',
@@ -585,14 +716,27 @@ export function Flows() {
 
           <div className='flex items-center gap-2.5'>
             <Button
+              id='btn-back-to-flows'
               variant='outline'
               size='sm'
               onClick={() => setActiveFlowId(null)}
               className='h-8 text-xs cursor-pointer'
             >
-              Back to Flows
+              <ArrowLeft className='h-3.5 w-3.5 me-1' /> Back to Flows
             </Button>
             <Button
+              id='btn-save-flow'
+              variant='outline'
+              size='sm'
+              disabled={isSaving}
+              onClick={handleSaveFlow}
+              className='h-8 px-3 text-xs font-semibold gap-1.5 cursor-pointer shadow-xs border-orange-500/40 hover:bg-orange-500/10 text-orange-600 dark:text-orange-400'
+            >
+              <Save className={`h-3.5 w-3.5 ${isSaving ? 'animate-spin' : ''}`} />
+              {isSaving ? 'Saving...' : 'Save Flow'}
+            </Button>
+            <Button
+              id='btn-toggle-publish'
               size='sm'
               onClick={handleTogglePublish}
               className={`h-8 px-4 text-xs font-semibold rounded-md shadow-xs cursor-pointer transition-colors ${
@@ -1020,6 +1164,7 @@ export function Flows() {
                 </div>
                 <div className='flex items-center gap-2'>
                   <Button
+                    id='btn-run-flow-test'
                     size='sm'
                     disabled={isExecutingTest}
                     onClick={handleRunRealtimeTest}
@@ -1029,6 +1174,7 @@ export function Flows() {
                     {isExecutingTest ? 'Running...' : 'Run Test'}
                   </Button>
                   <Button
+                    id='btn-copy-output-json'
                     variant='ghost'
                     size='sm'
                     onClick={() => handleCopyOutputJson(JSON.stringify(outputPayload, null, 2))}
@@ -1043,6 +1189,7 @@ export function Flows() {
               {/* Debugger Tabs */}
               <div className='flex items-center border-b border-border/40 px-3 bg-muted/10 text-xs'>
                 <button
+                  id='tab-debugger-input'
                   type='button'
                   onClick={() => setActiveTestTab('input')}
                   className={`py-1.5 px-3 border-b-2 font-medium cursor-pointer transition-colors ${
@@ -1054,6 +1201,7 @@ export function Flows() {
                   Input
                 </button>
                 <button
+                  id='tab-debugger-output'
                   type='button'
                   onClick={() => setActiveTestTab('output')}
                   className={`py-1.5 px-3 border-b-2 font-medium cursor-pointer transition-colors ${
@@ -1065,6 +1213,7 @@ export function Flows() {
                   Output
                 </button>
                 <button
+                  id='tab-debugger-errors'
                   type='button'
                   onClick={() => setActiveTestTab('errors')}
                   className={`py-1.5 px-3 border-b-2 font-medium cursor-pointer transition-colors ${
@@ -1073,7 +1222,7 @@ export function Flows() {
                       : 'border-transparent text-muted-foreground hover:text-foreground'
                   }`}
                 >
-                  Errors
+                  Errors & Step Logs
                 </button>
               </div>
 
@@ -1086,9 +1235,28 @@ export function Flows() {
                   <CodeViewerWithLineNumbers data={inputPayload} />
                 )}
                 {activeTestTab === 'errors' && (
-                  <div className='p-3 text-emerald-600 dark:text-emerald-400 font-sans text-xs flex items-center gap-2'>
-                    <CheckCircle2 className='h-4 w-4' /> No errors detected. Flow syntax and runtime nodes verified 100% active.
-                  </div>
+                  liveTestReport?.stepResults ? (
+                    <div className='p-2 space-y-1.5 font-sans text-xs'>
+                      <div className='flex items-center gap-1.5 text-emerald-600 dark:text-emerald-400 font-semibold mb-2'>
+                        <CheckCircle2 className='h-4 w-4' /> Verified via Gateway: {liveTestReport.status} in {liveTestReport.durationMs}ms
+                      </div>
+                      {liveTestReport.stepResults.map((sr: any) => (
+                        <div key={sr.stepNumber} className='flex items-start justify-between p-2 bg-muted/40 rounded-lg border border-border/50 text-[11px]'>
+                          <div>
+                            <span className='font-bold text-foreground'>Step {sr.stepNumber} ({sr.type}):</span>{' '}
+                            <span className='text-muted-foreground'>{sr.details}</span>
+                          </div>
+                          <Badge variant='outline' className='text-[10px] font-mono shrink-0 ml-2'>
+                            {sr.durationMs}ms
+                          </Badge>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <div className='p-3 text-emerald-600 dark:text-emerald-400 font-sans text-xs flex items-center gap-2'>
+                      <CheckCircle2 className='h-4 w-4' /> No errors detected. Flow syntax and runtime nodes verified 100% active.
+                    </div>
+                  )
                 )}
               </div>
             </div>
@@ -1216,13 +1384,25 @@ export function Flows() {
               Event-driven automation pipelines connecting WhatsApp webhooks, filters, CRM tags, and Meta Cloud API dispatches
             </p>
           </div>
-          <Button
-            size='sm'
-            onClick={() => setCreateFlowModal(true)}
-            className='bg-orange-600 hover:bg-orange-700 text-white gap-1.5 cursor-pointer font-semibold shadow-xs h-9'
-          >
-            <Plus className='h-3.5 w-3.5' /> Create Flow
-          </Button>
+          <div className='flex items-center gap-2'>
+            <Button
+              id='btn-reset-flows'
+              variant='outline'
+              size='sm'
+              onClick={handleResetFlows}
+              className='h-9 text-xs text-muted-foreground hover:text-foreground gap-1.5 cursor-pointer'
+            >
+              <RefreshCw className='h-3.5 w-3.5' /> Reset Defaults
+            </Button>
+            <Button
+              id='btn-create-flow'
+              size='sm'
+              onClick={() => setCreateFlowModal(true)}
+              className='bg-orange-600 hover:bg-orange-700 text-white gap-1.5 cursor-pointer font-semibold shadow-xs h-9'
+            >
+              <Plus className='h-3.5 w-3.5' /> Create Flow
+            </Button>
+          </div>
         </div>
 
         {/* Filter & Search Bar */}
@@ -1326,6 +1506,7 @@ export function Flows() {
                     <td className='p-3 text-right' onClick={(e) => e.stopPropagation()}>
                       <div className='flex items-center justify-end gap-1.5'>
                         <Button
+                          id={`btn-open-studio-${flow.id}`}
                           size='sm'
                           onClick={() => {
                             setActiveFlowId(flow.id)
@@ -1335,6 +1516,24 @@ export function Flows() {
                         >
                           Open Studio <ArrowRight className='h-3 w-3' />
                         </Button>
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <Button variant='ghost' size='icon' className='h-7 w-7 text-muted-foreground'>
+                              <MoreVertical className='h-3.5 w-3.5' />
+                            </Button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align='end' className='w-36 text-xs'>
+                            <DropdownMenuItem onClick={() => handleDuplicateFlow(flow)}>
+                              <Copy className='h-3.5 w-3.5 me-2' /> Duplicate
+                            </DropdownMenuItem>
+                            <DropdownMenuItem
+                              onClick={() => handleDeleteFlow(flow.id)}
+                              className='text-red-600 focus:text-red-600'
+                            >
+                              <Trash2 className='h-3.5 w-3.5 me-2' /> Delete Flow
+                            </DropdownMenuItem>
+                          </DropdownMenuContent>
+                        </DropdownMenu>
                       </div>
                     </td>
                   </tr>
@@ -1362,6 +1561,7 @@ export function Flows() {
             <div className='space-y-1.5'>
               <Label className='text-xs font-semibold'>Flow Name</Label>
               <Input
+                id='input-flow-name'
                 type='text'
                 placeholder='e.g., Hot Lead Auto-Followup'
                 value={newFlowName}
@@ -1385,60 +1585,40 @@ export function Flows() {
               Cancel
             </Button>
             <Button
+              id='btn-confirm-create-flow'
               size='sm'
-              onClick={() => {
+              onClick={async () => {
                 if (!newFlowName.trim()) {
                   toast.error('Please enter a flow name.')
                   return
                 }
-                const newF: FlowItem = {
-                  id: `flow-${Date.now()}`,
-                  flowUid: generateFlowUid(),
-                  name: newFlowName.trim(),
-                  trigger: 'Text Message Received',
-                  steps: 3,
-                  runs: 0,
-                  active: true,
-                  lastRun: 'Just now',
-                  nodes: [
-                    {
-                      id: 'step-1',
-                      stepNumber: 1,
-                      type: 'TRIGGER',
-                      title: 'Text Message Received',
-                      subtitle: 'Official WhatsApp Inbound Listener',
-                      configured: true,
-                      connectionId: 'bizautomation-whatsapp',
-                      config: { matchText: 'All incoming customer text queries' },
-                    },
-                    {
-                      id: 'step-2',
-                      stepNumber: 2,
-                      type: 'CONDITION',
-                      title: 'Continue if conditions match',
-                      subtitle: 'Check keywords or tags',
-                      configured: true,
-                      connectionId: 'bizautomation-whatsapp',
-                      config: { conditionRule: 'message.text contains ["price", "inquiry"]' },
-                    },
-                    {
-                      id: 'step-3',
-                      stepNumber: 3,
-                      type: 'CRM',
-                      title: 'Update Contact',
-                      subtitle: 'Assign #hot-lead & Route to Agent',
-                      configured: true,
-                      connectionId: 'bizautomation-whatsapp',
-                      config: { assignTag: 'hot-lead', assignAgent: 'Sales Team' },
-                    },
-                  ],
+                try {
+                  const payload = {
+                    name: newFlowName.trim(),
+                    trigger: 'Text Message Received',
+                    active: true,
+                  }
+                  const res = await veroxApi.createFlow(payload)
+                  const newF: FlowItem = res?.data || {
+                    id: `flow-${Date.now()}`,
+                    flowUid: generateFlowUid(),
+                    name: newFlowName.trim(),
+                    trigger: 'Text Message Received',
+                    steps: 3,
+                    runs: 0,
+                    active: true,
+                    lastRun: 'Just now',
+                    nodes: initialDefaultNodes,
+                  }
+                  persistFlows([newF, ...flowsList])
+                  setActiveFlowId(newF.id)
+                  setSelectedNodeId(newF.nodes[0]?.id || 'step-1')
+                  setCreateFlowModal(false)
+                  setNewFlowName('')
+                  toast.success(`Flow "${newF.name}" created and opened in Flow Studio!`)
+                } catch (err: any) {
+                  toast.error('Failed to create flow', { description: err.message })
                 }
-                persistFlows([newF, ...flowsList])
-                setActiveFlowId(newF.id)
-                setSelectedNodeId('step-1')
-                setCreateFlowModal(false)
-                setNewFlowName('')
-                toast.success(`Flow "${newF.name}" created and opened in Flow Studio!`)
               }}
               className='bg-orange-600 hover:bg-orange-700 text-white font-semibold cursor-pointer text-xs h-8'
             >

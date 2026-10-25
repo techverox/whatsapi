@@ -17,8 +17,10 @@ import { integrationsRouter } from './routes/integrations.route.js'
 import { mediaRouter } from './routes/media.route.js'
 import { aiRouter } from './routes/ai.route.js'
 import { chatbotRouter } from './routes/chatbot.route.js'
+import { flowsRouter } from './routes/flows.route.js'
 import { whatsAppService } from './services/whatsapp.service.js'
 import { integrationsService } from './services/integrations.service.js'
+import { flowsService } from './services/flows.service.js'
 
 dotenv.config()
 
@@ -40,6 +42,7 @@ export const broadcastRealtime = (type: string, payload: any) => {
 // Wire internal service events to WebSocket clients
 whatsAppService.onEvent = (type, payload) => broadcastRealtime(type, payload)
 integrationsService.onEvent = (type, payload) => broadcastRealtime(type, payload)
+flowsService.onEvent = (type, payload) => broadcastRealtime(type, payload)
 
 // Attach WebSocket client handlers
 wss.on('connection', (ws: WebSocket) => {
@@ -420,6 +423,7 @@ app.use('/api/media', mediaRouter)
 app.use('/api/bot', botRouter)
 app.use('/api/ai', aiRouter)
 app.use('/api/chatbot', chatbotRouter)
+app.use('/api/flows', flowsRouter)
 app.use('/api', whatsappRouter)
 
 app.use('/api/v1/contacts', contactsRouter)
@@ -436,7 +440,23 @@ app.use('/api/v1/integrations', integrationsRouter)
 app.use('/api/v1/media', mediaRouter)
 app.use('/api/v1/ai', aiRouter)
 app.use('/api/v1/chatbot', chatbotRouter)
+app.use('/api/v1/flows', flowsRouter)
 app.use('/api/v1', whatsappRouter)
+
+// Direct Inbound Flows Webhook callback (/api/v2/webhook/flows/:flowUid)
+app.post('/api/v2/webhook/flows/:flowUid', async (req: Request, res: Response) => {
+  try {
+    const flowUid = req.params.flowUid as string
+    const report = await flowsService.handleIncomingWebhook(flowUid, req.body)
+    res.status(200).json({
+      success: true,
+      message: 'Flow webhook processed successfully.',
+      data: report,
+    })
+  } catch (err: any) {
+    res.status(400).json({ success: false, message: err.message })
+  }
+})
 
 // Global Root Information
 app.get('/', (_req: Request, res: Response) => {
@@ -460,6 +480,7 @@ app.get('/', (_req: Request, res: Response) => {
       indiamartDirect: '/webhook/indiamart',
       facebookDirect: '/webhook/facebook',
       aiAssistant: '/api/v1/ai/ask',
+      flows: '/api/v1/flows',
     },
   })
 })
