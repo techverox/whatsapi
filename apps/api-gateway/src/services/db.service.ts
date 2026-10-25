@@ -14,6 +14,8 @@ import {
   ColumnDataType,
   OptsConfig,
   defaultOptsConfig,
+  MediaAsset,
+  initialMediaAssets,
 } from '../data/mock-store.js'
 
 class DatabaseService {
@@ -27,6 +29,7 @@ class DatabaseService {
   public tags: TagItem[] = [...initialTags]
   public columns: ColumnItem[] = [...initialColumns]
   public optsConfig: OptsConfig = { ...defaultOptsConfig }
+  public media: MediaAsset[] = [...initialMediaAssets]
 
   constructor() {
     this.initPrisma()
@@ -549,6 +552,96 @@ class DatabaseService {
     }
 
     return { matched: null, actionTaken: null }
+  }
+
+  // =============================================================================
+  // Media Gallery & Meta Cloud Assets Management
+  // =============================================================================
+  public getMedia(category?: string, search?: string): MediaAsset[] {
+    let result = [...this.media]
+    if (category && category !== 'All') {
+      result = result.filter((m) => m.category.toLowerCase() === category.toLowerCase())
+    }
+    if (search) {
+      const q = search.toLowerCase().trim()
+      result = result.filter(
+        (m) =>
+          m.name.toLowerCase().includes(q) ||
+          m.mediaId.toLowerCase().includes(q) ||
+          m.type.toLowerCase().includes(q)
+      )
+    }
+    return result
+  }
+
+  public getMediaById(id: string): MediaAsset | undefined {
+    return this.media.find((m) => m.id === id || m.mediaId === id)
+  }
+
+  public createMedia(data: Partial<MediaAsset>): MediaAsset {
+    const isDoc = (data.type || '').includes('pdf') || (data.type || '').includes('document')
+    const isVid = (data.type || '').includes('mp4') || (data.type || '').includes('video')
+    const category: 'image' | 'document' | 'video' = data.category || (isDoc ? 'document' : isVid ? 'video' : 'image')
+
+    const newAsset: MediaAsset = {
+      id: `m-${Date.now()}`,
+      name: data.name || 'untitled-asset',
+      size: data.size || '1.20 MB',
+      type: data.type || (category === 'document' ? 'application/pdf' : category === 'video' ? 'video/mp4' : 'image/png'),
+      category,
+      uploadedAt: new Date().toLocaleDateString(),
+      mediaId: data.mediaId || `media_wa_${Math.floor(100000000 + Math.random() * 900000000)}`,
+      customPreviewUrl: data.customPreviewUrl,
+      cdnStatus: 'ACTIVE',
+    }
+
+    this.media.unshift(newAsset)
+    return newAsset
+  }
+
+  public deleteMedia(id: string): MediaAsset | null {
+    const idx = this.media.findIndex((m) => m.id === id || m.mediaId === id)
+    if (idx !== -1) {
+      const removed = this.media.splice(idx, 1)[0]
+      return removed
+    }
+    return null
+  }
+
+  public getMediaStats() {
+    const total = this.media.length
+    const images = this.media.filter((m) => m.category === 'image').length
+    const documents = this.media.filter((m) => m.category === 'document').length
+    const videos = this.media.filter((m) => m.category === 'video').length
+
+    let totalMegabytes = 0
+    for (const m of this.media) {
+      const s = m.size.toUpperCase()
+      if (s.includes('MB')) {
+        totalMegabytes += parseFloat(s) || 1
+      } else if (s.includes('KB')) {
+        totalMegabytes += (parseFloat(s) || 500) / 1024
+      }
+    }
+
+    return {
+      total,
+      images,
+      documents,
+      videos,
+      storageUsedMb: totalMegabytes.toFixed(2),
+      cdnStatus: 'ACTIVE & VERIFIED',
+      lastSyncedAt: new Date().toISOString(),
+    }
+  }
+
+  public syncMetaMedia() {
+    return {
+      synced: true,
+      assetsSynced: this.media.length,
+      syncedAt: new Date().toISOString(),
+      provider: 'Meta Cloud API Graph v21.0',
+    }
   }
 }
 

@@ -14,6 +14,7 @@ import { whatsappRouter } from './routes/whatsapp.route.js'
 import { templatesRouter } from './routes/templates.route.js'
 import { botRouter } from './routes/bot.route.js'
 import { integrationsRouter } from './routes/integrations.route.js'
+import { mediaRouter } from './routes/media.route.js'
 import { aiRouter } from './routes/ai.route.js'
 import { whatsAppService } from './services/whatsapp.service.js'
 import { integrationsService } from './services/integrations.service.js'
@@ -414,6 +415,7 @@ app.use('/api/columns', columnsRouter)
 app.use('/api/opts', optsRouter)
 app.use('/api/templates', templatesRouter)
 app.use('/api/integrations', integrationsRouter)
+app.use('/api/media', mediaRouter)
 app.use('/api', whatsappRouter)
 
 app.use('/api/v1/contacts', contactsRouter)
@@ -427,6 +429,7 @@ app.use('/api/v1/whatsapp/templates', templatesRouter)
 app.use('/api/v1/whatsapp', whatsappRouter)
 app.use('/api/v1/bot', botRouter)
 app.use('/api/v1/integrations', integrationsRouter)
+app.use('/api/v1/media', mediaRouter)
 app.use('/api/v1/ai', aiRouter)
 app.use('/api/v1', whatsappRouter)
 

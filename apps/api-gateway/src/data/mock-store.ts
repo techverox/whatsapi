@@ -357,3 +357,58 @@ export const defaultOptsConfig: OptsConfig = {
   optInReplyText: 'Welcome! You have been successfully opted-in to receive WhatsApp updates.',
   lastUpdated: '2026-10-25T10:00:00.000Z',
 }
+
+export interface MediaAsset {
+  id: string
+  name: string
+  size: string
+  type: string
+  category: 'image' | 'document' | 'video'
+  uploadedAt: string
+  mediaId: string
+  customPreviewUrl?: string
+  cdnStatus?: 'ACTIVE' | 'PENDING' | 'EXPIRED'
+}
+
+export const initialMediaAssets: MediaAsset[] = [
+  {
+    id: 'm-1',
+    name: 'truck-sathi-gps-sale-banner.jpg',
+    size: '1.17 MB',
+    type: 'image/jpeg',
+    category: 'image',
+    uploadedAt: '10/21/2026',
+    mediaId: 'media_wa_984210948',
+    cdnStatus: 'ACTIVE',
+  },
+  {
+    id: 'm-2',
+    name: 'commercial-fleet-pricing-catalog-2026.pdf',
+    size: '3.42 MB',
+    type: 'application/pdf',
+    category: 'document',
+    uploadedAt: '10/20/2026',
+    mediaId: 'media_wa_184920491',
+    cdnStatus: 'ACTIVE',
+  },
+  {
+    id: 'm-3',
+    name: 'ais-140-govt-certificate.png',
+    size: '890 KB',
+    type: 'image/png',
+    category: 'image',
+    uploadedAt: '10/19/2026',
+    mediaId: 'media_wa_739104928',
+    cdnStatus: 'ACTIVE',
+  },
+  {
+    id: 'm-4',
+    name: 'fastag-kyc-guide-infographic.png',
+    size: '1.45 MB',
+    type: 'image/png',
+    category: 'image',
+    uploadedAt: '10/18/2026',
+    mediaId: 'media_wa_562910482',
+    cdnStatus: 'ACTIVE',
+  },
+]

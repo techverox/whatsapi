@@ -337,6 +337,35 @@ export const whatsapiApi = {
       method: 'POST',
       body: JSON.stringify({ message, phone }),
     }),
+
+  // Media Gallery & Cloud Storage
+  getMedia: (params?: { category?: string; search?: string }) => {
+    const q = new URLSearchParams()
+    if (params?.category) q.set('category', params.category)
+    if (params?.search) q.set('search', params.search)
+    const qs = q.toString()
+    return request(`/api/media${qs ? `?${qs}` : ''}`)
+  },
+  getMediaStats: () => request('/api/media/stats'),
+  createMedia: (data: {
+    name: string
+    size?: string
+    type?: string
+    category?: 'image' | 'document' | 'video'
+    customPreviewUrl?: string
+  }) =>
+    request('/api/media', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    }),
+  deleteMedia: (id: string) =>
+    request(`/api/media/${id}`, {
+      method: 'DELETE',
+    }),
+  syncMetaMedia: () =>
+    request('/api/media/sync', {
+      method: 'POST',
+    }),
 }
 
 // Backward compatibility alias
