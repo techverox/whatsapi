@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import {
   User,
   Users,
@@ -18,8 +18,12 @@ import {
   RefreshCw,
   Crown,
   ChevronDown,
+  RotateCcw,
+  Loader2,
+  Sparkles,
 } from 'lucide-react'
 import { toast } from 'sonner'
+import { veroxApi } from '@/lib/api'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Input } from '@/components/ui/input'
@@ -38,6 +42,8 @@ export interface TeamMember {
   role: 'ADMIN' | 'MANAGER' | 'AGENT' | 'DEVELOPER'
   status: 'Active' | 'Inactive'
   isCurrentUser?: boolean
+  createdAt?: string
+  updatedAt?: string
 }
 
 export interface SettingsState {
@@ -46,6 +52,8 @@ export interface SettingsState {
     email: string
     phone: string
     bio: string
+    role?: string
+    avatar?: string
   }
   organisation: {
     name: string
@@ -53,6 +61,7 @@ export interface SettingsState {
     website: string
     gstin: string
     address: string
+    stateId?: string
   }
   waba: {
     wabaId: string
@@ -61,6 +70,18 @@ export interface SettingsState {
     accessToken: string
     verifyToken: string
     webhookUrl: string
+    status?: 'CONNECTED' | 'DISCONNECTED' | 'PENDING'
+    lastVerifiedAt?: string
+  }
+  billing?: {
+    plan: 'ANNUAL PRO PLAN' | 'PRO PLAN' | 'ENTERPRISE'
+    status: 'Active' | 'Past Due'
+    expiresAt: string
+    daysLeft: number
+    amount: string
+    currency: string
+    features: string[]
+    addonsCount: number
   }
 }
 
@@ -70,6 +91,7 @@ const defaultSettings: SettingsState = {
     email: 'trucksathiamazon@gmail.com',
     phone: '+917698580034',
     bio: 'Fleet Operations Head at Truck Sathi & Whatsapi. Managing 500+ Gujarat commercial fleet AIS-140 GPS tracking devices and automated WhatsApp marketing.',
+    role: 'ADMIN',
   },
   organisation: {
     name: 'Truck Sathi',
@@ -77,6 +99,7 @@ const defaultSettings: SettingsState = {
     website: 'https://trucksathi.in',
     gstin: '24AAACT1234F1Z8',
     address: 'Near Ring Road Circle, SG Highway, Ahmedabad, Gujarat - 380054',
+    stateId: 'gujarat',
   },
   waba: {
     wabaId: '109283746501928',
@@ -85,6 +108,22 @@ const defaultSettings: SettingsState = {
     accessToken: 'EAAGm0PX4ZCpsBA...K390Lks92384jsd02349sd',
     verifyToken: 'whatsapi_secure_verify_token_2026',
     webhookUrl: 'https://app.whatsapi.io/api/v2/webhook/whatsapp',
+    status: 'CONNECTED',
+  },
+  billing: {
+    plan: 'ANNUAL PRO PLAN',
+    status: 'Active',
+    expiresAt: '19 Jan 2027',
+    daysLeft: 87,
+    amount: 'INR 25,000 / year',
+    currency: 'INR',
+    features: [
+      'WhatsApp Chatbot Automation',
+      'Visual Flow Builder',
+      'Automated Welcome Messages',
+      'WhatsApp Broadcasting Campaigns',
+    ],
+    addonsCount: 1,
   },
 }
 
@@ -146,73 +185,82 @@ export function Settings({
 
   const [profileSubTab, setProfileSubTab] = useState<'profile' | 'password'>('profile')
 
-  // Settings State from LocalStorage
-  const [settings, setSettings] = useState<SettingsState>(() => {
-    try {
-      const saved = localStorage.getItem('whatsapi_settings_v3')
-      if (saved) return JSON.parse(saved)
-    } catch (_err) {
-      // Fallback
-    }
-    return defaultSettings
-  })
-
-  // Team Members State from LocalStorage
-  const [teamMembers, setTeamMembers] = useState<TeamMember[]>(() => {
-    try {
-      const saved = localStorage.getItem('whatsapi_team_members_v2')
-      if (saved) return JSON.parse(saved)
-    } catch (_err) {
-      // Fallback
-    }
-    return defaultTeamMembers
-  })
+  // Settings & Team State
+  const [settings, setSettings] = useState<SettingsState>(defaultSettings)
+  const [teamMembers, setTeamMembers] = useState<TeamMember[]>(defaultTeamMembers)
+  const [isRefreshing, setIsRefreshing] = useState(false)
+  const [isSaving, setIsSaving] = useState(false)
 
   // Password fields
   const [currentPassword, setCurrentPassword] = useState('')
   const [newPassword, setNewPassword] = useState('')
   const [confirmPassword, setConfirmPassword] = useState('')
   const [showPassword, setShowPassword] = useState(false)
+  const [isChangingPassword, setIsChangingPassword] = useState(false)
 
   // Team invite form
   const [inviteEmail, setInviteEmail] = useState('')
   const [invitePhone, setInvitePhone] = useState('')
   const [inviteRole, setInviteRole] = useState<'ADMIN' | 'MANAGER' | 'AGENT' | 'DEVELOPER'>('AGENT')
+  const [isInviting, setIsInviting] = useState(false)
 
   // WABA testing state
   const [isTestingWaba, setIsTestingWaba] = useState(false)
   const [copiedToken, setCopiedToken] = useState(false)
   const [copiedWebhook, setCopiedWebhook] = useState(false)
 
-  const persistSettings = (updated: SettingsState) => {
-    setSettings(updated)
+  // Fetch full settings and team members from Gateway API
+  const loadData = useCallback(async (showToast = false) => {
     try {
-      localStorage.setItem('whatsapi_settings_v3', JSON.stringify(updated))
-    } catch (_err) {
-      // Ignore
-    }
-  }
+      setIsRefreshing(true)
+      const res: any = await veroxApi.getSettings()
+      const data = res?.data || res
 
-  const persistTeam = (updated: TeamMember[]) => {
-    setTeamMembers(updated)
-    try {
-      localStorage.setItem('whatsapi_team_members_v2', JSON.stringify(updated))
-    } catch (_err) {
-      // Ignore
+      if (data?.profile && data?.organisation && data?.waba) {
+        setSettings({
+          profile: data.profile,
+          organisation: data.organisation,
+          waba: data.waba,
+          billing: data.billing || defaultSettings.billing,
+        })
+      }
+
+      if (data?.teamMembers && Array.isArray(data.teamMembers)) {
+        setTeamMembers(data.teamMembers)
+      }
+
+      if (showToast) {
+        toast.success('Settings synchronized with API Gateway!')
+      }
+    } catch (err: any) {
+      console.warn('Settings API sync notice, using local cache:', err?.message || err)
+    } finally {
+      setIsRefreshing(false)
     }
-  }
+  }, [])
+
+  useEffect(() => {
+    loadData(false)
+  }, [loadData])
 
   // Handle Profile Update
-  const handleUpdateProfile = (e: React.FormEvent) => {
+  const handleUpdateProfile = async (e: React.FormEvent) => {
     e.preventDefault()
-    persistSettings(settings)
-    toast.success('Profile Updated Successfully!', {
-      description: `Name: ${settings.profile.name} • Phone: ${settings.profile.phone} saved.`,
-    })
+    setIsSaving(true)
+    try {
+      await veroxApi.updateSettingsProfile(settings.profile)
+      toast.success('Profile Updated Successfully!', {
+        description: `Name: ${settings.profile.name} • Phone: ${settings.profile.phone} saved to server.`,
+      })
+    } catch (err: any) {
+      toast.error('Failed to update profile on server')
+    } finally {
+      setIsSaving(false)
+    }
   }
 
   // Handle Password Update
-  const handleUpdatePassword = (e: React.FormEvent) => {
+  const handleUpdatePassword = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!currentPassword) {
       toast.error('Please enter your current password.')
@@ -226,73 +274,172 @@ export function Settings({
       toast.error('New password and confirm password do not match.')
       return
     }
-    setCurrentPassword('')
-    setNewPassword('')
-    setConfirmPassword('')
-    toast.success('Password Changed Successfully!', {
-      description: 'Your security credentials have been updated.',
-    })
+
+    setIsChangingPassword(true)
+    try {
+      await veroxApi.changeSettingsPassword({ currentPassword, newPassword })
+      setCurrentPassword('')
+      setNewPassword('')
+      setConfirmPassword('')
+      toast.success('Password Changed Successfully!', {
+        description: 'Your security credentials have been updated on the gateway.',
+      })
+    } catch (err: any) {
+      toast.error('Failed to change password', {
+        description: err?.message || 'Server error',
+      })
+    } finally {
+      setIsChangingPassword(false)
+    }
   }
 
   // Handle Invite Team Member
-  const handleInviteMember = (e: React.FormEvent) => {
+  const handleInviteMember = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!inviteEmail.trim() || !invitePhone.trim()) {
       toast.error('Please enter both Email and Phone number.')
       return
     }
-    const newMember: TeamMember = {
-      id: `tm-${Date.now()}`,
-      name: inviteEmail.split('@')[0],
-      email: inviteEmail.trim(),
-      phone: invitePhone.startsWith('+91') ? invitePhone.trim() : `+91${invitePhone.trim()}`,
-      role: inviteRole,
-      status: 'Active',
+
+    setIsInviting(true)
+    try {
+      const payload = {
+        name: inviteEmail.split('@')[0],
+        email: inviteEmail.trim(),
+        phone: invitePhone.startsWith('+91') ? invitePhone.trim() : `+91${invitePhone.trim()}`,
+        role: inviteRole,
+      }
+
+      const res: any = await veroxApi.inviteSettingsTeamMember(payload)
+      const created = res?.data || {
+        id: `tm-${Date.now()}`,
+        ...payload,
+        status: 'Active' as const,
+      }
+
+      setTeamMembers((prev) => [...prev, created])
+      setInviteEmail('')
+      setInvitePhone('')
+      toast.success(`Invite Sent to ${created.email}!`, {
+        description: `Assigned role: ${created.role}. Member added to team list.`,
+      })
+    } catch (err: any) {
+      toast.error('Failed to invite team member')
+    } finally {
+      setIsInviting(false)
     }
-    const updated = [...teamMembers, newMember]
-    persistTeam(updated)
-    setInviteEmail('')
-    setInvitePhone('')
-    toast.success(`Invite Sent to ${newMember.email}!`, {
-      description: `Assigned role: ${newMember.role}. Member added to team list.`,
-    })
   }
 
   // Handle Toggle Member Status
-  const handleToggleMemberStatus = (id: string, newStatus: 'Active' | 'Inactive') => {
-    const updated = teamMembers.map((m) =>
-      m.id === id ? { ...m, status: newStatus } : m
+  const handleToggleMemberStatus = async (id: string, newStatus: 'Active' | 'Inactive') => {
+    setTeamMembers((prev) =>
+      prev.map((m) => (m.id === id ? { ...m, status: newStatus } : m))
     )
-    persistTeam(updated)
-    toast.info(`Member status changed to ${newStatus}.`)
+
+    try {
+      await veroxApi.updateSettingsTeamMember(id, { status: newStatus })
+      toast.info(`Member status changed to ${newStatus}.`)
+    } catch (err: any) {
+      loadData(false)
+      toast.error('Failed to update member status')
+    }
   }
 
   // Handle Delete Team Member
-  const handleDeleteMember = (id: string, name: string) => {
-    const updated = teamMembers.filter((m) => m.id !== id)
-    persistTeam(updated)
-    toast.info(`Removed "${name}" from team access.`)
+  const handleDeleteMember = async (id: string, name: string) => {
+    setTeamMembers((prev) => prev.filter((m) => m.id !== id))
+
+    try {
+      await veroxApi.deleteSettingsTeamMember(id)
+      toast.info(`Removed "${name}" from team access.`)
+    } catch (err: any) {
+      loadData(false)
+      toast.error('Failed to delete member')
+    }
   }
 
   // Handle Organisation Save
-  const handleSaveOrganisation = (e: React.FormEvent) => {
+  const handleSaveOrganisation = async (e: React.FormEvent) => {
     e.preventDefault()
-    persistSettings(settings)
-    toast.success('Organisation Details Saved!', {
-      description: `Company: ${settings.organisation.name} • Industry: ${settings.organisation.industry}.`,
-    })
+    setIsSaving(true)
+    try {
+      await veroxApi.updateSettingsOrganisation(settings.organisation)
+      toast.success('Organisation Details Saved!', {
+        description: `Company: ${settings.organisation.name} • Industry: ${settings.organisation.industry}.`,
+      })
+    } catch (err: any) {
+      toast.error('Failed to save organisation details')
+    } finally {
+      setIsSaving(false)
+    }
   }
 
   // Test WABA Connection
-  const handleTestWabaConnection = () => {
+  const handleTestWabaConnection = async () => {
     setIsTestingWaba(true)
-    toast.info('Testing Meta WhatsApp Cloud API connection...')
-    setTimeout(() => {
-      setIsTestingWaba(false)
-      toast.success('Meta WhatsApp Cloud API Verified (200 OK)!', {
+    try {
+      const res: any = await veroxApi.verifySettingsWaba()
+      toast.success(res?.status || 'Meta WhatsApp Cloud API Verified (200 OK)!', {
         description: `Connected to Phone ID: ${settings.waba.phoneNumberId} (${settings.waba.displayPhone}).`,
       })
-    }, 850)
+      setSettings((prev) => ({
+        ...prev,
+        waba: { ...prev.waba, status: 'CONNECTED' },
+      }))
+    } catch (err: any) {
+      toast.error('WABA Connection Test Failed', {
+        description: 'Verify Meta App Access Token & Phone Number ID.',
+      })
+    } finally {
+      setIsTestingWaba(false)
+    }
+  }
+
+  // Handle Save WABA API Settings
+  const handleSaveWabaSettings = async () => {
+    setIsSaving(true)
+    try {
+      await veroxApi.updateSettingsWaba(settings.waba)
+      toast.success('WABA API Settings Saved to Server!')
+    } catch (err: any) {
+      toast.error('Failed to save WABA settings')
+    } finally {
+      setIsSaving(false)
+    }
+  }
+
+  // Handle Switch Billing Plan
+  const handleSwitchBillingPlan = async (plan: 'PRO PLAN' | 'ANNUAL PRO PLAN') => {
+    try {
+      await veroxApi.updateSettingsBilling(plan)
+      setSettings((prev) => ({
+        ...prev,
+        billing: {
+          ...(prev.billing || defaultSettings.billing!),
+          plan,
+          amount: plan === 'PRO PLAN' ? 'INR 4,000 / month' : 'INR 25,000 / year',
+        },
+      }))
+      toast.success(`Subscription switched to ${plan}!`)
+    } catch (err: any) {
+      toast.error('Failed to switch plan')
+    }
+  }
+
+  // Reset to Defaults
+  const handleResetDefaults = async () => {
+    try {
+      setIsRefreshing(true)
+      await veroxApi.resetSettings()
+      await loadData(false)
+      toast.success('Platform Settings reset to agency defaults!')
+    } catch (err: any) {
+      setSettings(defaultSettings)
+      setTeamMembers(defaultTeamMembers)
+      toast.info('Local settings reset to default.')
+    } finally {
+      setIsRefreshing(false)
+    }
   }
 
   return (
@@ -301,36 +448,68 @@ export function Settings({
         <div className='me-auto font-semibold text-sm flex items-center gap-2'>
           <Shield className='h-4 w-4 text-orange-600' />
           <span>Platform Settings</span>
+          <Badge className='bg-orange-500/10 text-orange-600 border-0 text-[10px] hidden sm:inline-flex'>
+            Enterprise Cloud
+          </Badge>
         </div>
         <ThemeSwitch />
         <ConfigDrawer />
         <ProfileDropdown />
       </Header>
 
-      <Main className='p-6 space-y-6 max-w-5xl mx-auto'>
-        {/* Top Header & Breadcrumb (Matches BizAutomation Screenshot) */}
-        <div>
-          <div className='flex items-center gap-2 text-xs text-muted-foreground font-mono mb-1.5'>
-            <span>Dashboard</span>
-            <span>&gt;</span>
-            <span>Settings</span>
-            <span>&gt;</span>
-            <span className='capitalize text-orange-600 font-semibold'>{activeTab}</span>
+      <Main className='p-4 sm:p-6 space-y-6 max-w-5xl mx-auto'>
+        {/* Top Header & Breadcrumb */}
+        <div className='flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-border/40 pb-4'>
+          <div>
+            <div className='flex items-center gap-2 text-xs text-muted-foreground font-mono mb-1'>
+              <span>Dashboard</span>
+              <span>&gt;</span>
+              <span>Settings</span>
+              <span>&gt;</span>
+              <span className='capitalize text-orange-600 font-semibold'>{activeTab}</span>
+            </div>
+            <h1 className='text-2xl font-bold tracking-tight text-foreground'>
+              Settings
+            </h1>
+            <p className='text-xs text-muted-foreground mt-0.5'>
+              Set up your Profile, Billing Information, Team Access and Organisation Details
+            </p>
           </div>
-          <h1 className='text-2xl font-bold tracking-tight text-foreground'>
-            Settings
-          </h1>
-          <p className='text-xs text-muted-foreground mt-0.5'>
-            Set up your Profile, Billing Information, Team Access and Organisation Details
-          </p>
+          <div className='flex items-center gap-2 flex-wrap'>
+            <Button
+              id='btn-settings-reset'
+              variant='outline'
+              size='sm'
+              onClick={handleResetDefaults}
+              disabled={isRefreshing}
+              className='gap-1.5 text-xs h-9 cursor-pointer'
+              title='Reset all settings to agency defaults'
+            >
+              <RotateCcw className={`h-3.5 w-3.5 ${isRefreshing ? 'animate-spin' : ''}`} />
+              <span className='hidden sm:inline'>Reset Defaults</span>
+            </Button>
+            <Button
+              id='btn-settings-sync'
+              variant='outline'
+              size='sm'
+              onClick={() => loadData(true)}
+              disabled={isRefreshing}
+              className='gap-1.5 text-xs h-9 cursor-pointer'
+              title='Sync settings with server'
+            >
+              <RefreshCw className={`h-3.5 w-3.5 ${isRefreshing ? 'animate-spin' : ''}`} />
+              <span className='hidden sm:inline'>Sync</span>
+            </Button>
+          </div>
         </div>
 
-        {/* Top Pill Navigation Tabs (Exact Match to BizAutomation Screenshot) */}
+        {/* Top Pill Navigation Tabs */}
         <div className='flex items-center gap-1.5 p-1 rounded-xl bg-muted/40 border border-border/60 overflow-x-auto'>
           <button
+            id='tab-profile'
             type='button'
             onClick={() => setActiveTab('profile')}
-            className={`flex-1 py-2 px-3.5 rounded-lg text-xs font-semibold cursor-pointer transition-all flex items-center justify-center gap-1.5 ${
+            className={`flex-1 py-2 px-3.5 rounded-lg text-xs font-semibold cursor-pointer transition-all flex items-center justify-center gap-1.5 whitespace-nowrap ${
               activeTab === 'profile'
                 ? 'bg-card text-foreground shadow-xs border border-border/80 font-bold'
                 : 'text-muted-foreground hover:text-foreground'
@@ -340,21 +519,23 @@ export function Settings({
             Profile
           </button>
           <button
+            id='tab-team'
             type='button'
             onClick={() => setActiveTab('team')}
-            className={`flex-1 py-2 px-3.5 rounded-lg text-xs font-semibold cursor-pointer transition-all flex items-center justify-center gap-1.5 ${
+            className={`flex-1 py-2 px-3.5 rounded-lg text-xs font-semibold cursor-pointer transition-all flex items-center justify-center gap-1.5 whitespace-nowrap ${
               activeTab === 'team'
                 ? 'bg-card text-foreground shadow-xs border border-border/80 font-bold'
                 : 'text-muted-foreground hover:text-foreground'
             }`}
           >
             <Users className='h-3.5 w-3.5' />
-            Team
+            Team ({teamMembers.length})
           </button>
           <button
+            id='tab-organisation'
             type='button'
             onClick={() => setActiveTab('organisation')}
-            className={`flex-1 py-2 px-3.5 rounded-lg text-xs font-semibold cursor-pointer transition-all flex items-center justify-center gap-1.5 ${
+            className={`flex-1 py-2 px-3.5 rounded-lg text-xs font-semibold cursor-pointer transition-all flex items-center justify-center gap-1.5 whitespace-nowrap ${
               activeTab === 'organisation'
                 ? 'bg-card text-foreground shadow-xs border border-border/80 font-bold'
                 : 'text-muted-foreground hover:text-foreground'
@@ -364,9 +545,10 @@ export function Settings({
             Organisation
           </button>
           <button
+            id='tab-billing'
             type='button'
             onClick={() => setActiveTab('billing')}
-            className={`flex-1 py-2 px-3.5 rounded-lg text-xs font-semibold cursor-pointer transition-all flex items-center justify-center gap-1.5 ${
+            className={`flex-1 py-2 px-3.5 rounded-lg text-xs font-semibold cursor-pointer transition-all flex items-center justify-center gap-1.5 whitespace-nowrap ${
               activeTab === 'billing'
                 ? 'bg-card text-foreground shadow-xs border border-border/80 font-bold'
                 : 'text-muted-foreground hover:text-foreground'
@@ -376,9 +558,10 @@ export function Settings({
             Billing
           </button>
           <button
+            id='tab-waba'
             type='button'
             onClick={() => setActiveTab('waba')}
-            className={`flex-1 py-2 px-3.5 rounded-lg text-xs font-semibold cursor-pointer transition-all flex items-center justify-center gap-1.5 ${
+            className={`flex-1 py-2 px-3.5 rounded-lg text-xs font-semibold cursor-pointer transition-all flex items-center justify-center gap-1.5 whitespace-nowrap ${
               activeTab === 'waba'
                 ? 'bg-card text-foreground shadow-xs border border-border/80 font-bold'
                 : 'text-muted-foreground hover:text-foreground'
@@ -388,9 +571,10 @@ export function Settings({
             WhatsApp API
           </button>
           <button
+            id='tab-appearance'
             type='button'
             onClick={() => setActiveTab('appearance')}
-            className={`flex-1 py-2 px-3.5 rounded-lg text-xs font-semibold cursor-pointer transition-all flex items-center justify-center gap-1.5 ${
+            className={`flex-1 py-2 px-3.5 rounded-lg text-xs font-semibold cursor-pointer transition-all flex items-center justify-center gap-1.5 whitespace-nowrap ${
               activeTab === 'appearance'
                 ? 'bg-card text-foreground shadow-xs border border-border/80 font-bold'
                 : 'text-muted-foreground hover:text-foreground'
@@ -410,6 +594,7 @@ export function Settings({
               <p className='text-xs text-muted-foreground'>Manage your account settings</p>
               <div className='flex items-center gap-2 mt-3 p-1 w-fit rounded-lg bg-muted/40 border border-border/60 text-xs'>
                 <button
+                  id='btn-subtab-profile'
                   type='button'
                   onClick={() => setProfileSubTab('profile')}
                   className={`py-1.5 px-4 rounded-md font-medium cursor-pointer transition-all ${
@@ -421,6 +606,7 @@ export function Settings({
                   Profile
                 </button>
                 <button
+                  id='btn-subtab-password'
                   type='button'
                   onClick={() => setProfileSubTab('password')}
                   className={`py-1.5 px-4 rounded-md font-medium cursor-pointer transition-all ${
@@ -436,7 +622,7 @@ export function Settings({
 
             {profileSubTab === 'profile' ? (
               <form onSubmit={handleUpdateProfile} className='space-y-5 max-w-2xl'>
-                {/* Avatar Box (Matches BizAutomation) */}
+                {/* Avatar Box */}
                 <div className='rounded-xl border border-border/70 bg-card p-4 flex items-center justify-between shadow-xs'>
                   <div className='flex items-center gap-4'>
                     <div className='relative'>
@@ -454,9 +640,9 @@ export function Settings({
                     </div>
                     <div>
                       <div className='flex items-center gap-2'>
-                        <span className='font-bold text-sm text-foreground'>Truck Sathi</span>
+                        <span className='font-bold text-sm text-foreground'>{settings.profile.name}</span>
                         <Badge className='text-[10px] bg-red-600 hover:bg-red-600 text-white font-bold px-1.5 py-0'>
-                          ADMIN
+                          {settings.profile.role || 'ADMIN'}
                         </Badge>
                       </div>
                       <span className='text-xs text-muted-foreground font-mono'>
@@ -470,6 +656,7 @@ export function Settings({
                 <div className='space-y-1.5'>
                   <Label className='text-xs font-semibold'>Name</Label>
                   <Input
+                    id='input-profile-name'
                     value={settings.profile.name}
                     onChange={(e) =>
                       setSettings({
@@ -486,6 +673,7 @@ export function Settings({
                 <div className='space-y-1.5'>
                   <Label className='text-xs font-semibold'>Email</Label>
                   <Input
+                    id='input-profile-email'
                     value={settings.profile.email}
                     onChange={(e) =>
                       setSettings({
@@ -501,6 +689,7 @@ export function Settings({
                 <div className='space-y-1.5'>
                   <Label className='text-xs font-semibold'>Phone</Label>
                   <Input
+                    id='input-profile-phone'
                     value={settings.profile.phone}
                     onChange={(e) =>
                       setSettings({
@@ -516,6 +705,7 @@ export function Settings({
                 <div className='space-y-1.5'>
                   <Label className='text-xs font-semibold'>Role & Operational Bio</Label>
                   <Input
+                    id='input-profile-bio'
                     value={settings.profile.bio}
                     onChange={(e) =>
                       setSettings({
@@ -529,9 +719,12 @@ export function Settings({
 
                 <div className='pt-2'>
                   <Button
+                    id='btn-profile-submit'
                     type='submit'
+                    disabled={isSaving}
                     className='bg-orange-600 hover:bg-orange-700 text-white text-xs font-semibold h-9 px-5 cursor-pointer shadow-xs'
                   >
+                    {isSaving ? <Loader2 className='h-3.5 w-3.5 animate-spin mr-1.5' /> : null}
                     Update Profile
                   </Button>
                 </div>
@@ -543,6 +736,7 @@ export function Settings({
                   <Label className='text-xs font-semibold'>Current Password</Label>
                   <div className='relative'>
                     <Input
+                      id='input-current-password'
                       type={showPassword ? 'text' : 'password'}
                       value={currentPassword}
                       onChange={(e) => setCurrentPassword(e.target.value)}
@@ -562,6 +756,7 @@ export function Settings({
                 <div className='space-y-1.5'>
                   <Label className='text-xs font-semibold'>New Password</Label>
                   <Input
+                    id='input-new-password'
                     type={showPassword ? 'text' : 'password'}
                     value={newPassword}
                     onChange={(e) => setNewPassword(e.target.value)}
@@ -573,6 +768,7 @@ export function Settings({
                 <div className='space-y-1.5'>
                   <Label className='text-xs font-semibold'>Confirm New Password</Label>
                   <Input
+                    id='input-confirm-password'
                     type={showPassword ? 'text' : 'password'}
                     value={confirmPassword}
                     onChange={(e) => setConfirmPassword(e.target.value)}
@@ -583,9 +779,12 @@ export function Settings({
 
                 <div className='pt-2'>
                   <Button
+                    id='btn-password-submit'
                     type='submit'
+                    disabled={isChangingPassword}
                     className='bg-orange-600 hover:bg-orange-700 text-white text-xs font-semibold h-9 px-5 cursor-pointer shadow-xs'
                   >
+                    {isChangingPassword ? <Loader2 className='h-3.5 w-3.5 animate-spin mr-1.5' /> : null}
                     Update Password
                   </Button>
                 </div>
@@ -594,7 +793,7 @@ export function Settings({
           </div>
         )}
 
-        {/* TAB 2: TEAM MANAGEMENT (Exact Match to BizAutomation Screenshot) */}
+        {/* TAB 2: TEAM MANAGEMENT */}
         {activeTab === 'team' && (
           <div className='space-y-6'>
             <div>
@@ -612,6 +811,7 @@ export function Settings({
                 <div className='md:col-span-5 space-y-1.5'>
                   <Label className='text-xs font-semibold'>Email</Label>
                   <Input
+                    id='input-team-email'
                     type='email'
                     value={inviteEmail}
                     onChange={(e) => setInviteEmail(e.target.value)}
@@ -628,6 +828,7 @@ export function Settings({
                       <span className='font-mono'>+91</span>
                     </div>
                     <Input
+                      id='input-team-phone'
                       value={invitePhone}
                       onChange={(e) => setInvitePhone(e.target.value)}
                       placeholder='9876543210'
@@ -639,9 +840,10 @@ export function Settings({
                 <div className='md:col-span-3 space-y-1.5'>
                   <Label className='text-xs font-semibold'>Role</Label>
                   <select
+                    id='select-team-role'
                     value={inviteRole}
                     onChange={(e) => setInviteRole(e.target.value as TeamMember['role'])}
-                    className='h-9 w-full rounded-md border border-border bg-background px-3 text-xs outline-hidden'
+                    className='h-9 w-full rounded-md border border-border bg-background px-3 text-xs outline-hidden cursor-pointer'
                   >
                     <option value='AGENT'>Agent</option>
                     <option value='MANAGER'>Manager</option>
@@ -652,10 +854,13 @@ export function Settings({
 
                 <div className='md:col-span-12 flex items-center justify-end gap-2 pt-2'>
                   <Button
+                    id='btn-team-invite'
                     type='submit'
+                    disabled={isInviting}
                     className='bg-orange-600 hover:bg-orange-700 text-white text-xs font-semibold h-9 px-5 cursor-pointer shadow-xs gap-1.5'
                   >
-                    <Send className='h-3.5 w-3.5' /> Send Invite
+                    {isInviting ? <Loader2 className='h-3.5 w-3.5 animate-spin' /> : <Send className='h-3.5 w-3.5' />}
+                    Send Invite
                   </Button>
                 </div>
               </form>
@@ -708,11 +913,12 @@ export function Settings({
                       ) : (
                         <>
                           <select
+                            id={`select-status-member-${member.id}`}
                             value={member.status}
                             onChange={(e) =>
                               handleToggleMemberStatus(member.id, e.target.value as 'Active' | 'Inactive')
                             }
-                            className={`h-8 rounded-md border px-2 text-xs font-medium outline-hidden ${
+                            className={`h-8 rounded-md border px-2 text-xs font-medium outline-hidden cursor-pointer ${
                               member.status === 'Active'
                                 ? 'border-emerald-500/50 bg-emerald-500/10 text-emerald-700 dark:text-emerald-400'
                                 : 'border-border bg-background text-muted-foreground'
@@ -722,6 +928,7 @@ export function Settings({
                             <option value='Inactive'>Inactive</option>
                           </select>
                           <Button
+                            id={`btn-delete-member-${member.id}`}
                             variant='ghost'
                             size='icon'
                             onClick={() => handleDeleteMember(member.id, member.name)}
@@ -740,7 +947,7 @@ export function Settings({
           </div>
         )}
 
-        {/* TAB 3: ORGANISATION (Exact Match to BizAutomation Screenshot) */}
+        {/* TAB 3: ORGANISATION */}
         {activeTab === 'organisation' && (
           <div className='space-y-6 max-w-2xl'>
             <div>
@@ -752,6 +959,7 @@ export function Settings({
               <div className='space-y-1.5'>
                 <Label className='text-xs font-semibold'>Organization Name</Label>
                 <Input
+                  id='input-org-name'
                   value={settings.organisation.name}
                   onChange={(e) =>
                     setSettings({
@@ -767,6 +975,7 @@ export function Settings({
               <div className='space-y-1.5'>
                 <Label className='text-xs font-semibold'>Industry</Label>
                 <select
+                  id='select-org-industry'
                   value={settings.organisation.industry}
                   onChange={(e) =>
                     setSettings({
@@ -774,7 +983,7 @@ export function Settings({
                       organisation: { ...settings.organisation, industry: e.target.value },
                     })
                   }
-                  className='h-9 w-full rounded-md border border-border bg-background px-3 text-xs outline-hidden'
+                  className='h-9 w-full rounded-md border border-border bg-background px-3 text-xs outline-hidden cursor-pointer'
                 >
                   <option value='Transportation & Logistics'>Transportation & Logistics</option>
                   <option value='Commercial Fleet Management'>Commercial Fleet Management</option>
@@ -789,6 +998,7 @@ export function Settings({
               <div className='space-y-1.5'>
                 <Label className='text-xs font-semibold'>Website (Optional)</Label>
                 <Input
+                  id='input-org-website'
                   value={settings.organisation.website}
                   onChange={(e) =>
                     setSettings({
@@ -805,6 +1015,7 @@ export function Settings({
               <div className='space-y-1.5'>
                 <Label className='text-xs font-semibold'>GSTIN / Tax ID</Label>
                 <Input
+                  id='input-org-gstin'
                   value={settings.organisation.gstin}
                   onChange={(e) =>
                     setSettings({
@@ -819,6 +1030,7 @@ export function Settings({
               <div className='space-y-1.5'>
                 <Label className='text-xs font-semibold'>Registered Address</Label>
                 <Input
+                  id='input-org-address'
                   value={settings.organisation.address}
                   onChange={(e) =>
                     setSettings({
@@ -832,17 +1044,20 @@ export function Settings({
 
               <div className='pt-2'>
                 <Button
+                  id='btn-org-submit'
                   type='submit'
+                  disabled={isSaving}
                   className='bg-foreground text-background hover:bg-foreground/90 text-xs font-semibold h-9 px-6 cursor-pointer shadow-xs'
                 >
-                  Save
+                  {isSaving ? <Loader2 className='h-3.5 w-3.5 animate-spin mr-1.5' /> : null}
+                  Save Organisation
                 </Button>
               </div>
             </form>
           </div>
         )}
 
-        {/* TAB 4: BILLING & SUBSCRIPTION (Exact Match to BizAutomation Screenshot) */}
+        {/* TAB 4: BILLING & SUBSCRIPTION */}
         {activeTab === 'billing' && (
           <div className='space-y-6'>
             <div>
@@ -852,14 +1067,14 @@ export function Settings({
               </p>
             </div>
 
-            {/* Current Active Plan Card (Matches BizAutomation) */}
+            {/* Current Active Plan Card */}
             <div className='rounded-2xl border-2 border-orange-500/40 bg-card p-6 shadow-xs space-y-5 relative overflow-hidden'>
               <div className='flex items-start justify-between gap-4'>
                 <div className='flex items-center gap-2.5'>
                   <Crown className='h-5 w-5 text-orange-600' />
                   <div>
                     <h3 className='font-bold text-base text-foreground uppercase tracking-wide'>
-                      ANNUAL PRO PLAN
+                      {settings.billing?.plan || 'ANNUAL PRO PLAN'}
                     </h3>
                     <p className='text-xs text-muted-foreground'>Current Plan</p>
                   </div>
@@ -874,32 +1089,39 @@ export function Settings({
                   <div className='text-[10px] font-bold text-muted-foreground uppercase tracking-wider'>
                     📅 EXPIRES
                   </div>
-                  <div className='font-bold text-sm text-foreground'>19 Jan 2027</div>
-                  <div className='text-[10px] text-muted-foreground'>19 Jan - 19 Jan</div>
+                  <div className='font-bold text-sm text-foreground'>
+                    {settings.billing?.expiresAt || '19 Jan 2027'}
+                  </div>
+                  <div className='text-[10px] text-muted-foreground'>Annual Billing Cycle</div>
                 </div>
 
                 <div className='rounded-xl border border-border/60 bg-muted/20 p-3.5 space-y-1'>
                   <div className='text-[10px] font-bold text-muted-foreground uppercase tracking-wider'>
                     ✨ DAYS LEFT
                   </div>
-                  <div className='font-bold text-sm text-emerald-600 dark:text-emerald-400'>87</div>
-                  <div className='text-[10px] text-muted-foreground'>Active</div>
+                  <div className='font-bold text-sm text-emerald-600 dark:text-emerald-400'>
+                    {settings.billing?.daysLeft || 87}
+                  </div>
+                  <div className='text-[10px] text-muted-foreground'>Active & Good Standing</div>
                 </div>
 
                 <div className='rounded-xl border border-border/60 bg-muted/20 p-3.5 space-y-1'>
                   <div className='text-[10px] font-bold text-muted-foreground uppercase tracking-wider'>
                     📦 ADD-ONS
                   </div>
-                  <div className='font-bold text-sm text-foreground'>0</div>
-                  <div className='text-[10px] text-muted-foreground'>INR 0</div>
+                  <div className='font-bold text-sm text-foreground'>
+                    {settings.billing?.addonsCount || 1} Included
+                  </div>
+                  <div className='text-[10px] text-muted-foreground'>AIS-140 GPS Sync Desk</div>
                 </div>
               </div>
 
               <div className='pt-1'>
                 <Button
+                  id='btn-billing-contact'
                   variant='outline'
                   size='sm'
-                  onClick={() => toast.info('Support Desk: Contact support@whatsapi.io for custom billing.')}
+                  onClick={() => toast.info('Support Desk: support@whatsapi.io • Priority Enterprise SLA.')}
                   className='text-xs font-semibold h-8 gap-1.5 cursor-pointer'
                 >
                   Contact Support
@@ -921,9 +1143,9 @@ export function Settings({
                 <div className='rounded-2xl border border-border/70 bg-card p-6 flex flex-col justify-between space-y-4 shadow-xs'>
                   <div>
                     <h4 className='font-bold text-base text-foreground'>PRO PLAN</h4>
-                    <p className='text-xs text-muted-foreground'>4000 per month from 2nd month onwards</p>
+                    <p className='text-xs text-muted-foreground'>Monthly subscription billing</p>
                     <div className='mt-3 flex items-baseline gap-1'>
-                      <span className='text-2xl font-black text-foreground'>INR 4000</span>
+                      <span className='text-2xl font-black text-foreground'>INR 4,000</span>
                       <span className='text-xs text-muted-foreground'>/month</span>
                     </div>
 
@@ -951,8 +1173,9 @@ export function Settings({
                   </div>
 
                   <Button
+                    id='btn-billing-switch-monthly'
                     variant='outline'
-                    onClick={() => toast.info('Switching to Monthly billing requires subscription cycle completion.')}
+                    onClick={() => handleSwitchBillingPlan('PRO PLAN')}
                     className='w-full text-xs font-semibold cursor-pointer'
                   >
                     Switch to Monthly Plan
@@ -974,7 +1197,7 @@ export function Settings({
                     <h4 className='font-bold text-base text-foreground mt-1'>ANNUAL PRO PLAN</h4>
                     <p className='text-xs text-muted-foreground'>Whatsapp Api with all pro features</p>
                     <div className='mt-3 flex items-baseline gap-1'>
-                      <span className='text-2xl font-black text-foreground'>INR 25000</span>
+                      <span className='text-2xl font-black text-foreground'>INR 25,000</span>
                       <span className='text-xs text-muted-foreground'>/year</span>
                     </div>
 
@@ -1007,6 +1230,7 @@ export function Settings({
                   </div>
 
                   <Button
+                    id='btn-billing-active-plan'
                     disabled
                     className='w-full bg-orange-600/20 text-orange-600 dark:text-orange-400 font-bold text-xs cursor-default'
                   >
@@ -1033,6 +1257,7 @@ export function Settings({
                 <div className='space-y-1.5'>
                   <Label className='text-xs font-semibold'>WABA ID</Label>
                   <Input
+                    id='input-waba-id'
                     value={settings.waba.wabaId}
                     onChange={(e) =>
                       setSettings({
@@ -1048,6 +1273,7 @@ export function Settings({
                 <div className='space-y-1.5'>
                   <Label className='text-xs font-semibold'>Phone Number ID</Label>
                   <Input
+                    id='input-waba-phone-id'
                     value={settings.waba.phoneNumberId}
                     onChange={(e) =>
                       setSettings({
@@ -1062,9 +1288,25 @@ export function Settings({
               </div>
 
               <div className='space-y-1.5'>
+                <Label className='text-xs font-semibold'>Display Phone Number</Label>
+                <Input
+                  id='input-waba-display-phone'
+                  value={settings.waba.displayPhone}
+                  onChange={(e) =>
+                    setSettings({
+                      ...settings,
+                      waba: { ...settings.waba, displayPhone: e.target.value },
+                    })
+                  }
+                  className='h-9 text-xs font-mono'
+                />
+              </div>
+
+              <div className='space-y-1.5'>
                 <Label className='text-xs font-semibold'>Permanent Access Token</Label>
                 <div className='relative flex items-center'>
                   <Input
+                    id='input-waba-token'
                     type='password'
                     value={settings.waba.accessToken}
                     onChange={(e) =>
@@ -1081,7 +1323,7 @@ export function Settings({
                       navigator.clipboard.writeText(settings.waba.accessToken)
                       setCopiedToken(true)
                       setTimeout(() => setCopiedToken(false), 2000)
-                      toast.success('Token copied!')
+                      toast.success('Token copied to clipboard!')
                     }}
                     className='absolute right-2 text-muted-foreground hover:text-foreground cursor-pointer'
                   >
@@ -1094,6 +1336,7 @@ export function Settings({
                 <Label className='text-xs font-semibold'>Webhook Callback URL</Label>
                 <div className='relative flex items-center'>
                   <Input
+                    id='input-waba-webhook'
                     readOnly
                     value={settings.waba.webhookUrl}
                     className='h-9 text-xs font-mono pr-8 bg-muted/20'
@@ -1104,7 +1347,7 @@ export function Settings({
                       navigator.clipboard.writeText(settings.waba.webhookUrl)
                       setCopiedWebhook(true)
                       setTimeout(() => setCopiedWebhook(false), 2000)
-                      toast.success('Webhook URL copied!')
+                      toast.success('Webhook URL copied to clipboard!')
                     }}
                     className='absolute right-2 text-muted-foreground hover:text-foreground cursor-pointer'
                   >
@@ -1116,6 +1359,7 @@ export function Settings({
               <div className='space-y-1.5'>
                 <Label className='text-xs font-semibold'>Webhook Verify Token</Label>
                 <Input
+                  id='input-waba-verify-token'
                   value={settings.waba.verifyToken}
                   onChange={(e) =>
                     setSettings({
@@ -1127,8 +1371,9 @@ export function Settings({
                 />
               </div>
 
-              <div className='flex items-center gap-3 pt-3'>
+              <div className='flex items-center gap-3 pt-3 flex-wrap'>
                 <Button
+                  id='btn-waba-test'
                   type='button'
                   disabled={isTestingWaba}
                   onClick={handleTestWabaConnection}
@@ -1138,14 +1383,14 @@ export function Settings({
                   {isTestingWaba ? 'Testing Connection...' : 'Test Connection'}
                 </Button>
                 <Button
+                  id='btn-waba-save'
                   type='button'
-                  onClick={() => {
-                    persistSettings(settings)
-                    toast.success('WABA API Settings Saved!')
-                  }}
+                  disabled={isSaving}
+                  onClick={handleSaveWabaSettings}
                   variant='outline'
                   className='text-xs font-semibold h-9 px-4 cursor-pointer'
                 >
+                  {isSaving ? <Loader2 className='h-3.5 w-3.5 animate-spin mr-1.5' /> : null}
                   Save API Settings
                 </Button>
               </div>

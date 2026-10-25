@@ -670,6 +670,62 @@ export const whatsapiApi = {
     request('/api/tasks/reset', {
       method: 'POST',
     }),
+
+  // Platform Settings
+  getSettings: () => request('/api/settings'),
+  updateSettingsProfile: (data: any) =>
+    request('/api/settings/profile', {
+      method: 'PUT',
+      body: JSON.stringify(data),
+    }),
+  changeSettingsPassword: (data: { currentPassword: string; newPassword: string }) =>
+    request('/api/settings/password', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    }),
+  updateSettingsOrganisation: (data: any) =>
+    request('/api/settings/organisation', {
+      method: 'PUT',
+      body: JSON.stringify(data),
+    }),
+  updateSettingsWaba: (data: any) =>
+    request('/api/settings/waba', {
+      method: 'PUT',
+      body: JSON.stringify(data),
+    }),
+  verifySettingsWaba: () =>
+    request('/api/settings/waba/verify', {
+      method: 'POST',
+    }),
+  getSettingsTeam: () => request('/api/settings/team'),
+  inviteSettingsTeamMember: (data: { email: string; phone: string; role?: string; name?: string }) =>
+    request('/api/settings/team', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    }),
+  updateSettingsTeamMember: (id: string, data: any) =>
+    request(`/api/settings/team/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(data),
+    }),
+  deleteSettingsTeamMember: (id: string) =>
+    request(`/api/settings/team/${id}`, {
+      method: 'DELETE',
+    }),
+  updateSettingsBilling: (plan: string) =>
+    request('/api/settings/billing', {
+      method: 'PUT',
+      body: JSON.stringify({ plan }),
+    }),
+  updateSettingsAppearance: (data: any) =>
+    request('/api/settings/appearance', {
+      method: 'PUT',
+      body: JSON.stringify(data),
+    }),
+  resetSettings: () =>
+    request('/api/settings/reset', {
+      method: 'POST',
+    }),
 }
 
 // Backward compatibility alias
