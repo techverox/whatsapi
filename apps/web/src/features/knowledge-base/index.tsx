@@ -16,7 +16,6 @@ import {
   FolderPlus,
   Download,
   RotateCcw,
-  Sparkles,
   CheckCircle2,
   Database,
   Cpu,
@@ -65,6 +64,16 @@ export interface CategoryGroup {
   description?: string
   displayOrder?: number
   articles: ArticleItem[]
+}
+
+interface SyncResponsePayload {
+  totalArticles?: number
+  totalTokens?: number
+}
+
+interface CategoryResponsePayload {
+  id?: string
+  name?: string
 }
 
 export function KnowledgeBase() {
@@ -117,8 +126,7 @@ export function KnowledgeBase() {
     try {
       const res = await veroxApi.getKnowledgeBaseCategories(query)
       if (res?.data && Array.isArray(res.data)) {
-        setCategories(res.data)
-        // Auto-expand categories with articles
+        setCategories(res.data as CategoryGroup[])
         const expandMap: Record<string, boolean> = {}
         res.data.forEach((c: CategoryGroup, idx: number) => {
           expandMap[c.id] = idx < 3 || c.articles.length > 0
@@ -126,7 +134,6 @@ export function KnowledgeBase() {
         setExpandedCategories((prev) => ({ ...expandMap, ...prev }))
       }
     } catch (_err) {
-      // Graceful local cache fallback
       try {
         const saved = localStorage.getItem('whatsapi_kb_categories_v2')
         if (saved) setCategories(JSON.parse(saved))
@@ -139,7 +146,36 @@ export function KnowledgeBase() {
   }, [])
 
   useEffect(() => {
-    loadCategories()
+    let isSubscribed = true
+
+    const fetchCategories = async () => {
+      try {
+        const res = await veroxApi.getKnowledgeBaseCategories()
+        if (!isSubscribed) return
+        if (res?.data && Array.isArray(res.data)) {
+          setCategories(res.data as CategoryGroup[])
+          const expandMap: Record<string, boolean> = {}
+          res.data.forEach((c: CategoryGroup, idx: number) => {
+            expandMap[c.id] = idx < 3 || c.articles.length > 0
+          })
+          setExpandedCategories((prev) => ({ ...expandMap, ...prev }))
+        }
+      } catch (_err) {
+        if (!isSubscribed) return
+        try {
+          const saved = localStorage.getItem('whatsapi_kb_categories_v2')
+          if (saved) setCategories(JSON.parse(saved))
+        } catch (_e) {
+          // ignore
+        }
+      } finally {
+        if (isSubscribed) {
+          setLoading(false)
+        }
+      }
+    }
+
+    void fetchCategories()
 
     // Realtime WebSocket listener for knowledge base sync
     let ws: WebSocket | null = null
@@ -156,7 +192,7 @@ export function KnowledgeBase() {
             msg.type === 'kb_synced_ai' ||
             msg.type === 'kb_reset_defaults'
           ) {
-            loadCategories()
+            void loadCategories()
           }
         } catch (_err) {
           // ignore
@@ -167,6 +203,7 @@ export function KnowledgeBase() {
     }
 
     return () => {
+      isSubscribed = false
       if (ws) ws.close()
     }
   }, [loadCategories])
@@ -220,8 +257,9 @@ export function KnowledgeBase() {
 
     try {
       const res = await veroxApi.syncKnowledgeBaseToAI()
-      const totalArticles = res?.data?.totalArticles || categories.reduce((sum, c) => sum + c.articles.length, 0)
-      const totalTokens = res?.data?.totalTokens || categories.reduce(
+      const syncData = res?.data as SyncResponsePayload | undefined
+      const totalArticles = syncData?.totalArticles || categories.reduce((sum, c) => sum + c.articles.length, 0)
+      const totalTokens = syncData?.totalTokens || categories.reduce(
         (sum, c) => sum + c.articles.reduce((aSum, a) => aSum + a.tokens, 0),
         0
       )
@@ -249,8 +287,8 @@ export function KnowledgeBase() {
         content: newContent.trim(),
       })
 
-      if (res?.data) {
-        const created = res.data
+      const created = res?.data as ArticleItem | undefined
+      if (created?.id) {
         setSelectedCategoryId(newCategoryTarget)
         setSelectedArticleId(created.id)
         setExpandedCategories((prev) => ({ ...prev, [newCategoryTarget]: true }))
@@ -262,8 +300,9 @@ export function KnowledgeBase() {
           description: `"${created.title}" added to ${newCategoryTarget} category and synced with AI store.`,
         })
       }
-    } catch (err: any) {
-      toast.error(err.message || 'Failed to create article.')
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : 'Failed to create article.'
+      toast.error(msg)
     }
   }
 
@@ -290,15 +329,17 @@ export function KnowledgeBase() {
         content: editContent.trim(),
       })
 
-      if (res?.data) {
+      const updated = res?.data as ArticleItem | undefined
+      if (updated?.id) {
         setEditModalOpen(false)
         await loadCategories()
         toast.success('Article Updated & Re-indexed!', {
-          description: `"${res.data.title}" has been updated with fresh embeddings.`,
+          description: `"${updated.title}" has been updated with fresh embeddings.`,
         })
       }
-    } catch (err: any) {
-      toast.error(err.message || 'Failed to update article.')
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : 'Failed to update article.'
+      toast.error(msg)
     }
   }
 
@@ -309,8 +350,9 @@ export function KnowledgeBase() {
       setSelectedArticleId(null)
       await loadCategories()
       toast.info('Article removed from Knowledge Base.')
-    } catch (err: any) {
-      toast.error(err.message || 'Failed to delete article.')
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : 'Failed to delete article.'
+      toast.error(msg)
     }
   }
 
@@ -327,14 +369,16 @@ export function KnowledgeBase() {
         iconColor: newCategoryColor,
       })
 
-      if (res?.data) {
+      const createdCat = res?.data as CategoryResponsePayload | undefined
+      if (createdCat?.name) {
         setAddCategoryModalOpen(false)
         setNewCategoryName('')
         await loadCategories()
-        toast.success(`Category "${res.data.name}" Created!`)
+        toast.success(`Category "${createdCat.name}" Created!`)
       }
-    } catch (err: any) {
-      toast.error(err.message || 'Failed to create category.')
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : 'Failed to create category.'
+      toast.error(msg)
     }
   }
 
@@ -365,8 +409,9 @@ export function KnowledgeBase() {
       await loadCategories()
       setSelectedArticleId(null)
       toast.success('Knowledge Base restored to factory defaults.')
-    } catch (err: any) {
-      toast.error(err.message || 'Failed to reset Knowledge Base.')
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : 'Failed to reset Knowledge Base.'
+      toast.error(msg)
     }
   }
 

@@ -472,7 +472,7 @@ export const whatsapiApi = {
     name?: string
     isLive?: boolean
     wabaPhone?: string
-    nodes: any[]
+    nodes: Record<string, unknown>[]
     description?: string
   }) =>
     request('/api/chatbot/save', {
@@ -508,12 +508,12 @@ export const whatsapiApi = {
   },
   getFlow: (id: string) => request(`/api/flows/${id}`),
   getFlowStats: () => request('/api/flows/stats'),
-  createFlow: (data: { name: string; trigger?: string; nodes?: any[]; active?: boolean }) =>
+  createFlow: (data: { name: string; trigger?: string; nodes?: Record<string, unknown>[]; active?: boolean }) =>
     request('/api/flows', {
       method: 'POST',
       body: JSON.stringify(data),
     }),
-  updateFlow: (id: string, data: any) =>
+  updateFlow: (id: string, data: Record<string, unknown>) =>
     request(`/api/flows/${id}`, {
       method: 'PUT',
       body: JSON.stringify(data),
@@ -527,7 +527,7 @@ export const whatsapiApi = {
     request(`/api/flows/${id}`, {
       method: 'DELETE',
     }),
-  runFlowTest: (id: string, inputPayload?: any) =>
+  runFlowTest: (id: string, inputPayload?: Record<string, unknown>) =>
     request(`/api/flows/${id}/test`, {
       method: 'POST',
       body: JSON.stringify({ inputPayload }),
@@ -561,7 +561,7 @@ export const whatsapiApi = {
       method: 'POST',
       body: JSON.stringify(data),
     }),
-  updateProject: (id: string, data: any) =>
+  updateProject: (id: string, data: Record<string, unknown>) =>
     request(`/api/projects/${id}`, {
       method: 'PUT',
       body: JSON.stringify(data),
@@ -591,7 +591,7 @@ export const whatsapiApi = {
       method: 'POST',
       body: JSON.stringify(data),
     }),
-  updateProjectTask: (id: string, data: any) =>
+  updateProjectTask: (id: string, data: Record<string, unknown>) =>
     request(`/api/projects/tasks/${id}`, {
       method: 'PUT',
       body: JSON.stringify(data),
@@ -637,7 +637,7 @@ export const whatsapiApi = {
       method: 'POST',
       body: JSON.stringify(data),
     }),
-  updateEnterpriseTask: (id: string, data: any) =>
+  updateEnterpriseTask: (id: string, data: Record<string, unknown>) =>
     request(`/api/tasks/${id}`, {
       method: 'PUT',
       body: JSON.stringify(data),
@@ -661,7 +661,7 @@ export const whatsapiApi = {
       method: 'POST',
       body: JSON.stringify({ ids, priority }),
     }),
-  importEnterpriseTasks: (tasks: any[]) =>
+  importEnterpriseTasks: (tasks: Record<string, unknown>[]) =>
     request('/api/tasks/import', {
       method: 'POST',
       body: JSON.stringify({ tasks }),
@@ -673,7 +673,7 @@ export const whatsapiApi = {
 
   // Platform Settings
   getSettings: () => request('/api/settings'),
-  updateSettingsProfile: (data: any) =>
+  updateSettingsProfile: (data: Record<string, unknown>) =>
     request('/api/settings/profile', {
       method: 'PUT',
       body: JSON.stringify(data),
@@ -683,12 +683,12 @@ export const whatsapiApi = {
       method: 'POST',
       body: JSON.stringify(data),
     }),
-  updateSettingsOrganisation: (data: any) =>
+  updateSettingsOrganisation: (data: Record<string, unknown>) =>
     request('/api/settings/organisation', {
       method: 'PUT',
       body: JSON.stringify(data),
     }),
-  updateSettingsWaba: (data: any) =>
+  updateSettingsWaba: (data: Record<string, unknown>) =>
     request('/api/settings/waba', {
       method: 'PUT',
       body: JSON.stringify(data),
@@ -703,7 +703,7 @@ export const whatsapiApi = {
       method: 'POST',
       body: JSON.stringify(data),
     }),
-  updateSettingsTeamMember: (id: string, data: any) =>
+  updateSettingsTeamMember: (id: string, data: Record<string, unknown>) =>
     request(`/api/settings/team/${id}`, {
       method: 'PUT',
       body: JSON.stringify(data),
@@ -717,7 +717,7 @@ export const whatsapiApi = {
       method: 'PUT',
       body: JSON.stringify({ plan }),
     }),
-  updateSettingsAppearance: (data: any) =>
+  updateSettingsAppearance: (data: Record<string, unknown>) =>
     request('/api/settings/appearance', {
       method: 'PUT',
       body: JSON.stringify(data),
@@ -737,7 +737,7 @@ export const whatsapiApi = {
       method: 'POST',
       body: JSON.stringify(data),
     }),
-  updateKnowledgeCategory: (id: string, data: any) =>
+  updateKnowledgeCategory: (id: string, data: Record<string, unknown>) =>
     request(`/api/knowledge-base/categories/${id}`, {
       method: 'PUT',
       body: JSON.stringify(data),
@@ -768,7 +768,7 @@ export const whatsapiApi = {
       method: 'POST',
       body: JSON.stringify(data),
     }),
-  updateKnowledgeArticle: (id: string, data: any) =>
+  updateKnowledgeArticle: (id: string, data: Record<string, unknown>) =>
     request(`/api/knowledge-base/articles/${id}`, {
       method: 'PUT',
       body: JSON.stringify(data),
