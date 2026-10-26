@@ -48,7 +48,7 @@
       "webhookUrl": "http://localhost:4000/webhook/indiamart",
       "autoReplyTemplate": "indiamart_instant_catalog_v2"
     },
-    "leadCount": 1425
+    "leadCount": 1426
   },
   {
     "id": "exporters-india",
@@ -303,7 +303,8 @@
     "connected": true,
     "tag": "Storage",
     "iconColor": "bg-emerald-500/15 text-emerald-600",
-    "leadCount": 0
+    "leadCount": 0,
+    "apiConfig": {}
   },
   {
     "id": "text-helper",

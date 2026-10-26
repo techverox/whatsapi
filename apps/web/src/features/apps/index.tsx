@@ -708,35 +708,18 @@ export function Apps() {
     }
   }
 
-  // Quick 1-click Toggle directly on card
-  const handleQuickToggle = async (app: IntegrationApp, e: React.MouseEvent) => {
-    e.stopPropagation()
-    const nextStatus = !app.connected
-    try {
-      await veroxApi.toggleIntegration(app.id, nextStatus)
-    } catch {
-      // Local fallback
-    }
 
-    setAppList((prev) =>
-      prev.map((a) => (a.id === app.id ? { ...a, connected: nextStatus } : a))
-    )
-
-    if (nextStatus) {
-      toast.success(`${app.name} connected & active!`, {
-        description: 'Inbound webhooks and automated triggers are now listening.',
-      })
-    } else {
-      toast.info(`${app.name} paused.`, {
-        description: 'Inbound ingestion paused.',
-      })
-    }
-  }
 
   const handleSaveConfig = async () => {
     if (!selectedApp) return
 
+    // 1. WhatsApp Business Validation
     if (selectedApp.id === 'whatsapp-business') {
+      if (!waToken.trim() && !waPhoneId.trim()) {
+        toast.error('Meta Access Token or Phone Number ID is required to connect WhatsApp Business.')
+        return
+      }
+
       // 1. Save WhatsApp Cloud API credentials
       await veroxApi.updateWhatsAppConfig({
         accessToken: waToken.includes('...') ? undefined : waToken,
@@ -767,10 +750,37 @@ export function Apps() {
       return
     }
 
+    // 2. AI & LLM Validation
+    if (selectedApp.id === 'openai' || selectedApp.id === 'google-gemini') {
+      if (!apiKeyInput.trim()) {
+        toast.error(`Please enter an API Key for ${selectedApp.name} before activating.`)
+        return
+      }
+    }
+
+    // 3. SMTP & Telegram Validation
+    if (selectedApp.id === 'smtp') {
+      if (!smtpHost.trim() || !smtpUser.trim()) {
+        toast.error('SMTP Host and Sender Email are required before connecting.')
+        return
+      }
+    } else if (selectedApp.id === 'telegram') {
+      if (!telegramBotToken.trim()) {
+        toast.error('Telegram Bot Token is required before connecting.')
+        return
+      }
+    } else if (selectedApp.category !== 'Helpers') {
+      // General connectors (IndiaMart, Shopify, Razorpay, etc.)
+      if (!apiKeyInput.trim() && !selectedApp.apiConfig?.apiKeyValue) {
+        toast.error(`Please provide an API Key, Token, or Client ID to connect ${selectedApp.name}.`)
+        return
+      }
+    }
+
     // Generic connector saving with specific config
     const updatedApiConfig: NonNullable<IntegrationApp['apiConfig']> = {
       ...selectedApp.apiConfig,
-      apiKeyValue: apiKeyInput,
+      apiKeyValue: apiKeyInput || selectedApp.apiConfig?.apiKeyValue || '',
       webhookUrl: webhookInput,
     }
 
@@ -1262,16 +1272,20 @@ export function Apps() {
                     </div>
                     <button
                       type='button'
-                      onClick={(e) => handleQuickToggle(app, e)}
-                      title={app.connected ? 'Click to disconnect' : 'Click to connect'}
-                      className='cursor-pointer'
+                      onClick={() => handleOpenConfig(app)}
+                      title={
+                        app.connected
+                          ? 'Connected & Active (Click to view settings or disconnect)'
+                          : 'Available for setup (Click to configure & connect)'
+                      }
+                      className='cursor-pointer group/badge focus:outline-hidden'
                     >
                       <Badge
                         variant='outline'
-                        className={`text-[10px] transition-colors ${
+                        className={`text-[10px] transition-all duration-150 ${
                           app.connected
-                            ? 'border-emerald-500/40 text-emerald-600 bg-emerald-500/10 hover:bg-emerald-500/20'
-                            : 'text-muted-foreground hover:text-foreground'
+                            ? 'border-emerald-500/40 text-emerald-600 bg-emerald-500/10 hover:bg-emerald-500/20 hover:border-emerald-500'
+                            : 'text-muted-foreground border-border/80 hover:border-orange-500/60 hover:text-orange-600 hover:bg-orange-500/5'
                         }`}
                       >
                         {app.connected ? '🟢 Connected' : '⚪ Available'}
@@ -1333,14 +1347,16 @@ export function Apps() {
                       className={`text-[10px] font-normal ${
                         selectedApp.connected
                           ? 'border-emerald-500/40 text-emerald-600 bg-emerald-500/10'
-                          : 'text-muted-foreground'
+                          : 'border-amber-500/40 text-amber-600 bg-amber-500/10'
                       }`}
                     >
-                      {selectedApp.connected ? 'Active & Synced' : 'Not Connected'}
+                      {selectedApp.connected ? '🟢 Active & Synced' : '⚪ Setup Required'}
                     </Badge>
                   </DialogTitle>
                   <DialogDescription className='text-xs'>
-                    {selectedApp.description}
+                    {selectedApp.connected
+                      ? selectedApp.description
+                      : `Configure credentials to connect ${selectedApp.name} and activate real-time webhooks.`}
                   </DialogDescription>
                 </div>
               </div>
@@ -2043,12 +2059,16 @@ export function Apps() {
                   variant='ghost'
                   size='sm'
                   onClick={handleDisconnect}
-                  className='h-8 text-xs text-red-600 hover:text-red-700 hover:bg-red-500/10 cursor-pointer'
+                  className='h-8 text-xs text-red-600 hover:text-red-700 hover:bg-red-500/10 cursor-pointer font-medium'
                 >
-                  Disconnect
+                  <Trash2 className='h-3 w-3 me-1' />
+                  Disconnect Integration
                 </Button>
               ) : (
-                <div />
+                <span className='text-[11px] text-muted-foreground flex items-center gap-1.5'>
+                  <ShieldCheck className='h-3.5 w-3.5 text-orange-600' />
+                  Encrypted Keystore Storage
+                </span>
               )}
 
               <div className='flex items-center gap-2'>
@@ -2065,9 +2085,19 @@ export function Apps() {
                   type='button'
                   size='sm'
                   onClick={handleSaveConfig}
-                  className='h-8 text-xs bg-orange-600 hover:bg-orange-700 text-white cursor-pointer'
+                  className='h-8 text-xs bg-orange-600 hover:bg-orange-700 text-white cursor-pointer font-semibold gap-1.5'
                 >
-                  {selectedApp.connected ? 'Save Changes' : 'Connect & Activate'}
+                  {selectedApp.connected ? (
+                    <>
+                      <Check className='h-3.5 w-3.5' />
+                      Save Changes
+                    </>
+                  ) : (
+                    <>
+                      <Zap className='h-3.5 w-3.5' />
+                      Connect & Activate
+                    </>
+                  )}
                 </Button>
               </div>
             </DialogFooter>
