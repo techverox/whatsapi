@@ -955,9 +955,15 @@ export function Apps() {
     }
   }
 
-  const handleClearLogs = () => {
-    setLogs([])
-    toast.info('Webhook logs view cleared.')
+  const handleClearLogs = async () => {
+    try {
+      await veroxApi.clearIntegrationLogs()
+      setLogs([])
+      toast.success('Webhook event logs cleared from server.')
+    } catch {
+      setLogs([])
+      toast.info('Webhook logs view cleared.')
+    }
   }
 
   const handleCopyLogPayload = (id: string, text: string) => {

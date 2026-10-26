@@ -1,0 +1,338 @@
+[
+  {
+    "id": "whatsapp-business",
+    "name": "WhatsApp Business",
+    "category": "Featured",
+    "description": "Official Meta Cloud API connection with template approval, interactive flows, and real-time webhook listeners.",
+    "connected": true,
+    "tag": "Official Meta",
+    "iconColor": "bg-emerald-500/15 text-emerald-600",
+    "defaultEndpoint": "https://graph.facebook.com/v21.0/4178861219018691",
+    "apiConfig": {
+      "apiKeyName": "Permanent System User Token",
+      "apiKeyValue": "Techvero...ox@123",
+      "webhookUrl": "http://localhost:4000/webhook/whatsapp",
+      "autoReplyTemplate": "official_waba_welcome_flow"
+    },
+    "leadCount": 4890
+  },
+  {
+    "id": "facebook-lead-ads",
+    "name": "Facebook Lead Ads",
+    "category": "Featured",
+    "description": "Instant lead capture from Meta ads into WhatsApp automated conversation sequences.",
+    "connected": false,
+    "tag": "Meta Ads",
+    "iconColor": "bg-blue-500/15 text-blue-600",
+    "defaultEndpoint": "https://graph.facebook.com/v21.0/page-leads",
+    "apiConfig": {
+      "apiKeyName": "Page Access Token (Leadgen Read)",
+      "apiKeyValue": "EAAZAY59281...••••••••••••",
+      "webhookUrl": "http://localhost:4000/webhook/facebook",
+      "autoReplyTemplate": "fb_instant_fleet_quote"
+    },
+    "leadCount": 893
+  },
+  {
+    "id": "indiamart",
+    "name": "IndiaMart",
+    "category": "Featured",
+    "description": "Real-time buyer inquiry push API with instant WhatsApp greeting and catalog dispatch.",
+    "connected": true,
+    "tag": "B2B Lead Engine",
+    "iconColor": "bg-orange-500/15 text-orange-600",
+    "defaultEndpoint": "https://api.indiamart.com/wservces/enquiry/v1",
+    "apiConfig": {
+      "apiKeyName": "CRM Push API Key (GLUSR_ID)",
+      "apiKeyValue": "mKey_PROD_UPDATED_9825",
+      "webhookUrl": "http://localhost:4000/webhook/indiamart",
+      "autoReplyTemplate": "indiamart_instant_catalog_v2"
+    },
+    "leadCount": 1425
+  },
+  {
+    "id": "exporters-india",
+    "name": "ExportersIndia",
+    "category": "Featured",
+    "description": "Automated buyer lead sync and lead tagging for exporter and fleet clients.",
+    "connected": true,
+    "tag": "B2B Leads",
+    "iconColor": "bg-purple-500/15 text-purple-600",
+    "defaultEndpoint": "https://api.exportersindia.com/leads/v2",
+    "apiConfig": {
+      "apiKeyName": "Exporter Vendor Key",
+      "apiKeyValue": "EXP_VEND_982109",
+      "webhookUrl": "http://localhost:4000/webhook/exportersindia",
+      "autoReplyTemplate": "export_inquiry_reply"
+    },
+    "leadCount": 321
+  },
+  {
+    "id": "google-sheets",
+    "name": "Google Sheets",
+    "category": "Flows",
+    "description": "Append incoming leads to spreadsheets and trigger broadcasts on new spreadsheet rows.",
+    "connected": true,
+    "tag": "Sync",
+    "iconColor": "bg-emerald-600/15 text-emerald-700",
+    "defaultEndpoint": "https://sheets.googleapis.com/v4/spreadsheets",
+    "apiConfig": {
+      "apiKeyName": "Spreadsheet ID",
+      "apiKeyValue": "1BxiMVs0XRA5nFMdKvBdBZjgmUUqptlbs74OgvE2upms",
+      "webhookUrl": "http://localhost:4000/webhook/sheets"
+    },
+    "leadCount": 2312
+  },
+  {
+    "id": "openai",
+    "name": "OpenAI",
+    "category": "AI & LLM",
+    "description": "Power intelligent FAQ auto-replies, intent extraction, and conversational agents.",
+    "connected": true,
+    "tag": "GPT-4o",
+    "iconColor": "bg-purple-600/15 text-purple-700",
+    "defaultEndpoint": "https://api.openai.com/v1/chat/completions",
+    "apiConfig": {
+      "apiKeyName": "OpenAI API Secret Key",
+      "apiKeyValue": "sk-proj-928198273...••••••••••••",
+      "autoReplyTemplate": "Model: gpt-4o | Temp: 0.7"
+    },
+    "leadCount": 1980
+  },
+  {
+    "id": "google-gemini",
+    "name": "Google Gemini",
+    "category": "AI & LLM",
+    "description": "Fast, high-context AI agent responses for local Indian language support.",
+    "connected": true,
+    "tag": "Gemini 1.5 Pro",
+    "iconColor": "bg-sky-500/15 text-sky-600",
+    "defaultEndpoint": "https://generativelanguage.googleapis.com/v1beta",
+    "apiConfig": {
+      "apiKeyName": "Gemini API Key",
+      "apiKeyValue": "AIzaSy89271...••••••••••••",
+      "autoReplyTemplate": "Model: gemini-1.5-pro | Lang: Gujarati + Hinglish"
+    },
+    "leadCount": 1650
+  },
+  {
+    "id": "calendly",
+    "name": "Calendly",
+    "category": "Flows",
+    "description": "Send WhatsApp appointment confirmations and booking reminders automatically.",
+    "connected": true,
+    "tag": "Scheduling",
+    "iconColor": "bg-blue-500/15 text-blue-600",
+    "defaultEndpoint": "https://api.calendly.com/v2",
+    "apiConfig": {
+      "apiKeyName": "Calendly Personal Access Token",
+      "apiKeyValue": "cal_live_pat_892109",
+      "webhookUrl": "http://localhost:4000/webhook/calendly"
+    },
+    "leadCount": 212
+  },
+  {
+    "id": "google-calendar",
+    "name": "Google Calendar",
+    "category": "Flows",
+    "description": "Sync customer demo bookings directly with team calendar schedules.",
+    "connected": false,
+    "tag": "Productivity",
+    "iconColor": "bg-amber-500/15 text-amber-600",
+    "leadCount": 0
+  },
+  {
+    "id": "google-contacts",
+    "name": "Google Contacts",
+    "category": "Flows",
+    "description": "Bi-directional sync between Google address book and VEROX CRM contacts.",
+    "connected": false,
+    "tag": "Contacts",
+    "iconColor": "bg-blue-600/15 text-blue-700",
+    "leadCount": 0
+  },
+  {
+    "id": "shopify",
+    "name": "Shopify",
+    "category": "Flows",
+    "description": "Send automated WhatsApp order confirmations, tracking links, and abandoned cart alerts.",
+    "connected": true,
+    "tag": "E-commerce",
+    "iconColor": "bg-emerald-500/15 text-emerald-600",
+    "defaultEndpoint": "https://myshopify.com/admin/api/2026-01",
+    "apiConfig": {
+      "apiKeyName": "Shopify Admin API Token",
+      "apiKeyValue": "shpat_9821098273412891",
+      "webhookUrl": "http://localhost:4000/webhook/shopify",
+      "autoReplyTemplate": "shopify_order_confirmation_v1"
+    },
+    "leadCount": 682
+  },
+  {
+    "id": "woocommerce",
+    "name": "Woocommerce",
+    "category": "Flows",
+    "description": "WordPress e-commerce WhatsApp notifications and invoice delivery.",
+    "connected": true,
+    "tag": "E-commerce",
+    "iconColor": "bg-purple-500/15 text-purple-600",
+    "apiConfig": {
+      "apiKeyName": "Consumer Secret & Key",
+      "apiKeyValue": "ck_9821...cs_4821",
+      "webhookUrl": "http://localhost:4000/webhook/woocommerce"
+    },
+    "leadCount": 191
+  },
+  {
+    "id": "razorpay",
+    "name": "Razorpay",
+    "category": "Flows",
+    "description": "Generate dynamic payment links and trigger payment receipt messages.",
+    "connected": true,
+    "tag": "Payments",
+    "iconColor": "bg-blue-700/15 text-blue-800",
+    "defaultEndpoint": "https://api.razorpay.com/v1",
+    "apiConfig": {
+      "apiKeyName": "Razorpay Key ID",
+      "apiKeyValue": "rzp_live_9821098273",
+      "webhookUrl": "http://localhost:4000/webhook/razorpay",
+      "autoReplyTemplate": "payment_received_receipt_v1"
+    },
+    "leadCount": 453
+  },
+  {
+    "id": "justdial",
+    "name": "Justdial",
+    "category": "Flows",
+    "description": "Ingest local inquiries and dispatch catalog links within 2 seconds.",
+    "connected": true,
+    "tag": "Lead Source",
+    "iconColor": "bg-orange-600/15 text-orange-700",
+    "apiConfig": {
+      "apiKeyName": "JustDial Lead Pull Key",
+      "apiKeyValue": "JD_GUJ_FLEET_9825",
+      "webhookUrl": "http://localhost:4000/webhook/justdial",
+      "autoReplyTemplate": "justdial_instant_quote"
+    },
+    "leadCount": 311
+  },
+  {
+    "id": "tradeindia",
+    "name": "TradeIndia",
+    "category": "Flows",
+    "description": "Sync B2B leads from TradeIndia portals with auto-tagging and agent allocation.",
+    "connected": true,
+    "tag": "Lead Source",
+    "iconColor": "bg-sky-600/15 text-sky-700",
+    "apiConfig": {
+      "apiKeyName": "TradeIndia User ID & Key",
+      "apiKeyValue": "TI_USER_769858",
+      "webhookUrl": "http://localhost:4000/webhook/tradeindia",
+      "autoReplyTemplate": "tradeindia_instant_welcome"
+    },
+    "leadCount": 521
+  },
+  {
+    "id": "telegram",
+    "name": "Telegram",
+    "category": "Flows",
+    "description": "Cross-channel notification router to internal company operational groups.",
+    "connected": true,
+    "tag": "Alerts",
+    "iconColor": "bg-blue-400/15 text-blue-500",
+    "leadCount": 85
+  },
+  {
+    "id": "smtp",
+    "name": "SMTP Mailer",
+    "category": "Flows",
+    "description": "Send high-priority email fallbacks when WhatsApp message fails or is opted out.",
+    "connected": true,
+    "tag": "Email",
+    "iconColor": "bg-red-500/15 text-red-600",
+    "leadCount": 140
+  },
+  {
+    "id": "http-request",
+    "name": "HTTP Webhook Node",
+    "category": "Helpers",
+    "description": "Generic REST API node for calling custom ERP, CRM, or billing software endpoints.",
+    "connected": true,
+    "tag": "Universal API",
+    "iconColor": "bg-slate-700/15 text-slate-800 dark:text-slate-200",
+    "apiConfig": {
+      "webhookUrl": "http://localhost:4000/webhook/generic"
+    },
+    "leadCount": 65
+  },
+  {
+    "id": "router",
+    "name": "Multi-Path Router",
+    "category": "Helpers",
+    "description": "Branch conversational execution based on customer intent, language, or lead score.",
+    "connected": true,
+    "tag": "Branching",
+    "iconColor": "bg-violet-500/15 text-violet-600",
+    "leadCount": 0
+  },
+  {
+    "id": "filter",
+    "name": "Condition Filter",
+    "category": "Helpers",
+    "description": "Evaluate If/Else conditions on contact attributes (e.g. state == \"Gujarat\").",
+    "connected": true,
+    "tag": "Logic",
+    "iconColor": "bg-emerald-500/15 text-emerald-600",
+    "leadCount": 0
+  },
+  {
+    "id": "delay",
+    "name": "Delay Timer",
+    "category": "Helpers",
+    "description": "Wait seconds, minutes, or hours before sending automated follow-up reminders.",
+    "connected": true,
+    "tag": "Scheduler",
+    "iconColor": "bg-amber-500/15 text-amber-600",
+    "leadCount": 0
+  },
+  {
+    "id": "datastore",
+    "name": "Datastore Cache",
+    "category": "Helpers",
+    "description": "Store and retrieve key-value pairs and session states across multi-turn chats.",
+    "connected": true,
+    "tag": "Storage",
+    "iconColor": "bg-emerald-500/15 text-emerald-600",
+    "leadCount": 0
+  },
+  {
+    "id": "text-helper",
+    "name": "Text Helper",
+    "category": "Helpers",
+    "description": "Clean, format, truncate, uppercase, or regex match strings before sending.",
+    "connected": true,
+    "tag": "Formatter",
+    "iconColor": "bg-slate-500/15 text-slate-600",
+    "leadCount": 0
+  },
+  {
+    "id": "math-helper",
+    "name": "Math Helper",
+    "category": "Helpers",
+    "description": "Perform arithmetic calculations, GST percentages, and discount calculations.",
+    "connected": true,
+    "tag": "Formatter",
+    "iconColor": "bg-amber-500/15 text-amber-600",
+    "leadCount": 0
+  },
+  {
+    "id": "date-helper",
+    "name": "Date Helper",
+    "category": "Helpers",
+    "description": "Parse, format, and add/subtract business days and timestamps for localized dates.",
+    "connected": true,
+    "tag": "Formatter",
+    "iconColor": "bg-sky-500/15 text-sky-600",
+    "leadCount": 0
+  }
+]
