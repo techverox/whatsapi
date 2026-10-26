@@ -162,6 +162,66 @@ const ENDPOINTS: EndpointDoc[] = [
   -d '{}'`,
   },
   {
+    id: 'ep-templates-list',
+    method: 'GET',
+    path: '/api/templates',
+    title: 'List WhatsApp Cloud Templates',
+    category: 'WhatsApp',
+    description: 'Retrieve all approved WhatsApp Business Cloud templates, language versions, and component structures.',
+    curlExample: `curl -X GET "http://localhost:4000/api/templates" \\
+  -H "Content-Type: application/json"`,
+  },
+  {
+    id: 'ep-webhook-razorpay',
+    method: 'POST',
+    path: '/webhook/razorpay',
+    title: 'Razorpay Payment & Order Webhook',
+    category: 'Webhooks',
+    description: 'Real-time payment capture webhook. Automatically activates client subscriptions and dispatches payment receipts.',
+    defaultBody: JSON.stringify(
+      {
+        event: 'payment.captured',
+        payload: {
+          payment: {
+            entity: {
+              id: 'pay_9988771122',
+              amount: 499900,
+              currency: 'INR',
+              status: 'captured',
+              contact: '+919825102938',
+              email: 'customer@gujaratlogistics.com',
+            },
+          },
+        },
+      },
+      null,
+      2
+    ),
+    curlExample: `curl -X POST "http://localhost:4000/webhook/razorpay" \\
+  -H "Content-Type: application/json" \\
+  -d '{"event": "payment.captured", "payload": {"payment": {"entity": {"id": "pay_123", "amount": 499900}}}}'`,
+  },
+  {
+    id: 'ep-wa-simulate-inbound',
+    method: 'POST',
+    path: '/api/whatsapp/simulate-inbound',
+    title: 'Simulate Inbound Customer WhatsApp Message',
+    category: 'WhatsApp',
+    description: 'Developer sandbox tool to simulate an incoming customer WhatsApp text message and trigger automated bot journeys.',
+    defaultBody: JSON.stringify(
+      {
+        from: '+919825102938',
+        name: 'Bhavik Patel',
+        text: 'Hello, I want to inquire about commercial GPS trackers for my Surat fleet.',
+      },
+      null,
+      2
+    ),
+    curlExample: `curl -X POST "http://localhost:4000/api/whatsapp/simulate-inbound" \\
+  -H "Content-Type: application/json" \\
+  -d '{"from": "+919825102938", "name": "Bhavik Patel", "text": "Hello, I need pricing"}'`,
+  },
+  {
     id: 'ep-sys-health',
     method: 'GET',
     path: '/health',
@@ -191,9 +251,19 @@ export function DevelopersDocs() {
   >({})
   const [copiedId, setCopiedId] = useState<string | null>(null)
 
-  const handleCopyCurl = (id: string, text: string) => {
-    navigator.clipboard.writeText(text)
-    setCopiedId(id)
+  const handleCopyCurl = (ep: EndpointDoc) => {
+    let curlText = ep.curlExample
+    const customBody = customBodies[ep.id]
+    if ((ep.method === 'POST' || ep.method === 'PUT') && customBody) {
+      try {
+        const compact = JSON.stringify(JSON.parse(customBody))
+        curlText = `curl -X ${ep.method} "http://localhost:4000${ep.path}" \\\n  -H "Content-Type: application/json" \\\n  -d '${compact.replace(/'/g, "\\'")}'`
+      } catch {
+        // Fall back to static example
+      }
+    }
+    navigator.clipboard.writeText(curlText)
+    setCopiedId(ep.id)
     toast.success('cURL Command Copied!', { description: 'Snippet copied to your clipboard.' })
     setTimeout(() => setCopiedId(null), 2000)
   }
@@ -211,6 +281,15 @@ export function DevelopersDocs() {
 
       if (ep.method === 'POST' || ep.method === 'PUT') {
         const bodyText = customBodies[ep.id] || ep.defaultBody || '{}'
+        try {
+          JSON.parse(bodyText)
+        } catch (jsonErr: unknown) {
+          toast.error('Invalid JSON payload syntax', {
+            description: (jsonErr as Error)?.message || 'Check commas, brackets, and quotes.',
+          })
+          setExecutingId(null)
+          return
+        }
         options.body = bodyText
       }
 
@@ -452,7 +531,7 @@ export function DevelopersDocs() {
                           <Button
                             variant='outline'
                             size='sm'
-                            onClick={() => handleCopyCurl(ep.id, ep.curlExample)}
+                            onClick={() => handleCopyCurl(ep)}
                             className='text-xs h-8 gap-1.5'
                           >
                             {copiedId === ep.id ? (
