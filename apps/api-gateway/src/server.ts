@@ -349,12 +349,15 @@ app.post('/webhook/generic', async (req: Request, res: Response) => {
 app.post('/api/messages/send', async (req: Request, res: Response) => {
   const { to, text, template, conversationId } = req.body
 
-  if (!to) {
-    return res.status(400).json({ success: false, message: 'Recipient phone number (to) is required.' })
+  const rawPhone = String(to || '').replace(/[^0-9]/g, '')
+  if (!to || rawPhone.length < 8) {
+    return res.status(400).json({
+      success: false,
+      message: 'Valid recipient phone number with country code is required (min 8 digits).',
+    })
   }
 
-  const rawPhone = String(to).replace(/[^0-9]/g, '')
-  const cleanPhone = rawPhone.startsWith('+') ? rawPhone : `+${rawPhone}`
+  const cleanPhone = `+${rawPhone}`
 
   // 1. Find or create Contact in dbService
   let contact = dbService.contacts.find((c) => c.phone === cleanPhone)
@@ -411,11 +414,22 @@ app.post('/api/messages/send', async (req: Request, res: Response) => {
     messageType: template ? 'template' : 'text',
     content: text || `[Template: ${template?.name}]`,
     wamid: sentMsg.wamid,
-    status: 'sent',
+    status: sentMsg.status,
+    error: sentMsg.error,
   })
 
   // 5. Broadcast in real time
   broadcastRealtime('MESSAGE_SENT', { to: cleanPhone, conversationId: conv.id, message: savedMsg, conversation: conv })
+
+  if (sentMsg.status === 'failed') {
+    return res.status(400).json({
+      success: false,
+      message: sentMsg.error || 'Failed to dispatch via Meta API',
+      status: 'failed',
+      messageId: savedMsg.id,
+      data: savedMsg,
+    })
+  }
 
   return res.status(200).json({ success: true, messageId: savedMsg.id, status: 'sent', message: savedMsg, data: savedMsg })
 })

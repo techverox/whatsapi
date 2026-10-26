@@ -114,8 +114,9 @@ export function DevelopersApi() {
   }
 
   const handleExecuteSend = async () => {
-    if (!testPhone.trim()) {
-      toast.error('Please enter a recipient phone number.')
+    const cleanNum = testPhone.replace(/[^0-9]/g, '')
+    if (!cleanNum || cleanNum.length < 8) {
+      toast.error('Please enter a valid recipient phone number with country code (min 8 digits).')
       return
     }
     setIsSending(true)
@@ -127,7 +128,7 @@ export function DevelopersApi() {
       template?: { name: string; language: { code: string } }
       text?: string
     } = {
-      to: testPhone.trim(),
+      to: `+${cleanNum}`,
     }
 
     if (messageType === 'template') {
@@ -148,30 +149,44 @@ export function DevelopersApi() {
 
     if (res.success) {
       toast.success('WhatsApp API Call Executed Successfully!', {
-        description: `Delivered message to ${testPhone.trim()} via Port 4000 gateway (${latency}ms).`,
+        description: `Delivered message to +${cleanNum} via Port 4000 gateway (${latency}ms).`,
       })
     } else {
       toast.error('API Error: ' + (res.message || 'Failed to dispatch'))
     }
   }
 
-  const curlSnippet = `curl -X POST "http://localhost:4000/api/messages/send" \\
+  const curlSnippet =
+    messageType === 'template'
+      ? `curl -X POST "http://localhost:4000/api/messages/send" \\
   -H "Authorization: Bearer ${accessToken || 'VEROX_PERMANENT_META_TOKEN'}" \\
   -H "Content-Type: application/json" \\
   -d '{
-    "to": "${testPhone.replace(/[^0-9]/g, '')}",
+    "to": "+${testPhone.replace(/[^0-9]/g, '')}",
+    "template": {
+      "name": "diwali_special_offer_v1",
+      "language": { "code": "gu" }
+    }
+  }'`
+      : `curl -X POST "http://localhost:4000/api/messages/send" \\
+  -H "Authorization: Bearer ${accessToken || 'VEROX_PERMANENT_META_TOKEN'}" \\
+  -H "Content-Type: application/json" \\
+  -d '{
+    "to": "+${testPhone.replace(/[^0-9]/g, '')}",
     "text": "${testMessage.replace(/"/g, '\\"')}"
   }'`
 
   const handleCopyToken = () => {
     navigator.clipboard.writeText(accessToken || 'EAAPk...verox_production_system_user_permanent_token_948201')
     setCopiedToken(true)
+    toast.success('Meta Permanent Access Token copied to clipboard!')
     setTimeout(() => setCopiedToken(false), 2000)
   }
 
   const handleCopyCurl = () => {
     navigator.clipboard.writeText(curlSnippet)
     setCopiedCurl(true)
+    toast.success('cURL command copied to clipboard!')
     setTimeout(() => setCopiedCurl(false), 2000)
   }
 

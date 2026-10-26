@@ -32,6 +32,7 @@ export interface MessageItem {
   mediaUrl?: string
   wamid?: string
   status: 'sent' | 'delivered' | 'read' | 'failed'
+  error?: string
   createdAt: string
 }
 

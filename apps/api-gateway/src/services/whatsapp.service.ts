@@ -270,12 +270,36 @@ export class WhatsAppCloudService {
         metaResponse = await response.json()
         if (!response.ok) {
           console.error('❌ Meta Graph API Send Error:', metaResponse)
+          return {
+            id: `msg-${Date.now()}`,
+            conversationId: '',
+            senderType: 'agent',
+            senderName: 'Agent Bhavik',
+            messageType: 'text',
+            content: text,
+            wamid,
+            status: 'failed',
+            error: metaResponse?.error?.message || 'Meta Cloud API rejected outbound message.',
+            createdAt: new Date().toISOString(),
+          }
         } else {
           dispatchedViaMeta = true
           console.log('✅ Dispatched via Official Meta Cloud API:', metaResponse)
         }
-      } catch (error) {
+      } catch (error: any) {
         console.error('⚠️ Meta Graph API network request error:', error)
+        return {
+          id: `msg-${Date.now()}`,
+          conversationId: '',
+          senderType: 'agent',
+          senderName: 'Agent Bhavik',
+          messageType: 'text',
+          content: text,
+          wamid,
+          status: 'failed',
+          error: error?.message || 'Network error communicating with Meta Graph API.',
+          createdAt: new Date().toISOString(),
+        }
       }
     } else {
       console.log(`ℹ️ [Sandbox Dispatch] Outbound WhatsApp to +${cleanPhone}: "${text}"`)
@@ -336,12 +360,36 @@ export class WhatsAppCloudService {
         metaResponse = await response.json()
         if (!response.ok) {
           console.error('❌ Meta Graph API Template Send Error:', metaResponse)
+          return {
+            id: `msg-${Date.now()}`,
+            conversationId: '',
+            senderType: 'agent',
+            senderName: 'Broadcast Engine',
+            messageType: 'template',
+            content: `[Template: ${templateName}]`,
+            wamid,
+            status: 'failed',
+            error: metaResponse?.error?.message || 'Meta Cloud API rejected template message.',
+            createdAt: new Date().toISOString(),
+          }
         } else {
           dispatchedViaMeta = true
           console.log('✅ Template Dispatched via Official Meta Cloud API:', metaResponse)
         }
-      } catch (error) {
+      } catch (error: any) {
         console.error('⚠️ Meta Graph API network request error:', error)
+        return {
+          id: `msg-${Date.now()}`,
+          conversationId: '',
+          senderType: 'agent',
+          senderName: 'Broadcast Engine',
+          messageType: 'template',
+          content: `[Template: ${templateName}]`,
+          wamid,
+          status: 'failed',
+          error: error?.message || 'Network error communicating with Meta Graph API.',
+          createdAt: new Date().toISOString(),
+        }
       }
     } else {
       console.log(`ℹ️ [Sandbox Template Dispatch] To +${cleanPhone} using template '${templateName}'`)
@@ -366,11 +414,15 @@ export class WhatsAppCloudService {
     phoneNumberId?: string
     wabaId?: string
   }): Promise<MetaConnectionStatus> {
-    const token = override?.accessToken || this.accessToken
-    const phoneId = override?.phoneNumberId || this.phoneNumberId
-    const waba = override?.wabaId || this.wabaId
+    const token = (override?.accessToken || this.accessToken || '').trim()
+    const phoneId = (override?.phoneNumberId || this.phoneNumberId || '').trim()
+    const waba = (override?.wabaId || this.wabaId || '').trim()
 
-    const isLiveMetaToken = token && (token.startsWith('EAAP') || token.startsWith('EAA') || token.startsWith('EAAB'))
+    const isLiveMetaToken =
+      token &&
+      token.length > 25 &&
+      !token.includes('...') &&
+      (token.startsWith('EAA') || token.startsWith('EAAB') || token.startsWith('EAAG') || token.startsWith('EAAP'))
 
     if (!isLiveMetaToken) {
       return {
