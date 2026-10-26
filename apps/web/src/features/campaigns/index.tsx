@@ -129,8 +129,8 @@ const initialMockCampaigns: CampaignItem[] = [
     name: 'Gujarat Business Diwali Mega Broadcast',
     status: 'Completed',
     totalContacts: 14500,
-    delivered: 14500,
-    read: 11600,
+    delivered: 14240,
+    read: 11980,
     scheduledTime: '2026-10-20T10:00:00Z',
     created: '2026-10-19T14:00:00Z',
     templateName: 'diwali_special_offer_v1',
@@ -138,7 +138,7 @@ const initialMockCampaigns: CampaignItem[] = [
       '🪔 દિવાળી સ્પેશિયલ ઑફર: ટ્રક સાથી AIS-140 GPS ડિવાઇસ પર 30% ડિસ્કાઉન્ટ મેળવો! 1 વર્ષનું ફ્રી સર્વર + ફાસ્ટેગ ઇન્ટિગ્રેશન સાથે ઉપલબ્ધ છે. તમારા ટ્રક માટે હમણાં જ બુક કરો.',
     pipelineEvents: [
       { title: 'Broadcast queue Initiated via Meta Cloud API Gateway', time: '2026-10-19T14:00:00Z' },
-      { title: 'Delivery receipts processed via Webhook port 4000', time: 'Live' },
+      { title: 'Delivery receipts processed via Webhook port 4000', time: 'Completed' },
     ],
   },
   {
@@ -146,16 +146,16 @@ const initialMockCampaigns: CampaignItem[] = [
     name: 'IndiaMart Inbound Lead Follow-up Nurture',
     status: 'Completed',
     totalContacts: 2850,
-    delivered: 2850,
-    read: 2280,
+    delivered: 2800,
+    read: 2410,
     scheduledTime: '2026-10-21T11:00:00Z',
     created: '2026-10-21T09:00:00Z',
-    templateName: 'indiamart_lead_followup',
+    templateName: 'lead_nurture_followup',
     templatePreview:
-      'Namaste! Thank you for inquiring about Truck Sathi GPS on IndiaMart. Our senior logistics advisor is ready to assist you with bulk fleet discounts.',
+      'नमस्ते! हमे आपकी IndiaMart इन्क्वायरी प्राप्त हुई है। क्या हम आपके फ्लीट ऑटोमेशन के लिए आज बात कर सकते हैं?',
     pipelineEvents: [
       { title: 'Auto-ingested from IndiaMart Push Webhook', time: '2026-10-21T09:00:00Z' },
-      { title: 'Meta WABA batch delivery confirmed (100%)', time: 'Completed' },
+      { title: 'Meta WABA batch delivery confirmed (98.2%)', time: 'Completed' },
     ],
   },
   {
@@ -163,15 +163,15 @@ const initialMockCampaigns: CampaignItem[] = [
     name: 'Truck Sathi GPS Festive Promotion',
     status: 'In Progress',
     totalContacts: 8200,
-    delivered: 6400,
-    read: 4890,
-    scheduledTime: '2026-10-23T09:30:00Z',
-    created: '2026-10-22T04:15:00Z',
+    delivered: 6320,
+    read: 5120,
+    scheduledTime: '2026-10-22T18:00:00Z',
+    created: '2026-10-22T15:00:00Z',
     templateName: 'festive_gps_offer_v2',
     templatePreview:
       '🚚 Diwali Special: Upgrade your commercial fleet with Truck Sathi AIS-140 Certified GPS at 30% OFF! Real-time tracking + Fastag integration included. Tap below to claim offer.',
     pipelineEvents: [
-      { title: 'Dispatch active across Gujarat transporter segment', time: '2026-10-22T04:15:00Z' },
+      { title: 'Dispatch active across Gujarat transporter segment', time: '2026-10-22T15:00:00Z' },
       { title: 'Streaming real-time delivery receipts', time: 'Live' },
     ],
   },
@@ -182,11 +182,11 @@ const initialMockCampaigns: CampaignItem[] = [
     totalContacts: 3450,
     delivered: 0,
     read: 0,
-    scheduledTime: '2026-10-25T11:00:00Z',
+    scheduledTime: '2026-10-28T11:00:00Z',
     created: '2026-10-24T12:00:00Z',
-    templateName: 'fastag_instant_recharge',
+    templateName: 'fastag_renewal_alert',
     templatePreview:
-      '⚡ Instant Commercial Fastag Activation: Direct issuance for 10-wheeler and 14-wheeler trucks. Zero paperwork delay and instant wallet sync.',
+      'Alert: Your commercial fleet FASTAG balance is low. Tap below to recharge instantly with zero downtime.',
     pipelineEvents: [
       { title: 'Audience targeting filtered for commercial FASTAG users', time: '2026-10-24T12:00:00Z' },
       { title: 'Awaiting scheduled trigger time', time: 'Queued' },
@@ -208,9 +208,9 @@ function mapCampaignData(data: Array<Record<string, unknown>>): CampaignItem[] {
         : typeof c.delivered === 'number'
         ? c.delivered
         : isComp
-        ? total
+        ? Math.round(total * 0.98)
         : isProg
-        ? Math.round(total * 0.75)
+        ? Math.round(total * 0.77)
         : 0
     const rd =
       typeof c.readCount === 'number'
@@ -218,9 +218,9 @@ function mapCampaignData(data: Array<Record<string, unknown>>): CampaignItem[] {
         : typeof c.read === 'number'
         ? c.read
         : isComp
-        ? Math.round(total * 0.8)
+        ? Math.round(del * 0.84)
         : isProg
-        ? Math.round(total * 0.55)
+        ? Math.round(del * 0.81)
         : 0
 
     return {

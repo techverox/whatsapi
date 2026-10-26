@@ -71,87 +71,87 @@ export interface ContactRecord {
 
 const INITIAL_MOCK_CONTACTS: ContactRecord[] = [
   {
-    id: 'c-1',
+    id: 'cnt-1',
     created: '10/24/2026, 05:15 PM',
     name: 'WhatsApp Lead (2938)',
     phone: '+919825102938',
     source: 'whatsapp',
-    tags: ['IndiaMart Lead', 'hot-lead'],
+    tags: ['IndiaMart Lead', 'Hot Lead'],
     optIn: true,
     assignedAt: '-',
     assignedTo: 'Not Assigned',
     email: 'whatsapplead2938@example.com',
     status: 'New',
     wabaPhone: '+917698580043',
-    gpsClient: true,
+    gpsClient: false,
   },
   {
-    id: 'c-2',
+    id: 'cnt-2',
     created: '10/22/2026, 03:58 PM',
     name: 'Rajesh Sharma',
     phone: '+919825100001',
     source: 'indiamart',
-    tags: ['IndiaMart Lead', 'Hot Lead', 'GPS'],
+    tags: ['IndiaMart Lead', 'Hot Lead', 'Fleet Mgmt'],
     optIn: true,
     assignedAt: '10/22/2026, 04:00 PM',
     assignedTo: 'Agent Bhavik',
-    email: 'rajeshsharma@example.com',
+    email: 'rajesh.sharma@example.com',
     status: 'Qualified',
     wabaPhone: '+917698580043',
     gpsClient: true,
   },
   {
-    id: 'c-3',
+    id: 'cnt-3',
     created: '10/22/2026, 05:15 PM',
     name: 'Vikram Patel',
     phone: '+919426000002',
     source: 'facebook',
-    tags: ['FB Ads', 'Fleet Mgmt', 'FASTAG'],
+    tags: ['FB Ads', 'FASTAG Client', 'Fleet Mgmt'],
     optIn: true,
     assignedAt: '10/22/2026, 05:30 PM',
     assignedTo: 'Agent Anjali',
-    email: 'vikrampatel@example.com',
+    email: 'vikram.patel@example.com',
     status: 'Contacted',
     wabaPhone: '+917698580043',
     gpsClient: true,
   },
   {
-    id: 'c-4',
+    id: 'cnt-4',
     created: '10/22/2026, 07:40 PM',
     name: 'Ananya Desai',
     phone: '+919909000003',
     source: 'whatsapp',
-    tags: ['FASTAG Client', 'hot-lead'],
+    tags: ['Hot Lead', 'FASTAG Client'],
     optIn: true,
-    assignedAt: '-',
+    assignedAt: '10/22/2026, 07:42 PM',
     assignedTo: 'VEROX AI Bot',
-    email: 'ananyadesai@example.com',
-    status: 'New',
+    email: 'ananya.desai@example.com',
+    status: 'Qualified',
     wabaPhone: '+917698580043',
     gpsClient: false,
   },
   {
-    id: 'c-5',
+    id: 'cnt-5',
     created: '10/21/2026, 02:30 PM',
     name: 'Sunil Mehta',
     phone: '+919898000004',
     source: 'manual',
-    tags: ['Hinglish IN', 'Fleet Mgmt'],
+    tags: ['Fleet Mgmt', 'Hinglish Support'],
     optIn: true,
-    assignedAt: '-',
+    assignedAt: '10/21/2026, 03:00 PM',
     assignedTo: 'Agent Bhavik',
-    email: 'sunilmehta@example.com',
-    status: 'New',
+    email: 'sunil.mehta@example.com',
+    status: 'Qualified',
     wabaPhone: '+917698580043',
     gpsClient: false,
   },
   {
-    id: 'c-6',
+    id: 'cnt-6',
     created: '10/22/2026, 11:34 PM',
     name: 'Truck Sathi GPS Client',
     phone: '+917698580043',
     source: 'whatsapp',
-    tags: ['GPS', 'hot-lead', 'Fleet Mgmt'],
+    tags: ['Hot Lead', 'Fleet Mgmt'],
     optIn: true,
     assignedAt: '10/22/2026, 11:35 PM',
     assignedTo: 'Support Desk',
@@ -161,12 +161,12 @@ const INITIAL_MOCK_CONTACTS: ContactRecord[] = [
     gpsClient: true,
   },
   {
-    id: 'c-7',
+    id: 'cnt-7',
     created: '10/22/2026, 10:15 PM',
     name: 'Rajesh Sharma Logistics',
     phone: '+919825109283',
     source: 'indiamart',
-    tags: ['GPS', 'hot-lead'],
+    tags: ['IndiaMart Lead', 'Hot Lead'],
     optIn: true,
     assignedAt: '-',
     assignedTo: 'Not Assigned',
@@ -176,96 +176,64 @@ const INITIAL_MOCK_CONTACTS: ContactRecord[] = [
     gpsClient: false,
   },
   {
-    id: 'c-8',
+    id: 'cnt-8',
     created: '10/22/2026, 08:42 PM',
-    name: 'Amit Patel Transport',
-    phone: '+919426019284',
-    source: 'whatsapp',
-    tags: ['FASTAG', 'Fleet Mgmt'],
+    name: 'Ahmedabad Transport Hub',
+    phone: '+919825114422',
+    source: 'facebook',
+    tags: ['FB Ads', 'Fleet Mgmt'],
     optIn: true,
-    assignedAt: '10/22/2026, 09:00 PM',
-    assignedTo: 'Agent Anjali',
-    email: 'amit@pateltrans.com',
+    assignedAt: '10/22/2026, 08:50 PM',
+    assignedTo: 'Agent Bhavik',
+    email: 'hub@ahmedabadtransport.com',
     status: 'Contacted',
     wabaPhone: '+917698580043',
     gpsClient: true,
   },
   {
-    id: 'c-9',
-    created: '10/22/2026, 06:18 PM',
-    name: 'Vikram Mehta Roadlines',
-    phone: '+919909028172',
-    source: 'facebook',
-    tags: ['FASTAG', 'hot-lead'],
-    optIn: true,
-    assignedAt: '-',
-    assignedTo: 'Not Assigned',
-    email: 'mehta@vikramroadlines.in',
-    status: 'New',
-    wabaPhone: '+917698580043',
-    gpsClient: false,
-  },
-  {
-    id: 'c-10',
-    created: '10/22/2026, 04:55 PM',
-    name: 'Suresh Bhai Kathiawar',
-    phone: '+919898017263',
+    id: 'cnt-9',
+    created: '10/22/2026, 07:10 PM',
+    name: 'Surat Highway Fleet',
+    phone: '+919426188219',
     source: 'whatsapp',
-    tags: ['English GB', 'GPS'],
+    tags: ['FASTAG Client', 'Hinglish Support'],
     optIn: true,
-    assignedAt: '10/22/2026, 05:10 PM',
-    assignedTo: 'Agent Bhavik',
-    email: 'suresh@kathiawartrans.com',
+    assignedAt: '10/22/2026, 07:30 PM',
+    assignedTo: 'Agent Anjali',
+    email: 'dispatch@surathighway.in',
     status: 'Qualified',
     wabaPhone: '+917698580043',
     gpsClient: true,
   },
   {
-    id: 'c-11',
-    created: '10/22/2026, 02:20 PM',
-    name: 'Bharat Petroleum Carrier',
-    phone: '+919727192834',
-    source: 'whatsapp',
-    tags: ['INSURANCE', 'Fleet Mgmt'],
+    id: 'cnt-10',
+    created: '10/22/2026, 06:00 PM',
+    name: 'Vadodara Express Cargo',
+    phone: '+919909123891',
+    source: 'manual',
+    tags: ['Fleet Mgmt'],
     optIn: true,
     assignedAt: '-',
     assignedTo: 'Not Assigned',
-    email: 'fleet@bharatcarrier.in',
+    email: 'cargo@vadodaraexpress.com',
     status: 'New',
     wabaPhone: '+917698580043',
     gpsClient: false,
-  },
-  {
-    id: 'c-12',
-    created: '10/22/2026, 11:10 AM',
-    name: 'Ketan Doshi Express',
-    phone: '+919428019283',
-    source: 'indiamart',
-    tags: ['GPS', 'Hinglish IN'],
-    optIn: true,
-    assignedAt: '10/22/2026, 11:30 AM',
-    assignedTo: 'Agent Anjali',
-    email: 'ketan@doshiexpress.com',
-    status: 'Contacted',
-    wabaPhone: '+917698580043',
-    gpsClient: true,
   },
 ]
 
 const TAG_PILLS = [
   'All',
-  'hot-lead',
-  'GPS',
-  'FASTAG',
-  'Fleet Mgmt',
   'IndiaMart Lead',
   'FB Ads',
-  'Hinglish IN',
-  'INSURANCE',
+  'Hot Lead',
+  'FASTAG Client',
+  'Fleet Mgmt',
+  'Hinglish Support',
 ]
 
 function generateContactId(): string {
-  return `c-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`
+  return `cnt-${Date.now()}`
 }
 
 export function Users() {
@@ -344,13 +312,8 @@ export function Users() {
       .getContacts()
       .then((res) => {
         if (res.success && Array.isArray(res.data) && res.data.length > 0) {
-          const mapped: ContactRecord[] = (res.data as Array<Record<string, unknown>>).map((c) => ({
-            id: String(c.id || ''),
-            created: c.createdAt ? new Date(String(c.createdAt)).toLocaleString() : new Date().toLocaleString(),
-            name: String(c.name || 'Unknown Contact'),
-            phone: String(c.phone || ''),
-            source: (typeof c.source === 'string' ? c.source : 'whatsapp') as ContactRecord['source'],
-            tags: Array.isArray(c.tags)
+          const mapped: ContactRecord[] = (res.data as Array<Record<string, unknown>>).map((c) => {
+            const tags = Array.isArray(c.tags)
               ? c.tags.map((t) =>
                   typeof t === 'string'
                     ? t
@@ -358,22 +321,29 @@ export function Users() {
                     ? String((t as { name: string }).name)
                     : 'Lead'
                 )
-              : [],
-            optIn: typeof c.optIn === 'boolean' ? c.optIn : true,
-            assignedAt: c.assignedAt ? new Date(String(c.assignedAt)).toLocaleString() : '-',
-            assignedTo: String(c.assignedToName || 'Not Assigned'),
-            email: String(
-              c.email || `${String(c.name || '').toLowerCase().replace(/[^a-z0-9]/g, '')}@example.com`
-            ),
-            status: 'New',
-            wabaPhone: '+917698580043',
-            gpsClient: false,
-          }))
-
-          setContacts((prev) => {
-            const ids = new Set(mapped.map((m) => m.id))
-            return [...mapped, ...prev.filter((p) => !ids.has(p.id))]
+              : []
+            const assignedTo = String(c.assignedToName || 'Not Assigned')
+            const isAssigned = assignedTo !== 'Not Assigned' && assignedTo.trim() !== ''
+            return {
+              id: String(c.id || ''),
+              created: c.createdAt ? new Date(String(c.createdAt)).toLocaleString() : new Date().toLocaleString(),
+              name: String(c.name || 'Unknown Contact'),
+              phone: String(c.phone || ''),
+              source: (typeof c.source === 'string' ? c.source : 'whatsapp') as ContactRecord['source'],
+              tags,
+              optIn: typeof c.optIn === 'boolean' ? c.optIn : true,
+              assignedAt: c.assignedAt ? new Date(String(c.assignedAt)).toLocaleString() : '-',
+              assignedTo,
+              email: String(
+                c.email || `${String(c.name || '').toLowerCase().replace(/[^a-z0-9]/g, '')}@example.com`
+              ),
+              status: isAssigned ? 'Qualified' : 'New',
+              wabaPhone: '+917698580043',
+              gpsClient: tags.some((t) => t.toLowerCase().includes('fleet') || t.toLowerCase().includes('gps')),
+            }
           })
+
+          setContacts(mapped)
           toast.success(`Loaded ${mapped.length} contacts from API Gateway!`)
         }
       })
@@ -392,13 +362,8 @@ export function Users() {
       .then((res) => {
         if (!mounted) return
         if (res.success && Array.isArray(res.data) && res.data.length > 0) {
-          const mapped: ContactRecord[] = (res.data as Array<Record<string, unknown>>).map((c) => ({
-            id: String(c.id || ''),
-            created: c.createdAt ? new Date(String(c.createdAt)).toLocaleString() : new Date().toLocaleString(),
-            name: String(c.name || 'Unknown Contact'),
-            phone: String(c.phone || ''),
-            source: (typeof c.source === 'string' ? c.source : 'whatsapp') as ContactRecord['source'],
-            tags: Array.isArray(c.tags)
+          const mapped: ContactRecord[] = (res.data as Array<Record<string, unknown>>).map((c) => {
+            const tags = Array.isArray(c.tags)
               ? c.tags.map((t) =>
                   typeof t === 'string'
                     ? t
@@ -406,22 +371,29 @@ export function Users() {
                     ? String((t as { name: string }).name)
                     : 'Lead'
                 )
-              : [],
-            optIn: typeof c.optIn === 'boolean' ? c.optIn : true,
-            assignedAt: c.assignedAt ? new Date(String(c.assignedAt)).toLocaleString() : '-',
-            assignedTo: String(c.assignedToName || 'Not Assigned'),
-            email: String(
-              c.email || `${String(c.name || '').toLowerCase().replace(/[^a-z0-9]/g, '')}@example.com`
-            ),
-            status: 'New',
-            wabaPhone: '+917698580043',
-            gpsClient: false,
-          }))
-
-          setContacts((prev) => {
-            const ids = new Set(mapped.map((m) => m.id))
-            return [...mapped, ...prev.filter((p) => !ids.has(p.id))]
+              : []
+            const assignedTo = String(c.assignedToName || 'Not Assigned')
+            const isAssigned = assignedTo !== 'Not Assigned' && assignedTo.trim() !== ''
+            return {
+              id: String(c.id || ''),
+              created: c.createdAt ? new Date(String(c.createdAt)).toLocaleString() : new Date().toLocaleString(),
+              name: String(c.name || 'Unknown Contact'),
+              phone: String(c.phone || ''),
+              source: (typeof c.source === 'string' ? c.source : 'whatsapp') as ContactRecord['source'],
+              tags,
+              optIn: typeof c.optIn === 'boolean' ? c.optIn : true,
+              assignedAt: c.assignedAt ? new Date(String(c.assignedAt)).toLocaleString() : '-',
+              assignedTo,
+              email: String(
+                c.email || `${String(c.name || '').toLowerCase().replace(/[^a-z0-9]/g, '')}@example.com`
+              ),
+              status: isAssigned ? 'Qualified' : 'New',
+              wabaPhone: '+917698580043',
+              gpsClient: tags.some((t) => t.toLowerCase().includes('fleet') || t.toLowerCase().includes('gps')),
+            }
           })
+
+          setContacts(mapped)
         }
       })
       .catch(() => {})
