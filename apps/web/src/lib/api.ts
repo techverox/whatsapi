@@ -508,12 +508,12 @@ export const whatsapiApi = {
   },
   getFlow: (id: string) => request(`/api/flows/${id}`),
   getFlowStats: () => request('/api/flows/stats'),
-  createFlow: (data: { name: string; trigger?: string; nodes?: Record<string, unknown>[]; active?: boolean }) =>
+  createFlow: (data: { name: string; trigger?: string; nodes?: unknown[]; active?: boolean } | Record<string, unknown>) =>
     request('/api/flows', {
       method: 'POST',
       body: JSON.stringify(data),
     }),
-  updateFlow: (id: string, data: Record<string, unknown>) =>
+  updateFlow: (id: string, data: Record<string, unknown> | object) =>
     request(`/api/flows/${id}`, {
       method: 'PUT',
       body: JSON.stringify(data),

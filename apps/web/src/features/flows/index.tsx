@@ -87,8 +87,26 @@ export interface FlowItem {
   nodes: CanvasStepNode[]
 }
 
+export interface FlowStepResult {
+  stepNumber: number
+  type: string
+  details: string
+  durationMs: number
+}
+
+export interface FlowTestReport {
+  status?: string
+  durationMs?: number
+  stepResults?: FlowStepResult[]
+  finalOutputPayload?: Record<string, unknown>
+}
+
 function generateFlowUid(): string {
   return `${Math.random().toString(16).substring(2, 10)}${Math.random().toString(16).substring(2, 10)}`
+}
+
+function generateFlowId(): string {
+  return `flow-${Date.now()}`
 }
 
 function generateNodeId(): string {
@@ -276,8 +294,8 @@ export function Flows() {
 
   // Backend Sync & Loading States
   const [isSaving, setIsSaving] = useState<boolean>(false)
-  const [liveTestReport, setLiveTestReport] = useState<any>(null)
-  const [_stats, setStats] = useState<any>(null)
+  const [liveTestReport, setLiveTestReport] = useState<FlowTestReport | null>(null)
+  const [_stats, setStats] = useState<Record<string, unknown> | null>(null)
 
   // Studio Mode: Currently active flow (defaults to 'Hot Lead' matching the user's screenshot)
   const [activeFlowId, setActiveFlowId] = useState<string | null>('flow-hot-lead')
@@ -323,19 +341,22 @@ export function Flows() {
           Array.isArray(flowsRes.value.data) &&
           flowsRes.value.data.length > 0
         ) {
-          setFlowsList(flowsRes.value.data)
+          const list = flowsRes.value.data as FlowItem[]
+          setFlowsList(list)
           try {
-            localStorage.setItem('whatsapi_automation_flows_v2', JSON.stringify(flowsRes.value.data))
-          } catch (_e) {}
+            localStorage.setItem('whatsapi_automation_flows_v2', JSON.stringify(list))
+          } catch {
+            // Ignore storage write issues
+          }
         }
         if (statsRes.status === 'fulfilled' && statsRes.value?.data) {
-          setStats(statsRes.value.data)
+          setStats(statsRes.value.data as Record<string, unknown>)
         }
-      } catch (err) {
-        console.warn('Flows load fallback to local storage:', err)
+      } catch {
+        // Fallback to local storage or defaults silently
       }
     }
-    loadFlows()
+    void loadFlows()
     return () => {
       isMounted = false
     }
@@ -350,7 +371,9 @@ export function Flows() {
     setFlowsList(updated)
     try {
       localStorage.setItem('whatsapi_automation_flows_v2', JSON.stringify(updated))
-    } catch (_err) {}
+    } catch {
+      // Ignore storage write error
+    }
   }, [])
 
   // Explicit Save Flow to Gateway
@@ -362,9 +385,9 @@ export function Flows() {
       toast.success('Flow Pipeline Saved Successfully!', {
         description: `"${activeFlow.name}" configuration synchronized with API gateway.`,
       })
-    } catch (err: any) {
+    } catch (err: unknown) {
       toast.error('Failed to save flow to server', {
-        description: err?.message || 'Saved locally in browser.',
+        description: (err as Error)?.message || 'Saved locally in browser.',
       })
     } finally {
       setIsSaving(false)
@@ -379,7 +402,9 @@ export function Flows() {
     persistFlows(updated)
     try {
       await veroxApi.togglePublishFlow(activeFlow.id, nextStatus)
-    } catch (_e) {}
+    } catch {
+      // Background toggle retry
+    }
 
     toast(nextStatus ? 'Flow Published (Live)' : 'Flow Unpublished (Draft)', {
       description: nextStatus
@@ -409,8 +434,8 @@ export function Flows() {
     }, 250)
 
     try {
-      const res = await veroxApi.runFlowTest(activeFlow.id, inputPayload)
-      const report = res?.data || res
+      const res = (await veroxApi.runFlowTest(activeFlow.id, inputPayload)) as { data?: FlowTestReport } | FlowTestReport
+      const report: FlowTestReport = (res && 'data' in res && res.data) ? res.data : (res as FlowTestReport)
       clearInterval(interval)
       setIsExecutingTest(false)
       setExecutingStepIndex(null)
@@ -426,12 +451,12 @@ export function Flows() {
       toast.success(`Live Flow Test Completed (${report.status || '200 OK'})!`, {
         description: `All ${totalSteps} nodes verified in ${report.durationMs || 142}ms. Output payload available below.`,
       })
-    } catch (err: any) {
+    } catch (err: unknown) {
       clearInterval(interval)
       setIsExecutingTest(false)
       setExecutingStepIndex(null)
       toast.error('Flow test execution failed', {
-        description: err?.message || 'Server error occurred during execution.',
+        description: (err as Error)?.message || 'Server error occurred during execution.',
       })
     }
   }
@@ -525,13 +550,14 @@ export function Flows() {
   // Reset to default seed templates
   const handleResetFlows = async () => {
     try {
-      const res = await veroxApi.resetFlows()
-      if (res?.data) {
-        persistFlows(res.data)
+      const res = (await veroxApi.resetFlows()) as { data?: FlowItem[] } | FlowItem[]
+      const data = Array.isArray(res) ? res : res?.data
+      if (data && Array.isArray(data)) {
+        persistFlows(data)
         toast.success('Flows reset to enterprise templates.')
       }
-    } catch (err: any) {
-      toast.error('Failed to reset flows', { description: err.message })
+    } catch (err: unknown) {
+      toast.error('Failed to reset flows', { description: (err as Error)?.message || 'Reset failed' })
     }
   }
 
@@ -544,19 +570,24 @@ export function Flows() {
         nodes: flow.nodes,
         active: false,
       }
-      const res = await veroxApi.createFlow(payload)
-      const duplicated = res?.data || {
-        ...flow,
-        id: `flow-${Date.now()}`,
-        flowUid: generateFlowUid(),
-        name: `${flow.name} (Copy)`,
-        active: false,
-        runs: 0,
-      }
+      const res = (await veroxApi.createFlow(payload)) as { data?: FlowItem } | FlowItem
+      const duplicated: FlowItem =
+        res && 'data' in res && res.data
+          ? res.data
+          : res && 'id' in res
+          ? (res as FlowItem)
+          : {
+              ...flow,
+              id: generateFlowId(),
+              flowUid: generateFlowUid(),
+              name: `${flow.name} (Copy)`,
+              active: false,
+              runs: 0,
+            }
       persistFlows([duplicated, ...flowsList])
       toast.success(`Duplicated "${flow.name}" to "${duplicated.name}".`)
-    } catch (err: any) {
-      toast.error('Failed to duplicate flow', { description: err.message })
+    } catch (err: unknown) {
+      toast.error('Failed to duplicate flow', { description: (err as Error)?.message || 'Duplicate failed' })
     }
   }
 
@@ -567,8 +598,8 @@ export function Flows() {
       const updated = flowsList.filter((f) => f.id !== flowId)
       persistFlows(updated)
       toast.info('Flow deleted successfully.')
-    } catch (err: any) {
-      toast.error('Failed to delete flow', { description: err.message })
+    } catch (err: unknown) {
+      toast.error('Failed to delete flow', { description: (err as Error)?.message || 'Delete failed' })
     }
   }
 
@@ -1240,7 +1271,7 @@ export function Flows() {
                       <div className='flex items-center gap-1.5 text-emerald-600 dark:text-emerald-400 font-semibold mb-2'>
                         <CheckCircle2 className='h-4 w-4' /> Verified via Gateway: {liveTestReport.status} in {liveTestReport.durationMs}ms
                       </div>
-                      {liveTestReport.stepResults.map((sr: any) => (
+                      {liveTestReport.stepResults.map((sr: FlowStepResult) => (
                         <div key={sr.stepNumber} className='flex items-start justify-between p-2 bg-muted/40 rounded-lg border border-border/50 text-[11px]'>
                           <div>
                             <span className='font-bold text-foreground'>Step {sr.stepNumber} ({sr.type}):</span>{' '}
@@ -1598,26 +1629,31 @@ export function Flows() {
                     trigger: 'Text Message Received',
                     active: true,
                   }
-                  const res = await veroxApi.createFlow(payload)
-                  const newF: FlowItem = res?.data || {
-                    id: `flow-${Date.now()}`,
-                    flowUid: generateFlowUid(),
-                    name: newFlowName.trim(),
-                    trigger: 'Text Message Received',
-                    steps: 3,
-                    runs: 0,
-                    active: true,
-                    lastRun: 'Just now',
-                    nodes: initialDefaultNodes,
-                  }
+                  const res = (await veroxApi.createFlow(payload)) as { data?: FlowItem } | FlowItem
+                  const newF: FlowItem =
+                    res && 'data' in res && res.data
+                      ? res.data
+                      : res && 'id' in res
+                      ? (res as FlowItem)
+                      : {
+                          id: generateFlowId(),
+                          flowUid: generateFlowUid(),
+                          name: newFlowName.trim(),
+                          trigger: 'Text Message Received',
+                          steps: 3,
+                          runs: 0,
+                          active: true,
+                          lastRun: 'Just now',
+                          nodes: initialDefaultNodes,
+                        }
                   persistFlows([newF, ...flowsList])
                   setActiveFlowId(newF.id)
                   setSelectedNodeId(newF.nodes[0]?.id || 'step-1')
                   setCreateFlowModal(false)
                   setNewFlowName('')
                   toast.success(`Flow "${newF.name}" created and opened in Flow Studio!`)
-                } catch (err: any) {
-                  toast.error('Failed to create flow', { description: err.message })
+                } catch (err: unknown) {
+                  toast.error('Failed to create flow', { description: (err as Error)?.message || 'Create failed' })
                 }
               }}
               className='bg-orange-600 hover:bg-orange-700 text-white font-semibold cursor-pointer text-xs h-8'

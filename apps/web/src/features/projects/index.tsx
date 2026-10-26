@@ -9,11 +9,8 @@ import {
   Search,
   Check,
   RefreshCw,
-  Clock,
   RotateCcw,
   Loader2,
-  Calendar,
-  AlertCircle,
 } from 'lucide-react'
 import { toast } from 'sonner'
 import { veroxApi } from '@/lib/api'
@@ -140,19 +137,27 @@ const fallbackTasks: TaskItem[] = [
   },
 ]
 
+function generateProjectId(): string {
+  return `p-${Date.now()}`
+}
+
+function generateTaskId(): string {
+  return `t-${Date.now()}`
+}
+
 export function Projects() {
   const [tab, setTab] = useState<'projects' | 'tasks'>('projects')
   const [projects, setProjects] = useState<ProjectItem[]>(fallbackProjects)
   const [tasks, setTasks] = useState<TaskItem[]>(fallbackTasks)
   const [search, setSearch] = useState('')
   const [statusFilter, setStatusFilter] = useState<string>('All')
-  const [loading, setLoading] = useState(false)
   const [isRefreshing, setIsRefreshing] = useState(false)
 
   // Modals State
   const [projectModal, setProjectModal] = useState(false)
   const [taskModal, setTaskModal] = useState(false)
-  const [selectedProject, setSelectedProject] = useState<ProjectItem | null>(null)
+  const [selectedProjectId, setSelectedProjectId] = useState<string | null>(null)
+  const selectedProject = projects.find((p) => p.id === selectedProjectId) || null
 
   // New Project Form
   const [projName, setProjName] = useState('')
@@ -178,20 +183,22 @@ export function Projects() {
   const loadData = useCallback(async (showToast = false) => {
     try {
       setIsRefreshing(true)
-      const [projRes, taskRes]: any = await Promise.all([
+      const [projRes, taskRes] = await Promise.all([
         veroxApi.getProjects(),
         veroxApi.getProjectTasks(),
       ])
 
-      const fetchedProjects = projRes?.data || (Array.isArray(projRes) ? projRes : null)
+      const pData = projRes as { data?: ProjectItem[] } | ProjectItem[]
+      const fetchedProjects = Array.isArray(pData) ? pData : pData?.data
       if (fetchedProjects && Array.isArray(fetchedProjects)) {
         setProjects(fetchedProjects)
-        if (fetchedProjects.length > 0 && !taskProject) {
-          setTaskProject(fetchedProjects[0].name)
+        if (fetchedProjects.length > 0) {
+          setTaskProject((prev) => prev || fetchedProjects[0].name)
         }
       }
 
-      const fetchedTasks = taskRes?.data || (Array.isArray(taskRes) ? taskRes : null)
+      const tData = taskRes as { data?: TaskItem[] } | TaskItem[]
+      const fetchedTasks = Array.isArray(tData) ? tData : tData?.data
       if (fetchedTasks && Array.isArray(fetchedTasks)) {
         setTasks(fetchedTasks)
       }
@@ -199,27 +206,46 @@ export function Projects() {
       if (showToast) {
         toast.success('Projects & Tasks synchronized with Gateway API!')
       }
-    } catch (err: any) {
-      console.warn('Backend API sync notice:', err?.message || err)
+    } catch {
+      // API sync fallback handled gracefully
     } finally {
       setIsRefreshing(false)
-      setLoading(false)
     }
-  }, [taskProject])
+  }, [setTaskProject])
 
   useEffect(() => {
-    loadData(false)
-  }, [loadData])
+    let isMounted = true
+    const init = async () => {
+      try {
+        const [projRes, taskRes] = await Promise.all([
+          veroxApi.getProjects(),
+          veroxApi.getProjectTasks(),
+        ])
+        if (!isMounted) return
 
-  // Sync selected project with updated project list
-  useEffect(() => {
-    if (selectedProject) {
-      const updated = projects.find((p) => p.id === selectedProject.id)
-      if (updated) {
-        setSelectedProject(updated)
+        const pData = projRes as { data?: ProjectItem[] } | ProjectItem[]
+        const fetchedProjects = Array.isArray(pData) ? pData : pData?.data
+        if (fetchedProjects && Array.isArray(fetchedProjects)) {
+          setProjects(fetchedProjects)
+          if (fetchedProjects.length > 0) {
+            setTaskProject((prev) => prev || fetchedProjects[0].name)
+          }
+        }
+
+        const tData = taskRes as { data?: TaskItem[] } | TaskItem[]
+        const fetchedTasks = Array.isArray(tData) ? tData : tData?.data
+        if (fetchedTasks && Array.isArray(fetchedTasks)) {
+          setTasks(fetchedTasks)
+        }
+      } catch {
+        // Fallback to static defaults
       }
     }
-  }, [projects])
+    void init()
+    return () => {
+      isMounted = false
+    }
+  }, [])
 
   const filteredProjects = projects.filter((p) => {
     const matchStatus = statusFilter === 'All' || p.status === statusFilter
@@ -257,8 +283,8 @@ export function Projects() {
         description: projDesc.trim() || 'Client WhatsApp marketing and bot automation sprint.',
       }
 
-      const res: any = await veroxApi.createProject(payload)
-      const created = res?.data || { ...payload, id: `p-${Date.now()}` }
+      const res = (await veroxApi.createProject(payload)) as { data?: ProjectItem }
+      const created: ProjectItem = res?.data || { ...payload, id: generateProjectId() }
 
       setProjects((prev) => [created, ...prev])
       setProjName('')
@@ -269,9 +295,9 @@ export function Projects() {
       toast.success('Project Created Successfully!', {
         description: `"${created.name}" added to agency pipeline.`,
       })
-    } catch (err: any) {
+    } catch (err: unknown) {
       toast.error('Failed to create project', {
-        description: err?.message || 'Server error',
+        description: (err as Error)?.message || 'Server error',
       })
     } finally {
       setProjSubmitting(false)
@@ -297,8 +323,8 @@ export function Projects() {
         dueDate: taskDue,
       }
 
-      const res: any = await veroxApi.createProjectTask(payload)
-      const created = res?.data || { ...payload, id: `t-${Date.now()}` }
+      const res = (await veroxApi.createProjectTask(payload)) as { data?: TaskItem }
+      const created: TaskItem = res?.data || { ...payload, id: generateTaskId() }
 
       setTasks((prev) => [created, ...prev])
       setTaskTitle('')
@@ -307,9 +333,9 @@ export function Projects() {
       toast.success('Task Added Successfully!', {
         description: `"${created.title}" assigned to ${created.assignee}.`,
       })
-    } catch (err: any) {
+    } catch (err: unknown) {
       toast.error('Failed to create task', {
-        description: err?.message || 'Server error',
+        description: (err as Error)?.message || 'Server error',
       })
     } finally {
       setTaskSubmitting(false)
@@ -329,7 +355,7 @@ export function Projects() {
     try {
       await veroxApi.toggleProjectTask(id)
       toast.success(`Task status updated to "${nextStatus}"`)
-    } catch (err: any) {
+    } catch (_err: unknown) {
       // Revert if API failed
       setTasks((prev) =>
         prev.map((t) => (t.id === id ? { ...t, status: current.status } : t))
@@ -346,8 +372,8 @@ export function Projects() {
     try {
       await veroxApi.deleteProjectTask(id)
       toast.info(`Task "${taskToDelete?.title || id}" deleted.`)
-    } catch (err: any) {
-      loadData(false)
+    } catch (_err: unknown) {
+      void loadData(false)
       toast.error('Failed to delete task')
     }
   }
@@ -356,13 +382,13 @@ export function Projects() {
     // Optimistic local state update
     setProjects((prev) => prev.filter((p) => p.id !== id))
     setTasks((prev) => prev.filter((t) => t.projectId !== id && t.project !== name))
-    setSelectedProject(null)
+    setSelectedProjectId(null)
 
     try {
       await veroxApi.deleteProject(id)
       toast.info(`Project "${name}" and linked tasks removed.`)
-    } catch (err: any) {
-      loadData(false)
+    } catch (_err: unknown) {
+      void loadData(false)
       toast.error('Failed to delete project')
     }
   }
@@ -370,18 +396,18 @@ export function Projects() {
   const handleUpdateProjectStatus = async (status: ProjectItem['status']) => {
     if (!selectedProject) return
     const prevStatus = selectedProject.status
-    const updated = { ...selectedProject, status }
+    const targetId = selectedProject.id
 
-    setSelectedProject(updated)
-    setProjects((prev) => prev.map((p) => (p.id === selectedProject.id ? updated : p)))
+    setProjects((prev) =>
+      prev.map((p) => (p.id === targetId ? { ...p, status } : p))
+    )
 
     try {
-      await veroxApi.updateProject(selectedProject.id, { status })
+      await veroxApi.updateProject(targetId, { status })
       toast.success(`Project status updated to ${status}`)
-    } catch (err: any) {
-      setSelectedProject({ ...selectedProject, status: prevStatus })
+    } catch (_err: unknown) {
       setProjects((prev) =>
-        prev.map((p) => (p.id === selectedProject.id ? { ...p, status: prevStatus } : p))
+        prev.map((p) => (p.id === targetId ? { ...p, status: prevStatus } : p))
       )
       toast.error('Failed to update project status')
     }
@@ -402,13 +428,13 @@ export function Projects() {
         dueDate: selectedProject.dueDate,
       }
 
-      const res: any = await veroxApi.createProjectTask(payload)
-      const created = res?.data || { ...payload, id: `t-${Date.now()}` }
+      const res = (await veroxApi.createProjectTask(payload)) as { data?: TaskItem }
+      const created: TaskItem = res?.data || { ...payload, id: generateTaskId() }
 
       setTasks((prev) => [...prev, created])
       setNewMilestoneTitle('')
       toast.success('Milestone Task Added to Project!')
-    } catch (err: any) {
+    } catch (_err: unknown) {
       toast.error('Failed to add milestone')
     } finally {
       setMilestoneSubmitting(false)
@@ -421,7 +447,7 @@ export function Projects() {
       await veroxApi.resetProjects()
       await loadData(false)
       toast.success('Reset to Default Agency Sprints & Milestones!')
-    } catch (err: any) {
+    } catch (_err: unknown) {
       setProjects(fallbackProjects)
       setTasks(fallbackTasks)
       toast.info('Reset local templates to default')
@@ -673,7 +699,7 @@ export function Projects() {
                               id={`btn-view-project-${p.id}`}
                               variant='ghost'
                               size='sm'
-                              onClick={() => setSelectedProject(p)}
+                              onClick={() => setSelectedProjectId(p.id)}
                               className='h-7 text-xs text-orange-600 hover:bg-orange-500/10 cursor-pointer font-semibold'
                             >
                               View Details
@@ -793,7 +819,7 @@ export function Projects() {
       </Main>
 
       {/* PROJECT DETAILS & MILESTONES MODAL */}
-      <Dialog open={!!selectedProject} onOpenChange={(open) => !open && setSelectedProject(null)}>
+      <Dialog open={!!selectedProject} onOpenChange={(open) => !open && setSelectedProjectId(null)}>
         {selectedProject && (
           <DialogContent className='sm:max-w-xl'>
             <DialogHeader>
@@ -954,7 +980,7 @@ export function Projects() {
                   type='button'
                   variant='outline'
                   size='sm'
-                  onClick={() => setSelectedProject(null)}
+                  onClick={() => setSelectedProjectId(null)}
                   className='h-8 text-xs'
                 >
                   Close
@@ -965,7 +991,7 @@ export function Projects() {
                   size='sm'
                   onClick={() => {
                     toast.success('Project details verified!')
-                    setSelectedProject(null)
+                    setSelectedProjectId(null)
                   }}
                   className='h-8 text-xs bg-orange-600 hover:bg-orange-700 text-white cursor-pointer font-semibold'
                 >

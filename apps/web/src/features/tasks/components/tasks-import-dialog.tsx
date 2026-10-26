@@ -51,7 +51,7 @@ export function TasksImportDialog({
       const file = fileList[0]
       const text = await file.text()
       const lines = text.split('\n').filter((l: string) => l.trim().length > 0)
-      const imported: any[] = []
+      const imported: { title: string; status: string; label: string; priority: string }[] = []
 
       // If CSV has header, skip it
       const startIdx = lines[0].toLowerCase().includes('title') ? 1 : 0

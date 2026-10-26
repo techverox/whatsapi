@@ -20,7 +20,6 @@ import {
   ChevronDown,
   RotateCcw,
   Loader2,
-  Sparkles,
 } from 'lucide-react'
 import { toast } from 'sonner'
 import { veroxApi } from '@/lib/api'
@@ -213,7 +212,20 @@ export function Settings({
   const loadData = useCallback(async (showToast = false) => {
     try {
       setIsRefreshing(true)
-      const res: any = await veroxApi.getSettings()
+      const res = (await veroxApi.getSettings()) as {
+        data?: {
+          profile?: typeof defaultSettings.profile
+          organisation?: typeof defaultSettings.organisation
+          waba?: typeof defaultSettings.waba
+          billing?: typeof defaultSettings.billing
+          teamMembers?: TeamMember[]
+        }
+        profile?: typeof defaultSettings.profile
+        organisation?: typeof defaultSettings.organisation
+        waba?: typeof defaultSettings.waba
+        billing?: typeof defaultSettings.billing
+        teamMembers?: TeamMember[]
+      }
       const data = res?.data || res
 
       if (data?.profile && data?.organisation && data?.waba) {
@@ -232,27 +244,74 @@ export function Settings({
       if (showToast) {
         toast.success('Settings synchronized with API Gateway!')
       }
-    } catch (err: any) {
-      console.warn('Settings API sync notice, using local cache:', err?.message || err)
+    } catch (_err: unknown) {
+      // Local fallback in state
     } finally {
       setIsRefreshing(false)
     }
   }, [])
 
   useEffect(() => {
-    loadData(false)
-  }, [loadData])
+    let isMounted = true
+
+    const initData = async () => {
+      try {
+        setIsRefreshing(true)
+        const res = (await veroxApi.getSettings()) as {
+          data?: {
+            profile?: typeof defaultSettings.profile
+            organisation?: typeof defaultSettings.organisation
+            waba?: typeof defaultSettings.waba
+            billing?: typeof defaultSettings.billing
+            teamMembers?: TeamMember[]
+          }
+          profile?: typeof defaultSettings.profile
+          organisation?: typeof defaultSettings.organisation
+          waba?: typeof defaultSettings.waba
+          billing?: typeof defaultSettings.billing
+          teamMembers?: TeamMember[]
+        }
+        if (!isMounted) return
+        const data = res?.data || res
+
+        if (data?.profile && data?.organisation && data?.waba) {
+          setSettings({
+            profile: data.profile,
+            organisation: data.organisation,
+            waba: data.waba,
+            billing: data.billing || defaultSettings.billing,
+          })
+        }
+
+        if (data?.teamMembers && Array.isArray(data.teamMembers)) {
+          setTeamMembers(data.teamMembers)
+        }
+      } catch {
+        // Fallback to local state
+      } finally {
+        if (isMounted) {
+          setIsRefreshing(false)
+        }
+      }
+    }
+
+    void initData()
+
+    return () => {
+      isMounted = false
+    }
+  }, [])
 
   // Handle Profile Update
   const handleUpdateProfile = async (e: React.FormEvent) => {
     e.preventDefault()
     setIsSaving(true)
     try {
-      await veroxApi.updateSettingsProfile(settings.profile)
+      await veroxApi.updateSettingsProfile(settings.profile as unknown as Record<string, unknown>)
       toast.success('Profile Updated Successfully!', {
         description: `Name: ${settings.profile.name} • Phone: ${settings.profile.phone} saved to server.`,
       })
-    } catch (err: any) {
+    } catch (_err: unknown) {
       toast.error('Failed to update profile on server')
     } finally {
       setIsSaving(false)
@@ -284,9 +343,10 @@ export function Settings({
       toast.success('Password Changed Successfully!', {
         description: 'Your security credentials have been updated on the gateway.',
       })
-    } catch (err: any) {
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : 'Server error'
       toast.error('Failed to change password', {
-        description: err?.message || 'Server error',
+        description: msg,
       })
     } finally {
       setIsChangingPassword(false)
@@ -310,7 +370,7 @@ export function Settings({
         role: inviteRole,
       }
 
-      const res: any = await veroxApi.inviteSettingsTeamMember(payload)
+      const res = (await veroxApi.inviteSettingsTeamMember(payload)) as { data?: TeamMember } | undefined
       const created = res?.data || {
         id: `tm-${Date.now()}`,
         ...payload,
@@ -323,7 +383,7 @@ export function Settings({
       toast.success(`Invite Sent to ${created.email}!`, {
         description: `Assigned role: ${created.role}. Member added to team list.`,
       })
-    } catch (err: any) {
+    } catch (_err: unknown) {
       toast.error('Failed to invite team member')
     } finally {
       setIsInviting(false)
@@ -339,8 +399,8 @@ export function Settings({
     try {
       await veroxApi.updateSettingsTeamMember(id, { status: newStatus })
       toast.info(`Member status changed to ${newStatus}.`)
-    } catch (err: any) {
-      loadData(false)
+    } catch (_err: unknown) {
+      void loadData(false)
       toast.error('Failed to update member status')
     }
   }
@@ -352,8 +412,8 @@ export function Settings({
     try {
       await veroxApi.deleteSettingsTeamMember(id)
       toast.info(`Removed "${name}" from team access.`)
-    } catch (err: any) {
-      loadData(false)
+    } catch (_err: unknown) {
+      void loadData(false)
       toast.error('Failed to delete member')
     }
   }
@@ -363,11 +423,11 @@ export function Settings({
     e.preventDefault()
     setIsSaving(true)
     try {
-      await veroxApi.updateSettingsOrganisation(settings.organisation)
+      await veroxApi.updateSettingsOrganisation(settings.organisation as unknown as Record<string, unknown>)
       toast.success('Organisation Details Saved!', {
         description: `Company: ${settings.organisation.name} • Industry: ${settings.organisation.industry}.`,
       })
-    } catch (err: any) {
+    } catch (_err: unknown) {
       toast.error('Failed to save organisation details')
     } finally {
       setIsSaving(false)
@@ -378,7 +438,7 @@ export function Settings({
   const handleTestWabaConnection = async () => {
     setIsTestingWaba(true)
     try {
-      const res: any = await veroxApi.verifySettingsWaba()
+      const res = (await veroxApi.verifySettingsWaba()) as { status?: string } | undefined
       toast.success(res?.status || 'Meta WhatsApp Cloud API Verified (200 OK)!', {
         description: `Connected to Phone ID: ${settings.waba.phoneNumberId} (${settings.waba.displayPhone}).`,
       })
@@ -386,7 +446,7 @@ export function Settings({
         ...prev,
         waba: { ...prev.waba, status: 'CONNECTED' },
       }))
-    } catch (err: any) {
+    } catch (_err: unknown) {
       toast.error('WABA Connection Test Failed', {
         description: 'Verify Meta App Access Token & Phone Number ID.',
       })
@@ -399,9 +459,9 @@ export function Settings({
   const handleSaveWabaSettings = async () => {
     setIsSaving(true)
     try {
-      await veroxApi.updateSettingsWaba(settings.waba)
+      await veroxApi.updateSettingsWaba(settings.waba as unknown as Record<string, unknown>)
       toast.success('WABA API Settings Saved to Server!')
-    } catch (err: any) {
+    } catch (_err: unknown) {
       toast.error('Failed to save WABA settings')
     } finally {
       setIsSaving(false)
@@ -421,7 +481,7 @@ export function Settings({
         },
       }))
       toast.success(`Subscription switched to ${plan}!`)
-    } catch (err: any) {
+    } catch (_err: unknown) {
       toast.error('Failed to switch plan')
     }
   }
@@ -433,7 +493,7 @@ export function Settings({
       await veroxApi.resetSettings()
       await loadData(false)
       toast.success('Platform Settings reset to agency defaults!')
-    } catch (err: any) {
+    } catch (_err: unknown) {
       setSettings(defaultSettings)
       setTeamMembers(defaultTeamMembers)
       toast.info('Local settings reset to default.')

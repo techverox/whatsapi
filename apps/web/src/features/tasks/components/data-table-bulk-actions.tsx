@@ -24,6 +24,22 @@ type DataTableBulkActionsProps<TData> = {
   table: Table<TData>
 }
 
+function exportTasksToCsv(selectedTasks: Task[]) {
+  const header = 'ID,Title,Status,Label,Priority'
+  const rows = selectedTasks.map(
+    (t) =>
+      `"${t.id}","${t.title.replace(/"/g, '""')}","${t.status}","${t.label}","${t.priority}"`
+  )
+  const csvContent = 'data:text/csv;charset=utf-8,' + [header, ...rows].join('\n')
+  const encodedUri = encodeURI(csvContent)
+  const link = document.createElement('a')
+  link.setAttribute('href', encodedUri)
+  link.setAttribute('download', `tasks_export_${Date.now()}.csv`)
+  document.body.appendChild(link)
+  link.click()
+  document.body.removeChild(link)
+}
+
 export function DataTableBulkActions<TData>({
   table,
 }: DataTableBulkActionsProps<TData>) {
@@ -45,19 +61,7 @@ export function DataTableBulkActions<TData>({
 
   const handleBulkExport = () => {
     const selectedTasks = selectedRows.map((row) => row.original as Task)
-    const header = 'ID,Title,Status,Label,Priority'
-    const rows = selectedTasks.map(
-      (t) =>
-        `"${t.id}","${t.title.replace(/"/g, '""')}","${t.status}","${t.label}","${t.priority}"`
-    )
-    const csvContent = 'data:text/csv;charset=utf-8,' + [header, ...rows].join('\n')
-    const encodedUri = encodeURI(csvContent)
-    const link = document.createElement('a')
-    link.setAttribute('href', encodedUri)
-    link.setAttribute('download', `tasks_export_${Date.now()}.csv`)
-    document.body.appendChild(link)
-    link.click()
-    document.body.removeChild(link)
+    exportTasksToCsv(selectedTasks)
     toast.success(`Exported ${selectedTasks.length} tasks to CSV!`)
     table.resetRowSelection()
   }
