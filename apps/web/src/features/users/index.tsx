@@ -124,7 +124,7 @@ const INITIAL_MOCK_CONTACTS: ContactRecord[] = [
     tags: ['Hot Lead', 'FASTAG Client'],
     optIn: true,
     assignedAt: '10/22/2026, 07:42 PM',
-    assignedTo: 'VEROX AI Bot',
+    assignedTo: 'DV AI Bot',
     email: 'ananya.desai@example.com',
     status: 'Qualified',
     wabaPhone: '+917698580043',
@@ -606,7 +606,7 @@ export function Users() {
     const url = URL.createObjectURL(blob)
     const link = document.createElement('a')
     link.href = url
-    link.download = `whatsapi_contacts_export_${new Date().toISOString().slice(0, 10)}.csv`
+    link.download = `dv_whatsapi_contacts_export_${new Date().toISOString().slice(0, 10)}.csv`
     link.click()
     URL.revokeObjectURL(url)
     toast.success(`Exported ${listToExport.length} contact(s) to CSV!`)
@@ -1412,7 +1412,7 @@ export function Users() {
                 >
                   <option value='Agent Bhavik'>Agent Bhavik</option>
                   <option value='Agent Anjali'>Agent Anjali</option>
-                  <option value='VEROX AI Bot'>VEROX AI Bot</option>
+                  <option value='DV AI Bot'>DV AI Bot</option>
                   <option value='Support Desk'>Support Desk</option>
                   <option value='Not Assigned'>Not Assigned</option>
                 </select>
@@ -1515,7 +1515,7 @@ export function Users() {
                     >
                       <option value='Agent Bhavik'>Agent Bhavik</option>
                       <option value='Agent Anjali'>Agent Anjali</option>
-                      <option value='VEROX AI Bot'>VEROX AI Bot</option>
+                      <option value='DV AI Bot'>DV AI Bot</option>
                       <option value='Support Desk'>Support Desk</option>
                       <option value='Not Assigned'>Not Assigned</option>
                     </select>
@@ -1646,7 +1646,7 @@ export function Users() {
             <div className='py-3 space-y-3 text-xs'>
               <Label className='text-xs font-semibold'>Select Team Agent</Label>
               <div className='space-y-2'>
-                {['Agent Bhavik', 'Agent Anjali', 'VEROX AI Bot', 'Support Desk', 'Not Assigned'].map((ag) => (
+                {['Agent Bhavik', 'Agent Anjali', 'DV AI Bot', 'Support Desk', 'Not Assigned'].map((ag) => (
                   <div
                     key={ag}
                     onClick={() => setSelectedAgentToAssign(ag)}

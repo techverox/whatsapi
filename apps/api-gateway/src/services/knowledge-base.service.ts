@@ -65,7 +65,7 @@ export const defaultArticlesSeed: KnowledgeArticle[] = [
     tenantId: 'truck-sathi',
     tags: ['dashboard', 'analytics', 'kpi'],
     content: `### 1. Overview
-The Whatsapi Dashboard delivers a 360-degree real-time operational cockpit for commercial fleet and enterprise WhatsApp marketing.
+The DV WhatsAPI Dashboard delivers a 360-degree real-time operational cockpit for commercial fleet and enterprise WhatsApp marketing.
 
 ### 2. Key Metrics Tracked
 - **Total Flows**: Count of active vs inactive event-driven automated workflows.
@@ -90,7 +90,7 @@ Always verify that your Meta WhatsApp Business API webhook is verified with stat
     tenantId: 'truck-sathi',
     tags: ['analytics', 'response-rate', 'optimization'],
     content: `### Understanding Response Analytics
-Whatsapi logs every incoming customer message alongside the automated reply timestamp.
+DV WhatsAPI logs every incoming customer message alongside the automated reply timestamp.
 
 1. **Inbound Traffic Spikes**: Peak hours are typically 10:00 AM to 1:00 PM and 4:00 PM to 7:00 PM.
 2. **AI Resolution Rate**: Over 84% of commercial fleet queries (pricing, FASTAG balance, GPS tracking) are answered in under 2 seconds without human agent intervention.
@@ -160,7 +160,7 @@ Collect structured lead information—such as vehicle registration numbers, flee
     tags: ['tags', 'opt-in', 'compliance'],
     content: `### Compliance & Tagging Rules
 - Every campaign recipient must have opt-in consent.
-- Automated Opt-Out: If a user sends "STOP" or "UNSUBSCRIBE", Whatsapi automatically marks them as \`Opt In: No\` and suspends promotional broadcasts.`,
+- Automated Opt-Out: If a user sends "STOP" or "UNSUBSCRIBE", DV WhatsAPI automatically marks them as \`Opt In: No\` and suspends promotional broadcasts.`,
   },
   {
     id: 'int-1',
@@ -177,13 +177,13 @@ Collect structured lead information—such as vehicle registration numbers, flee
     tenantId: 'truck-sathi',
     tags: ['meta', 'waba', 'webhook', 'api'],
     content: `### Connecting Meta Cloud API
-Whatsapi connects natively to Meta's official Graph API (v20.0+).
+DV WhatsAPI connects natively to Meta's official Graph API (v20.0+).
 
 ### Required Credentials:
 1. **Phone Number ID**: Found in Meta Developer Dashboard under *WhatsApp > API Setup*.
 2. **WABA ID (WhatsApp Business Account ID)**: Unique identifier for your business account.
 3. **Permanent Access Token**: Generated via Meta Business Manager System User with \`whatsapp_business_messaging\` permissions.
-4. **Webhook Callback URL**: Set to \`https://app.whatsapi.io/api/v2/webhook/whatsapp\`.
+4. **Webhook Callback URL**: Set to \`https://app.dvwhatsapi.io/api/v2/webhook/whatsapp\`.
 5. **Verify Token**: Your custom security token configured in **Settings > WhatsApp API**.`,
   },
   {
@@ -333,7 +333,7 @@ Create complex customer interaction flows without writing code.
     id: 'ai-1',
     categoryId: 'ai-assistant',
     title: 'RAG Grounded AI Assistant with Gemini & GPT-4o',
-    summary: 'How Whatsapi uses retrieval-augmented generation to answer technical fleet questions using this Knowledge Base.',
+    summary: 'How DV WhatsAPI uses retrieval-augmented generation to answer technical fleet questions using this Knowledge Base.',
     readTime: '4 min read',
     tokens: 2800,
     chunks: 9,
@@ -344,7 +344,7 @@ Create complex customer interaction flows without writing code.
     tenantId: 'truck-sathi',
     tags: ['ai', 'rag', 'grounding', 'vector-store'],
     content: `### Grounded Intelligence (RAG)
-Whatsapi incorporates an enterprise RAG (Retrieval-Augmented Generation) pipeline.
+DV WhatsAPI incorporates an enterprise RAG (Retrieval-Augmented Generation) pipeline.
 
 ### How It Works:
 1. When a customer sends a query, the system converts the query into a high-dimensional vector.
@@ -367,7 +367,7 @@ Whatsapi incorporates an enterprise RAG (Retrieval-Augmented Generation) pipelin
     tenantId: 'truck-sathi',
     tags: ['flows', 'automation', 'webhook-triggers'],
     content: `### BizAutomation-Grade Flow Studio
-Whatsapi provides a visual canvas for event-driven marketing and CRM automation.
+DV WhatsAPI provides a visual canvas for event-driven marketing and CRM automation.
 
 ### Architecture:
 - **Trigger Node**: Inbound WhatsApp text message, webhook trigger, or campaign event.
@@ -393,17 +393,17 @@ Send WhatsApp messages programmatically from your backend systems.
 
 ### Send Text Message Endpoint
 \`\`\`bash
-curl -X POST https://app.whatsapi.io/api/v1/whatsapp/send \\
+curl -X POST https://app.dvwhatsapi.io/api/v1/whatsapp/send \\
   -H "Authorization: Bearer YOUR_API_KEY" \\
   -H "Content-Type: application/json" \\
   -d '{
     "to": "+919825100001",
-    "text": "Hello from Whatsapi!"
+    "text": "Hello from DV WhatsAPI!"
   }'
 \`\`\`
 
 ### Webhook Verification:
-Meta sends a GET request to verify your webhook with \`hub.challenge\` and \`hub.verify_token\`. Whatsapi automatically returns the challenge with 200 OK.`,
+Meta sends a GET request to verify your webhook with \`hub.challenge\` and \`hub.verify_token\`. DV WhatsAPI automatically returns the challenge with 200 OK.`,
   },
 ]
 

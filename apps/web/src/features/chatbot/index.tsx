@@ -198,10 +198,10 @@ const FLOW_PRESETS: { id: string; name: string; description: string; nodes: BotN
         stepNumber: 2,
         type: 'SEND_TEXT',
         title: 'Welcome & Value Proposition',
-        subtitle: 'Namaste! Welcome to Truck Sathi & Whatsapi.',
+        subtitle: 'Namaste! Welcome to Truck Sathi & DV WhatsAPI.',
         config: {
           messageText:
-            'નમસ્તે! Welcome to Truck Sathi & Whatsapi. We provide government-certified AIS-140 GPS devices, commercial FASTAG KYC, and commercial fleet telemetry across Gujarat & West India.',
+            'નમસ્તે! Welcome to Truck Sathi & DV WhatsAPI. We provide government-certified AIS-140 GPS devices, commercial FASTAG KYC, and commercial fleet telemetry across Gujarat & West India.',
         },
       },
       {
@@ -711,7 +711,7 @@ export function Chatbot() {
     {
       id: 'm-init-1',
       sender: 'bot',
-      text: 'નમસ્તે! Welcome to Truck Sathi & Whatsapi. We provide government-certified AIS-140 GPS, commercial FASTAG KYC, and commercial fleet telemetry across Gujarat & West India.',
+      text: 'નમસ્તે! Welcome to Truck Sathi & DV WhatsAPI. We provide government-certified AIS-140 GPS, commercial FASTAG KYC, and commercial fleet telemetry across Gujarat & West India.',
       time: 'Just now',
     },
     {
@@ -904,8 +904,8 @@ export function Chatbot() {
         break
       case 'SEND_MEDIA':
         config.mediaType = 'pdf'
-        config.mediaName = 'WhatsAPI_Fleet_Brochure_2026.pdf'
-        config.mediaUrl = 'https://whatsapicrm.com/assets/brochure.pdf'
+        config.mediaName = 'DV_WhatsAPI_Fleet_Brochure_2026.pdf'
+        config.mediaUrl = 'https://dvwhatsapi.io/assets/brochure.pdf'
         defaultSub = 'Deliver PDF / Image asset'
         break
       case 'ASK_QUESTION':
@@ -1657,7 +1657,7 @@ export function Chatbot() {
       <Header fixed>
         <div className='me-auto font-semibold text-sm flex items-center gap-2'>
           <MessageCircleCode className='h-4 w-4 text-emerald-600' />
-          <span>Whatsapi — Enterprise Visual Chatbot Studio</span>
+          <span>DV WhatsAPI — Enterprise Visual Chatbot Studio</span>
           <Badge variant='outline' className='text-[10px] bg-emerald-500/10 text-emerald-600 border-emerald-500/20'>
             v2.6 Pro
           </Badge>

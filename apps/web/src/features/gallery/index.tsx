@@ -250,7 +250,7 @@ export function Gallery() {
       link.href =
         item.customPreviewUrl ||
         `data:text/plain;charset=utf-8,${encodeURIComponent(
-          'WhatsAPI Cloud Media Asset\nFilename: ' +
+          'DV WhatsAPI Cloud Media Asset\nFilename: ' +
             item.name +
             '\nMedia ID: ' +
             item.mediaId +

@@ -25,7 +25,7 @@ export function AppTitle() {
               onClick={() => setOpenMobile(false)}
               className='grid flex-1 text-start text-sm leading-tight'
             >
-              <span className='truncate font-bold'>Whatsapi</span>
+              <span className='truncate font-bold'>DV WhatsAPI</span>
               <span className='truncate text-xs text-muted-foreground'>WhatsApp & AI Platform</span>
             </Link>
             <ToggleSidebar />

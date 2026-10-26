@@ -97,7 +97,7 @@ const defaultSettings: SettingsState = {
     name: 'truck sathi',
     email: 'trucksathiamazon@gmail.com',
     phone: '+917698580034',
-    bio: 'Fleet Operations Head at Truck Sathi & Whatsapi. Managing 500+ Gujarat commercial fleet AIS-140 GPS tracking devices and automated WhatsApp marketing.',
+    bio: 'Fleet Operations Head at Truck Sathi & DV WhatsAPI. Managing 500+ Gujarat commercial fleet AIS-140 GPS tracking devices and automated WhatsApp marketing.',
     role: 'ADMIN',
   },
   organisation: {
@@ -113,8 +113,8 @@ const defaultSettings: SettingsState = {
     phoneNumberId: '942534582278953',
     displayPhone: '+917698580043',
     accessToken: 'EAAGm0PX4ZCpsBA...K390Lks92384jsd02349sd',
-    verifyToken: 'whatsapi_secure_verify_token_2026',
-    webhookUrl: 'https://app.whatsapi.io/api/v2/webhook/whatsapp',
+    verifyToken: 'dv_whatsapi_secure_verify_token_2026',
+    webhookUrl: 'https://app.dvwhatsapi.io/api/v2/webhook/whatsapp',
     status: 'CONNECTED',
   },
   billing: {
@@ -1191,7 +1191,7 @@ export function Settings({
                   id='btn-billing-contact'
                   variant='outline'
                   size='sm'
-                  onClick={() => toast.info('Support Desk: support@whatsapi.io • Priority Enterprise SLA.')}
+                  onClick={() => toast.info('Support Desk: support@dvwhatsapi.io • Priority Enterprise SLA.')}
                   className='text-xs font-semibold h-8 gap-1.5 cursor-pointer'
                 >
                   Contact Support

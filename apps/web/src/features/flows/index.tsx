@@ -122,7 +122,7 @@ const initialDefaultNodes: CanvasStepNode[] = [
     subtitle: 'Official WhatsApp Inbound Listener',
     configured: true,
     connectionId: 'bizautomation-whatsapp',
-    webhookPath: 'https://app.whatsapi.io/api/v2/webhook/flows/69bcebb0e5ee4a263120eecf',
+    webhookPath: 'https://app.dvwhatsapi.io/api/v2/webhook/flows/69bcebb0e5ee4a263120eecf',
     config: {
       matchText: 'All incoming customer text queries',
     },
@@ -184,7 +184,7 @@ const initialFlowsData: FlowItem[] = [
         subtitle: 'Endpoint: /webhook/indiamart',
         configured: true,
         connectionId: 'indiamart-webhook-api',
-        webhookPath: 'https://app.whatsapi.io/webhook/indiamart',
+        webhookPath: 'https://app.dvwhatsapi.io/webhook/indiamart',
         config: {},
       },
       {
@@ -498,7 +498,7 @@ export function Flows() {
         matchText: type === 'TRIGGER' ? 'New event' : undefined,
         conditionRule: type === 'CONDITION' ? 'contact.optIn == true' : undefined,
         assignTag: type === 'CRM' ? 'qualified-lead' : undefined,
-        messageText: type === 'ACTION' ? 'Welcome from Whatsapi!' : undefined,
+        messageText: type === 'ACTION' ? 'Welcome from DV WhatsAPI!' : undefined,
       },
     }
 
@@ -702,7 +702,7 @@ export function Flows() {
   // VIEW 1: BIZAUTOMATION FLOW CANVAS STUDIO
   // ==========================================
   if (activeFlowId && activeFlow) {
-    const liveWebhookUrl = `https://app.whatsapi.io/api/v2/webhook/flows/${activeFlow.flowUid}`
+    const liveWebhookUrl = `https://app.dvwhatsapi.io/api/v2/webhook/flows/${activeFlow.flowUid}`
 
     return (
       <div className={`flex flex-col h-screen overflow-hidden bg-background ${isFullscreen ? 'fixed inset-0 z-50' : ''}`}>
@@ -1032,7 +1032,7 @@ export function Flows() {
                     className='flex-1 h-9 rounded-md border border-border bg-background px-3 text-xs outline-hidden focus:border-orange-500'
                   >
                     <option value='bizautomation-whatsapp'>bizautomation-whatsapp</option>
-                    <option value='whatsapi-meta-cloud-api'>whatsapi-meta-cloud-api (Official)</option>
+                    <option value='dv-whatsapi-cloud-api'>dv-whatsapi-cloud-api (Official)</option>
                     <option value='indiamart-webhook-api'>indiamart-webhook-api</option>
                   </select>
                   <Button

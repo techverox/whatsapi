@@ -47,7 +47,7 @@ export function DevelopersApi() {
 
   // Live Test Dispatcher State (AiSensy Style)
   const [testPhone, setTestPhone] = useState('+919825102938')
-  const [testMessage, setTestMessage] = useState('Hello from Whatsapi! Official Meta WhatsApp Cloud API is active.')
+  const [testMessage, setTestMessage] = useState('Hello from DV WhatsAPI! Official Meta WhatsApp Cloud API is active.')
   const [messageType, setMessageType] = useState<'text' | 'template'>('text')
   const [isSending, setIsSending] = useState(false)
   const [apiResponse, setApiResponse] = useState<Record<string, unknown> | null>(null)
@@ -352,7 +352,7 @@ export function DevelopersApi() {
                     value={verifyToken}
                     onChange={(e) => setVerifyToken(e.target.value)}
                     className='h-8 text-xs font-mono'
-                    placeholder='whatsapi_secure_verify_token_2026'
+                    placeholder='dv_whatsapi_secure_verify_token_2026'
                   />
                 </div>
 
@@ -443,7 +443,7 @@ export function DevelopersApi() {
                       <Badge className='bg-emerald-500/15 text-emerald-600 text-[10px]'>APPROVED</Badge>
                     </div>
                     <p className='text-muted-foreground text-[11px] leading-relaxed'>
-                      Header: "શુભ દિવાળી અને નૂતન વર્ષાભિનંદન! 🪔" | Body: "નમસ્તે {"{{1}}"}, આ દિવાળી પર Whatsapi..."
+                      Header: "શુભ દિવાળી અને નૂતન વર્ષાભિનંદન! 🪔" | Body: "નમસ્તે {"{{1}}"}, આ દિવાળી પર DV WhatsAPI..."
                     </p>
                   </div>
                 )}

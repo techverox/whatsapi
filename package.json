@@ -1,7 +1,7 @@
 {
-  "name": "whatsapi",
+  "name": "dv-whatsapi",
   "version": "1.0.0",
-  "description": "Whatsapi - Enterprise Omnichannel WhatsApp, AI Automation & Visual Flow Platform",
+  "description": "DV WhatsAPI - Enterprise Omnichannel WhatsApp, AI Automation & Visual Flow Platform",
   "private": true,
   "workspaces": [
     "apps/*"

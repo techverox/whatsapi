@@ -50,14 +50,14 @@ const ENDPOINTS: EndpointDoc[] = [
     defaultBody: JSON.stringify(
       {
         to: '+919825102938',
-        text: 'Hello from Whatsapi! Official Meta WhatsApp Cloud API is active.',
+        text: 'Hello from DV WhatsAPI! Official Meta WhatsApp Cloud API is active.',
       },
       null,
       2
     ),
     curlExample: `curl -X POST "http://localhost:4000/api/messages/send" \\
   -H "Content-Type: application/json" \\
-  -d '{"to": "+919825102938", "text": "Hello from Whatsapi!"}'`,
+  -d '{"to": "+919825102938", "text": "Hello from DV WhatsAPI!"}'`,
   },
   {
     id: 'ep-contacts-list',

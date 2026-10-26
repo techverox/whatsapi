@@ -116,10 +116,10 @@ export const initialDefaultChatbotFlow: ChatbotFlow = {
       stepNumber: 2,
       type: 'SEND_TEXT',
       title: 'Welcome & Value Proposition',
-      subtitle: 'Namaste! Welcome to Truck Sathi & Whatsapi.',
+      subtitle: 'Namaste! Welcome to Truck Sathi & DV WhatsAPI.',
       config: {
         messageText:
-          'નમસ્તે! Welcome to Truck Sathi & Whatsapi. We provide government-certified AIS-140 GPS devices, commercial FASTAG KYC, and commercial fleet telemetry across Gujarat & West India.',
+          'નમસ્તે! Welcome to Truck Sathi & DV WhatsAPI. We provide government-certified AIS-140 GPS devices, commercial FASTAG KYC, and commercial fleet telemetry across Gujarat & West India.',
       },
     },
     {
@@ -358,7 +358,7 @@ class ChatbotService {
         }
 
       case 'SEND_TEXT':
-        botMessage = { text: node.config.messageText || 'Hello from Whatsapi!' }
+        botMessage = { text: node.config.messageText || 'Hello from DV WhatsAPI!' }
         break
 
       case 'SEND_BUTTONS':

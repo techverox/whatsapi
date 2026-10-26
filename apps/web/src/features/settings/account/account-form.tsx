@@ -34,7 +34,7 @@ const languages = [
   { label: 'English (India)', value: 'en' },
   { label: 'Gujarati (ગુજરાતી)', value: 'gu' },
   { label: 'Hindi (हिन्दी)', value: 'hi' },
-  { label: 'Marathi (मराठी)', value: 'mr' },
+  { label: 'Marathi (મરાઠી)', value: 'mr' },
 ] as const
 
 const accountFormSchema = z.object({
@@ -114,7 +114,7 @@ export function AccountForm() {
               <FormLabel>Date of Birth</FormLabel>
               <DatePicker selected={field.value} onSelect={field.onChange} />
               <FormDescription>
-                Required for Whatsapi Multi-Factor Authentication (MFA) account recovery.
+                Required for DV WhatsAPI Multi-Factor Authentication (MFA) account recovery.
               </FormDescription>
               <FormMessage />
             </FormItem>
@@ -190,4 +190,3 @@ export function AccountForm() {
     </Form>
   )
 }
-

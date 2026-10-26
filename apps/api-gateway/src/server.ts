@@ -58,7 +58,7 @@ knowledgeBaseService.onEvent = (type, payload) => broadcastRealtime(type, payloa
 
 // Attach WebSocket client handlers
 wss.on('connection', (ws: WebSocket) => {
-  console.log('⚡ [WhatsAPI Realtime] Client connected to live stream')
+  console.log('⚡ [DV WhatsAPI Realtime] Client connected to live stream')
   ws.send(JSON.stringify({
     type: 'CONNECTED',
     payload: {
@@ -404,7 +404,7 @@ app.post('/api/messages/send', async (req: Request, res: Response) => {
       template.components
     )
   } else {
-    sentMsg = await whatsAppService.sendTextMessage(cleanPhone, text || 'Whatsapi Outreach')
+    sentMsg = await whatsAppService.sendTextMessage(cleanPhone, text || 'DV WhatsAPI Outreach')
   }
 
   // 4. Save into conversation
@@ -495,7 +495,7 @@ app.post('/api/v2/webhook/flows/:flowUid', async (req: Request, res: Response) =
 // Global Root Information
 app.get('/', (_req: Request, res: Response) => {
   res.json({
-    platform: 'Whatsapi — Enterprise Omnichannel & AI Orchestration Platform',
+    platform: 'DV WhatsAPI — Enterprise Omnichannel & AI Orchestration Platform',
     version: '1.0.0',
     websocket: `ws://localhost:${PORT}`,
     endpoints: {
@@ -523,7 +523,7 @@ app.get('/', (_req: Request, res: Response) => {
 
 // Server Listen (HTTP + WebSocket)
 server.listen(PORT, () => {
-  console.log(`🚀 Whatsapi Gateway running on http://localhost:${PORT}`)
+  console.log(`🚀 DV WhatsAPI Gateway running on http://localhost:${PORT}`)
   console.log(`⚡ Realtime WebSocket running on ws://localhost:${PORT}`)
   console.log(`📡 WhatsApp Webhook URL: http://localhost:${PORT}/webhook/whatsapp`)
   console.log(`📦 IndiaMart Webhook URL: http://localhost:${PORT}/webhook/indiamart`)

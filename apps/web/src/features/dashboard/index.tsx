@@ -208,7 +208,7 @@ const INITIAL_DASHBOARD_CONTACTS: ContactRecord[] = [
     tags: ['Hot Lead', 'FASTAG Client'],
     optIn: true,
     assignedAt: '10/22/2026',
-    assignedTo: 'VEROX AI Bot',
+    assignedTo: 'DV AI Bot',
     email: 'ananya.desai@example.com',
     status: 'Qualified',
     wabaPhone: '+917698580043',
@@ -395,12 +395,12 @@ const initialTasksData: TaskItem[] = [
 const initialIntegrations: IntegrationCard[] = [
   {
     id: 'int-1',
-    name: 'whatsapi-whatsapp',
+    name: 'dv-whatsapi-whatsapp',
     provider: 'Official Cloud API',
     badgeText: 'WA',
     avatarColor: 'bg-emerald-500/10 text-emerald-600',
     status: 'Connected',
-    webhookUrl: 'https://app.whatsapi.io/webhook/whatsapp',
+    webhookUrl: 'https://app.dvwhatsapi.io/webhook/whatsapp',
     lastSync: 'Just now',
   },
   {
@@ -410,7 +410,7 @@ const initialIntegrations: IntegrationCard[] = [
     badgeText: 'AI',
     avatarColor: 'bg-purple-500/10 text-purple-600',
     status: 'Connected',
-    webhookUrl: 'https://app.whatsapi.io/api/v1/ai/ask',
+    webhookUrl: 'https://app.dvwhatsapi.io/api/v1/ai/ask',
     lastSync: '1 min ago',
   },
   {
@@ -420,7 +420,7 @@ const initialIntegrations: IntegrationCard[] = [
     badgeText: 'IM',
     avatarColor: 'bg-orange-500/10 text-orange-600',
     status: 'Connected',
-    webhookUrl: 'https://app.whatsapi.io/webhook/indiamart',
+    webhookUrl: 'https://app.dvwhatsapi.io/webhook/indiamart',
     lastSync: '3 mins ago',
   },
   {
@@ -430,7 +430,7 @@ const initialIntegrations: IntegrationCard[] = [
     badgeText: 'FB',
     avatarColor: 'bg-blue-500/10 text-blue-600',
     status: 'Connected',
-    webhookUrl: 'https://app.whatsapi.io/webhook/facebook',
+    webhookUrl: 'https://app.dvwhatsapi.io/webhook/facebook',
     lastSync: '6 mins ago',
   },
   {
@@ -440,7 +440,7 @@ const initialIntegrations: IntegrationCard[] = [
     badgeText: 'WB',
     avatarColor: 'bg-emerald-500/10 text-emerald-600',
     status: 'Connected',
-    webhookUrl: 'https://app.whatsapi.io/webhook/waba-direct',
+    webhookUrl: 'https://app.dvwhatsapi.io/webhook/waba-direct',
     lastSync: 'Just now',
   },
   {
@@ -806,7 +806,7 @@ export function Dashboard() {
     const url = URL.createObjectURL(blob)
     const link = document.createElement('a')
     link.href = url
-    link.download = `whatsapi_contacts_leads_${new Date().toISOString().slice(0, 10)}.csv`
+    link.download = `dv_whatsapi_contacts_leads_${new Date().toISOString().slice(0, 10)}.csv`
     document.body.appendChild(link)
     link.click()
     document.body.removeChild(link)

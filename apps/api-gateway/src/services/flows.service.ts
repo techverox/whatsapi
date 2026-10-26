@@ -85,7 +85,7 @@ const defaultFlows: FlowItem[] = [
         subtitle: 'Official WhatsApp Inbound Listener',
         configured: true,
         connectionId: 'bizautomation-whatsapp',
-        webhookPath: 'https://app.whatsapi.io/api/v2/webhook/flows/69bcebb0e5ee4a263120eecf',
+        webhookPath: 'https://app.dvwhatsapi.io/api/v2/webhook/flows/69bcebb0e5ee4a263120eecf',
         config: {
           matchText: 'All incoming customer text queries',
         },
@@ -260,7 +260,7 @@ export class FlowsService {
             subtitle: 'Official WhatsApp Inbound Listener',
             configured: true,
             connectionId: 'bizautomation-whatsapp',
-            webhookPath: `https://app.whatsapi.io/api/v2/webhook/flows/${flowUid}`,
+            webhookPath: `https://app.dvwhatsapi.io/api/v2/webhook/flows/${flowUid}`,
             config: { matchText: 'All incoming customer text queries' },
           },
           {

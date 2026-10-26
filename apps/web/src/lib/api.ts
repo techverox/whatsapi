@@ -1,5 +1,5 @@
 /**
- * Whatsapi - Enterprise API Client
+ * DV WhatsAPI - Enterprise API Client
  * Connects frontend UI components directly to API Gateway on port 4000
  */
 
@@ -78,7 +78,7 @@ async function request<T = unknown>(
   } catch (err: unknown) {
     return {
       success: false,
-      message: `Failed to connect to Whatsapi Gateway at ${API_BASE_URL}. Ensure port 4000 is running.`,
+      message: `Failed to connect to DV WhatsAPI Gateway at ${API_BASE_URL}. Ensure port 4000 is running.`,
       error: err,
     }
   }

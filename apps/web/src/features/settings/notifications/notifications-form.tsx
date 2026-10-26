@@ -216,7 +216,7 @@ export function NotificationsForm() {
               </FormControl>
               <div className='space-y-1 leading-none'>
                 <FormLabel>
-                  Sync push notifications with WhatsAPI Mobile App
+                  Sync push notifications with DV WhatsAPI Mobile App
                 </FormLabel>
                 <FormDescription>
                   Dispatches push notifications directly to on-duty fleet controllers' Android devices.
@@ -232,4 +232,3 @@ export function NotificationsForm() {
     </Form>
   )
 }
-

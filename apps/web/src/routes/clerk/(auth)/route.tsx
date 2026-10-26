@@ -18,7 +18,7 @@ function ClerkAuthLayout() {
           className='relative z-20 flex items-center text-lg font-medium'
         >
           <Logo className='me-2' />
-          Whatsapi
+          DV WhatsAPI
         </Link>
 
         <ClerkFullLogo className='relative m-auto size-96' />
@@ -26,7 +26,7 @@ function ClerkAuthLayout() {
         <div className='relative z-20 mt-auto'>
           <blockquote className='space-y-2'>
             <p className='text-lg'>
-              &ldquo; Whatsapi revolutionized our omnichannel customer conversations and fleet operations with seamless Meta WhatsApp Cloud API automation. &rdquo;
+              &ldquo; DV WhatsAPI revolutionized our omnichannel customer conversations and fleet operations with seamless Meta WhatsApp Cloud API automation. &rdquo;
             </p>
             <footer className='text-sm text-slate-200'>Truck Sathi Operations</footer>
           </blockquote>
