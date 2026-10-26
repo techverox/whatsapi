@@ -140,13 +140,14 @@ export function AIAssistant() {
   const [temperature, setTemperature] = useState(savedConfig?.temperature || '0.3')
   const [prompt, setPrompt] = useState(savedConfig?.prompt || defaultPromptPresets.fleet)
   const [confidenceThreshold, setConfidenceThreshold] = useState(savedConfig?.confidenceThreshold || '65')
-  const [stats, setStats] = useState<AiStats | null>(null)
+  const [_stats, setStats] = useState<AiStats | null>(null)
   const [isSavingConfig, setIsSavingConfig] = useState(false)
 
   // RAG Knowledge State
   const [knowledgeDocs, setKnowledgeDocs] = useState<KnowledgeDoc[]>(initialKnowledgeFallback)
   const [isSyncingKnowledge, setIsSyncingKnowledge] = useState(true)
   const [addDocModal, setAddDocModal] = useState(false)
+  const [docToDelete, setDocToDelete] = useState<KnowledgeDoc | null>(null)
   const [newDocTitle, setNewDocTitle] = useState('')
   const [newDocCategory, setNewDocCategory] = useState('Fleet Operations')
   const [newDocContent, setNewDocContent] = useState('')
@@ -183,12 +184,12 @@ export function AIAssistant() {
 
       if (kbRes?.success && kbRes.data && Array.isArray(kbRes.data)) {
         setKnowledgeDocs(
-          kbRes.data.map((d: any) => ({
-            id: d.id || generateKbId(),
+          (kbRes.data as Array<Record<string, unknown>>).map((d) => ({
+            id: String(d.id || generateKbId()),
             title: String(d.title || 'Untitled'),
             category: String(d.category || 'General'),
             content: String(d.content || ''),
-            chunks: d.chunks || Math.max(1, Math.round(String(d.content || '').length / 150)),
+            chunks: typeof d.chunks === 'number' ? d.chunks : Math.max(1, Math.round(String(d.content || '').length / 150)),
             updatedAt: d.updatedAt ? new Date(String(d.updatedAt)).toLocaleDateString() : 'Active',
           }))
         )
@@ -326,7 +327,7 @@ export function AIAssistant() {
     setAddDocModal(false)
   }
 
-  const handleDeleteKnowledgeDoc = async (id: string, title: string) => {
+  const confirmDeleteKnowledgeDoc = async (id: string, title: string) => {
     setKnowledgeDocs((prev) => prev.filter((d) => d.id !== id))
     try {
       await veroxApi.deleteAiKnowledge(id)
@@ -339,6 +340,7 @@ export function AIAssistant() {
         description: `Removed "${title}" from AI context.`,
       })
     }
+    setDocToDelete(null)
   }
 
   const handleSendQuery = async (queryText?: string) => {
@@ -740,7 +742,7 @@ export function AIAssistant() {
                         <Button
                           variant='ghost'
                           size='icon'
-                          onClick={() => handleDeleteKnowledgeDoc(doc.id, doc.title)}
+                          onClick={() => setDocToDelete(doc)}
                           className='h-7 w-7 text-muted-foreground hover:text-red-600 cursor-pointer shrink-0'
                         >
                           <Trash2 className='h-3.5 w-3.5' />
@@ -966,6 +968,42 @@ export function AIAssistant() {
             </Button>
           </DialogFooter>
         </DialogContent>
+      </Dialog>
+
+      {/* Delete Knowledge Doc Confirmation Modal */}
+      <Dialog open={!!docToDelete} onOpenChange={(open) => !open && setDocToDelete(null)}>
+        {docToDelete && (
+          <DialogContent className='sm:max-w-md'>
+            <DialogHeader>
+              <DialogTitle className='flex items-center gap-2 text-red-600'>
+                <Trash2 className='h-5 w-5' />
+                Remove Document from Vector Store
+              </DialogTitle>
+              <DialogDescription className='text-xs'>
+                Are you sure you want to remove <strong className='text-foreground'>"{docToDelete.title}"</strong> from AI assistant memory?
+                Its embeddings will be erased and the AI bot will no longer cite this document in WhatsApp customer responses.
+              </DialogDescription>
+            </DialogHeader>
+            <DialogFooter className='gap-2 sm:gap-0'>
+              <Button
+                variant='outline'
+                size='sm'
+                onClick={() => setDocToDelete(null)}
+                className='h-8 text-xs cursor-pointer'
+              >
+                Cancel
+              </Button>
+              <Button
+                variant='destructive'
+                size='sm'
+                onClick={() => confirmDeleteKnowledgeDoc(docToDelete.id, docToDelete.title)}
+                className='h-8 text-xs bg-red-600 hover:bg-red-700 text-white font-bold cursor-pointer'
+              >
+                Remove Document
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        )}
       </Dialog>
     </>
   )

@@ -423,6 +423,7 @@ export function Chats() {
   const [templateModalOpen, setTemplateModalOpen] = useState(false)
   const [callModalOpen, setCallModalOpen] = useState(false)
   const [moreModalOpen, setMoreModalOpen] = useState(false)
+  const [clearHistoryConfirmOpen, setClearHistoryConfirmOpen] = useState(false)
 
   // CRM Note Editor State
   const [crmNoteDraft, setCrmNoteDraft] = useState(selectedUser?.notes || '')
@@ -767,7 +768,7 @@ export function Chats() {
     toast.success('Conversation transcript downloaded!')
   }
 
-  // Clear conversation
+  // Clear conversation with safety confirmation
   const handleClearHistory = () => {
     if (!selectedUser) return
     const updatedUser: ChatUserItem = {
@@ -776,8 +777,9 @@ export function Chats() {
     }
     setSelectedUser(updatedUser)
     setChatList((prev) => prev.map((c) => (c.id === selectedUser.id ? updatedUser : c)))
+    setClearHistoryConfirmOpen(false)
     setMoreModalOpen(false)
-    toast.success('Conversation history cleared locally.')
+    toast.success(`Conversation history with ${selectedUser.fullName} cleared.`)
   }
 
   // Toggle tag
@@ -1883,7 +1885,7 @@ export function Chats() {
               <Button
                 variant='outline'
                 size='sm'
-                onClick={handleClearHistory}
+                onClick={() => setClearHistoryConfirmOpen(true)}
                 className='w-full justify-start h-8 text-xs gap-2 text-rose-600 hover:text-rose-700 hover:bg-rose-500/10 border-rose-500/30 cursor-pointer'
               >
                 <Trash2 className='h-3.5 w-3.5' /> Clear Conversation History
@@ -1894,6 +1896,40 @@ export function Chats() {
           <DialogFooter>
             <Button variant='outline' size='sm' onClick={() => setMoreModalOpen(false)} className='h-8 text-xs cursor-pointer'>
               Done
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Clear Chat History Confirmation Modal */}
+      <Dialog open={clearHistoryConfirmOpen} onOpenChange={setClearHistoryConfirmOpen}>
+        <DialogContent className='sm:max-w-md'>
+          <DialogHeader>
+            <DialogTitle className='flex items-center gap-2 text-red-600'>
+              <Trash2 className='h-5 w-5' />
+              Clear Conversation History
+            </DialogTitle>
+            <DialogDescription className='text-xs'>
+              Are you sure you want to clear the entire conversation transcript with <strong className='text-foreground'>{selectedUser?.fullName}</strong> ({selectedUser?.username})?
+              All messages in this session will be permanently erased.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter className='gap-2 sm:gap-0'>
+            <Button
+              variant='outline'
+              size='sm'
+              onClick={() => setClearHistoryConfirmOpen(false)}
+              className='h-8 text-xs cursor-pointer'
+            >
+              Cancel
+            </Button>
+            <Button
+              variant='destructive'
+              size='sm'
+              onClick={handleClearHistory}
+              className='h-8 text-xs bg-red-600 hover:bg-red-700 text-white font-bold cursor-pointer'
+            >
+              Clear History
             </Button>
           </DialogFooter>
         </DialogContent>

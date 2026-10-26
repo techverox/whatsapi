@@ -105,6 +105,7 @@ export function KnowledgeBase() {
   const [addModalOpen, setAddModalOpen] = useState(false)
   const [editModalOpen, setEditModalOpen] = useState(false)
   const [addCategoryModalOpen, setAddCategoryModalOpen] = useState(false)
+  const [articleToDelete, setArticleToDelete] = useState<ArticleItem | null>(null)
 
   // Form states - Add Article
   const [newTitle, setNewTitle] = useState('')
@@ -343,8 +344,8 @@ export function KnowledgeBase() {
     }
   }
 
-  // 5. Delete Article
-  const handleDeleteArticle = async (articleId: string) => {
+  // 5. Delete Article State & Handler with Modal
+  const confirmDeleteArticle = async (articleId: string) => {
     try {
       await veroxApi.deleteKnowledgeArticle(articleId)
       setSelectedArticleId(null)
@@ -354,6 +355,7 @@ export function KnowledgeBase() {
       const msg = err instanceof Error ? err.message : 'Failed to delete article.'
       toast.error(msg)
     }
+    setArticleToDelete(null)
   }
 
   // 6. Create New Category
@@ -684,7 +686,7 @@ export function KnowledgeBase() {
                       id='btn-delete-article'
                       variant='ghost'
                       size='sm'
-                      onClick={() => handleDeleteArticle(activeArticle.id)}
+                      onClick={() => setArticleToDelete(activeArticle)}
                       className='h-8 px-2.5 text-xs text-red-600 hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-950/30 cursor-pointer gap-1'
                     >
                       <Trash2 className='h-3.5 w-3.5' /> Delete
@@ -979,6 +981,42 @@ export function KnowledgeBase() {
               </Button>
             </DialogFooter>
           </DialogContent>
+        </Dialog>
+
+        {/* Delete Article Confirmation Modal */}
+        <Dialog open={!!articleToDelete} onOpenChange={(open) => !open && setArticleToDelete(null)}>
+          {articleToDelete && (
+            <DialogContent className='sm:max-w-md'>
+              <DialogHeader>
+                <DialogTitle className='flex items-center gap-2 text-red-600'>
+                  <Trash2 className='h-5 w-5' />
+                  Delete Knowledge Base Article
+                </DialogTitle>
+                <DialogDescription className='text-xs'>
+                  Are you sure you want to delete article <strong className='text-foreground'>"{articleToDelete.title}"</strong>?
+                  This article will be immediately removed from the AI Assistant vector store and will no longer be cited in WhatsApp bot responses.
+                </DialogDescription>
+              </DialogHeader>
+              <DialogFooter className='gap-2 sm:gap-0'>
+                <Button
+                  variant='outline'
+                  size='sm'
+                  onClick={() => setArticleToDelete(null)}
+                  className='h-8 text-xs cursor-pointer'
+                >
+                  Cancel
+                </Button>
+                <Button
+                  variant='destructive'
+                  size='sm'
+                  onClick={() => confirmDeleteArticle(articleToDelete.id)}
+                  className='h-8 text-xs bg-red-600 hover:bg-red-700 text-white font-bold cursor-pointer'
+                >
+                  Delete Article
+                </Button>
+              </DialogFooter>
+            </DialogContent>
+          )}
         </Dialog>
       </Main>
     </>

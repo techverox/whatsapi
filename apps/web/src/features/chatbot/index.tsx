@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect, useCallback } from 'react'
+import { useState, useMemo, useEffect } from 'react'
 import {
   MessageCircleCode,
   Zap,
@@ -54,6 +54,14 @@ import { Main } from '@/components/layout/main'
 import { ProfileDropdown } from '@/components/profile-dropdown'
 import { ThemeSwitch } from '@/components/theme-switch'
 import { ConfigDrawer } from '@/components/config-drawer'
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog'
 import { veroxApi } from '@/lib/api'
 
 // ============================================================================
@@ -672,18 +680,19 @@ export function Chatbot() {
   useEffect(() => {
     veroxApi
       .getChatbotFlow(flowId)
-      .then((res: any) => {
-        if (res?.data) {
-          if (res.data.nodes && res.data.nodes.length > 0) {
-            setNodes(res.data.nodes)
-            setSelectedNodeId(res.data.nodes[0]?.id || '')
+      .then((res: unknown) => {
+        const payload = res as { data?: { nodes?: BotNode[]; name?: string; isLive?: boolean } }
+        if (payload?.data) {
+          if (payload.data.nodes && payload.data.nodes.length > 0) {
+            setNodes(payload.data.nodes)
+            setSelectedNodeId(payload.data.nodes[0]?.id || '')
           }
-          if (res.data.name) setFlowName(res.data.name)
-          if (res.data.isLive !== undefined) setIsLive(res.data.isLive)
+          if (payload.data.name) setFlowName(payload.data.name)
+          if (payload.data.isLive !== undefined) setIsLive(payload.data.isLive)
         }
       })
-      .catch((err: any) => {
-        console.warn('Using local cached chatbot flow:', err)
+      .catch(() => {
+        // Fallback to local cached chatbot flow
       })
   }, [flowId])
 
@@ -695,6 +704,7 @@ export function Chatbot() {
   // Canvas View Controls
   const [zoomLevel, setZoomLevel] = useState(100)
   const [activeExecutingNodeId, setActiveExecutingNodeId] = useState<string | null>(null)
+  const [resetConfirmOpen, setResetConfirmOpen] = useState(false)
 
   // Simulator State
   const [simMessages, setSimMessages] = useState<SimMessage[]>([
@@ -1104,6 +1114,7 @@ export function Chatbot() {
       handleApplyPreset('preset-fleet-lead')
     }
     localStorage.removeItem('whatsapi_chatbot_flows_v2')
+    setResetConfirmOpen(false)
     toast.info('Canvas reset to standard Gujarat Fleet Lead Qualifier.')
   }
 
@@ -1742,8 +1753,8 @@ export function Chatbot() {
             <Button
               variant='outline'
               size='sm'
-              onClick={handleResetFlow}
-              className='h-8 text-xs gap-1 text-muted-foreground hover:text-foreground'
+              onClick={() => setResetConfirmOpen(true)}
+              className='h-8 text-xs gap-1 text-muted-foreground hover:text-foreground cursor-pointer'
               title='Reset to Default Template'
             >
               <RotateCcw className='h-3.5 w-3.5' /> Reset
@@ -2860,6 +2871,40 @@ export function Chatbot() {
           </div>
         </div>
       </Main>
+
+      {/* Reset Flow Confirmation Modal */}
+      <Dialog open={resetConfirmOpen} onOpenChange={setResetConfirmOpen}>
+        <DialogContent className='sm:max-w-md'>
+          <DialogHeader>
+            <DialogTitle className='flex items-center gap-2 text-red-600'>
+              <RotateCcw className='h-5 w-5' />
+              Reset Visual Chatbot Flow
+            </DialogTitle>
+            <DialogDescription className='text-xs'>
+              Are you sure you want to reset <strong className='text-foreground'>"{flowName}"</strong> to the default fleet qualifier template?
+              All unsaved visual canvas step configurations and custom branching conditions will be replaced.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter className='gap-2 sm:gap-0'>
+            <Button
+              variant='outline'
+              size='sm'
+              onClick={() => setResetConfirmOpen(false)}
+              className='h-8 text-xs cursor-pointer'
+            >
+              Cancel
+            </Button>
+            <Button
+              variant='destructive'
+              size='sm'
+              onClick={handleResetFlow}
+              className='h-8 text-xs bg-red-600 hover:bg-red-700 text-white font-bold cursor-pointer'
+            >
+              Reset to Default
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </>
   )
 }

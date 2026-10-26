@@ -198,6 +198,7 @@ export function WhatsappForms() {
 
   // Preview & Copy State
   const [previewModal, setPreviewModal] = useState<FlowFormItem | null>(null)
+  const [formToDelete, setFormToDelete] = useState<FlowFormItem | null>(null)
   const [copied, setCopied] = useState(false)
   const [copiedFlowId, setCopiedFlowId] = useState<string | null>(null)
 
@@ -307,8 +308,9 @@ export function WhatsappForms() {
     setCreateModal(false)
   }
 
-  const handleDelete = (id: string, title: string) => {
-    setFlows(flows.filter((f) => f.id !== id))
+  const confirmDeleteForm = (id: string, title: string) => {
+    setFlows((prev) => prev.filter((f) => f.id !== id))
+    setFormToDelete(null)
     toast.info(`Removed form "${title}".`)
   }
 
@@ -690,7 +692,7 @@ export function WhatsappForms() {
                       <Button
                         variant='ghost'
                         size='sm'
-                        onClick={() => handleDelete(flow.id, flow.title)}
+                        onClick={() => setFormToDelete(flow)}
                         className='h-7 w-7 p-0 text-muted-foreground hover:text-rose-600 hover:bg-rose-500/10 cursor-pointer'
                         title='Delete Form'
                       >
@@ -1039,6 +1041,42 @@ export function WhatsappForms() {
             </Button>
           </DialogFooter>
         </DialogContent>
+      </Dialog>
+
+      {/* Delete Form Confirmation Modal */}
+      <Dialog open={!!formToDelete} onOpenChange={(open) => !open && setFormToDelete(null)}>
+        {formToDelete && (
+          <DialogContent className='sm:max-w-md'>
+            <DialogHeader>
+              <DialogTitle className='flex items-center gap-2 text-red-600'>
+                <Trash2 className='h-5 w-5' />
+                Delete Interactive Form Flow
+              </DialogTitle>
+              <DialogDescription className='text-xs'>
+                Are you sure you want to delete form <strong className='text-foreground'>"{formToDelete.title}"</strong> (ID: {formToDelete.flowId})?
+                WhatsApp conversations currently triggering this interactive form will no longer display it.
+              </DialogDescription>
+            </DialogHeader>
+            <DialogFooter className='gap-2 sm:gap-0'>
+              <Button
+                variant='outline'
+                size='sm'
+                onClick={() => setFormToDelete(null)}
+                className='h-8 text-xs cursor-pointer'
+              >
+                Cancel
+              </Button>
+              <Button
+                variant='destructive'
+                size='sm'
+                onClick={() => confirmDeleteForm(formToDelete.id, formToDelete.title)}
+                className='h-8 text-xs bg-red-600 hover:bg-red-700 text-white font-bold cursor-pointer'
+              >
+                Delete Form
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        )}
       </Dialog>
     </>
   )

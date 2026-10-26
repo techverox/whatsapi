@@ -591,16 +591,24 @@ export function Flows() {
     }
   }
 
-  // Delete flow
-  const handleDeleteFlow = async (flowId: string) => {
+  // Delete flow state & modal
+  const [flowToDelete, setFlowToDelete] = useState<FlowItem | null>(null)
+
+  const confirmDeleteFlow = async (flowId: string) => {
+    const target = flowsList.find((f) => f.id === flowId)
+    const targetName = target?.name || 'this flow'
     try {
       await veroxApi.deleteFlow(flowId)
       const updated = flowsList.filter((f) => f.id !== flowId)
       persistFlows(updated)
-      toast.info('Flow deleted successfully.')
+      if (activeFlow?.id === flowId) {
+        setActiveFlow(updated[0] || null)
+      }
+      toast.info(`Flow "${targetName}" deleted successfully.`)
     } catch (err: unknown) {
       toast.error('Failed to delete flow', { description: (err as Error)?.message || 'Delete failed' })
     }
+    setFlowToDelete(null)
   }
 
   // Sample Output JSON matching the screenshot
@@ -1558,8 +1566,8 @@ export function Flows() {
                               <Copy className='h-3.5 w-3.5 me-2' /> Duplicate
                             </DropdownMenuItem>
                             <DropdownMenuItem
-                              onClick={() => handleDeleteFlow(flow.id)}
-                              className='text-red-600 focus:text-red-600'
+                              onClick={() => setFlowToDelete(flow)}
+                              className='text-red-600 focus:text-red-600 cursor-pointer'
                             >
                               <Trash2 className='h-3.5 w-3.5 me-2' /> Delete Flow
                             </DropdownMenuItem>
@@ -1662,6 +1670,42 @@ export function Flows() {
             </Button>
           </DialogFooter>
         </DialogContent>
+      </Dialog>
+
+      {/* Delete Flow Confirmation Modal */}
+      <Dialog open={!!flowToDelete} onOpenChange={(open) => !open && setFlowToDelete(null)}>
+        {flowToDelete && (
+          <DialogContent className='sm:max-w-md'>
+            <DialogHeader>
+              <DialogTitle className='flex items-center gap-2 text-red-600'>
+                <Trash2 className='h-5 w-5' />
+                Delete Visual Flow Pipeline
+              </DialogTitle>
+              <DialogDescription className='text-xs'>
+                Are you sure you want to delete flow <strong className='text-foreground'>"{flowToDelete.name}"</strong>?
+                All active inbound webhooks, node transformations, and automated triggers configured in this pipeline will stop immediately.
+              </DialogDescription>
+            </DialogHeader>
+            <DialogFooter className='gap-2 sm:gap-0'>
+              <Button
+                variant='outline'
+                size='sm'
+                onClick={() => setFlowToDelete(null)}
+                className='h-8 text-xs cursor-pointer'
+              >
+                Cancel
+              </Button>
+              <Button
+                variant='destructive'
+                size='sm'
+                onClick={() => confirmDeleteFlow(flowToDelete.id)}
+                className='h-8 text-xs bg-red-600 hover:bg-red-700 text-white font-bold cursor-pointer'
+              >
+                Delete Flow
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        )}
       </Dialog>
     </>
   )

@@ -157,6 +157,7 @@ export function Projects() {
   const [projectModal, setProjectModal] = useState(false)
   const [taskModal, setTaskModal] = useState(false)
   const [selectedProjectId, setSelectedProjectId] = useState<string | null>(null)
+  const [projectToDelete, setProjectToDelete] = useState<{ id: string; name: string } | null>(null)
   const selectedProject = projects.find((p) => p.id === selectedProjectId) || null
 
   // New Project Form
@@ -378,11 +379,12 @@ export function Projects() {
     }
   }
 
-  const handleDeleteProject = async (id: string, name: string) => {
+  const confirmDeleteProject = async (id: string, name: string) => {
     // Optimistic local state update
     setProjects((prev) => prev.filter((p) => p.id !== id))
     setTasks((prev) => prev.filter((t) => t.projectId !== id && t.project !== name))
     setSelectedProjectId(null)
+    setProjectToDelete(null)
 
     try {
       await veroxApi.deleteProject(id)
@@ -969,7 +971,7 @@ export function Projects() {
                 type='button'
                 variant='ghost'
                 size='sm'
-                onClick={() => handleDeleteProject(selectedProject.id, selectedProject.name)}
+                onClick={() => setProjectToDelete({ id: selectedProject.id, name: selectedProject.name })}
                 className='h-8 text-xs text-red-600 hover:bg-red-500/10 gap-1 cursor-pointer'
               >
                 <Trash2 className='h-3.5 w-3.5' /> Delete Project
@@ -1201,6 +1203,42 @@ export function Projects() {
             </Button>
           </DialogFooter>
         </DialogContent>
+      </Dialog>
+
+      {/* Delete Project Confirmation Modal */}
+      <Dialog open={!!projectToDelete} onOpenChange={(open) => !open && setProjectToDelete(null)}>
+        {projectToDelete && (
+          <DialogContent className='sm:max-w-md'>
+            <DialogHeader>
+              <DialogTitle className='flex items-center gap-2 text-red-600'>
+                <Trash2 className='h-5 w-5' />
+                Delete Project & Linked Tasks
+              </DialogTitle>
+              <DialogDescription className='text-xs'>
+                Are you sure you want to delete project <strong className='text-foreground'>"{projectToDelete.name}"</strong>?
+                This action cannot be undone and will permanently remove all associated tasks, timelines, and milestones.
+              </DialogDescription>
+            </DialogHeader>
+            <DialogFooter className='gap-2 sm:gap-0'>
+              <Button
+                variant='outline'
+                size='sm'
+                onClick={() => setProjectToDelete(null)}
+                className='h-8 text-xs cursor-pointer'
+              >
+                Cancel
+              </Button>
+              <Button
+                variant='destructive'
+                size='sm'
+                onClick={() => confirmDeleteProject(projectToDelete.id, projectToDelete.name)}
+                className='h-8 text-xs bg-red-600 hover:bg-red-700 text-white font-bold cursor-pointer'
+              >
+                Delete Project
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        )}
       </Dialog>
     </>
   )

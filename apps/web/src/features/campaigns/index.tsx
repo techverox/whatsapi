@@ -324,7 +324,12 @@ export function Campaigns() {
       return
     }
 
-    const count = parseInt(contactsCount) || 1000
+    const count = parseInt(contactsCount)
+    if (isNaN(count) || count <= 0) {
+      toast.error('Target contacts count must be a valid positive number.')
+      return
+    }
+
     const matchedTmpl = TEMPLATES.find((t) => t.name === selectedTemplateName) || TEMPLATES[0]
     const scheduledAt = scheduleType === 'immediate' ? new Date().toISOString() : scheduledDateTime || new Date().toISOString()
     const isImmediate = scheduleType === 'immediate'
@@ -419,22 +424,35 @@ export function Campaigns() {
     }
   }
 
-  // Duplicate Campaign Handler
-  const handleDuplicate = () => {
+  // Duplicate Campaign Handler (Persisted to backend API)
+  const handleDuplicate = async () => {
     if (!selectedCampaign) return
+    const duplicatedName = `${selectedCampaign.name} (Copy)`
+    const scheduledAt = new Date(Date.now() + 86400000).toISOString()
     const duplicated: CampaignItem = {
       ...selectedCampaign,
       id: `camp-${Date.now()}`,
-      name: `${selectedCampaign.name} (Copy)`,
+      name: duplicatedName,
       status: 'Scheduled',
       delivered: 0,
       read: 0,
       created: new Date().toISOString(),
-      scheduledTime: new Date(Date.now() + 86400000).toISOString(),
+      scheduledTime: scheduledAt,
       pipelineEvents: [
         { title: `Duplicated from ${selectedCampaign.name}`, time: 'Just now' },
         { title: 'Audience reset to 0 dispatches', time: 'Just now' },
       ],
+    }
+
+    try {
+      await veroxApi.createCampaign({
+        name: duplicatedName,
+        templateName: selectedCampaign.templateName,
+        totalContacts: selectedCampaign.totalContacts,
+        scheduledAt,
+      })
+    } catch {
+      // Local fallback
     }
 
     setCampaigns((prev) => [duplicated, ...prev])
@@ -444,9 +462,10 @@ export function Campaigns() {
     })
   }
 
-  // Delete Campaign Handler
-  const handleDeleteCampaign = async (id: string, e?: React.MouseEvent) => {
-    if (e) e.stopPropagation()
+  // Delete Campaign State & Handler with Modal
+  const [campaignToDelete, setCampaignToDelete] = useState<CampaignItem | null>(null)
+
+  const confirmDeleteCampaign = async (id: string) => {
     const remaining = campaigns.filter((c) => c.id !== id)
     setCampaigns(remaining)
     if (selectedCampaign?.id === id) {
@@ -458,6 +477,7 @@ export function Campaigns() {
       // Local fallback
     }
     toast.info('Campaign removed from broadcast engine.')
+    setCampaignToDelete(null)
   }
 
   // Interactive Quick Reply Simulation
@@ -736,8 +756,8 @@ export function Campaigns() {
                 <Button
                   variant='ghost'
                   size='sm'
-                  onClick={() => handleDeleteCampaign(selectedCampaign.id)}
-                  className='h-8 w-8 p-0 text-muted-foreground hover:text-red-600'
+                  onClick={() => setCampaignToDelete(selectedCampaign)}
+                  className='h-8 w-8 p-0 text-muted-foreground hover:text-red-600 cursor-pointer'
                   title='Delete Campaign'
                 >
                   <Trash2 className='h-3.5 w-3.5' />
@@ -1064,8 +1084,11 @@ export function Campaigns() {
                             <Button
                               variant='ghost'
                               size='sm'
-                              className='h-7 w-7 p-0 text-muted-foreground hover:text-red-600'
-                              onClick={(e) => handleDeleteCampaign(camp.id, e)}
+                              className='h-7 w-7 p-0 text-muted-foreground hover:text-red-600 cursor-pointer'
+                              onClick={(e) => {
+                                e.stopPropagation()
+                                setCampaignToDelete(camp)
+                              }}
                               title='Delete'
                             >
                               <Trash2 className='h-3.5 w-3.5' />
@@ -1300,6 +1323,42 @@ export function Campaigns() {
               </Button>
             </DialogFooter>
           </DialogContent>
+        </Dialog>
+
+        {/* Delete Campaign Confirmation Modal */}
+        <Dialog open={!!campaignToDelete} onOpenChange={(open) => !open && setCampaignToDelete(null)}>
+          {campaignToDelete && (
+            <DialogContent className='sm:max-w-md'>
+              <DialogHeader>
+                <DialogTitle className='flex items-center gap-2 text-red-600'>
+                  <Trash2 className='h-5 w-5' />
+                  Delete Broadcast Campaign
+                </DialogTitle>
+                <DialogDescription className='text-xs'>
+                  Are you sure you want to delete campaign <strong className='text-foreground'>"{campaignToDelete.name}"</strong>?
+                  This action cannot be undone and will permanently cancel all associated scheduled dispatches.
+                </DialogDescription>
+              </DialogHeader>
+              <DialogFooter className='gap-2 sm:gap-0'>
+                <Button
+                  variant='outline'
+                  size='sm'
+                  onClick={() => setCampaignToDelete(null)}
+                  className='h-8 text-xs cursor-pointer'
+                >
+                  Cancel
+                </Button>
+                <Button
+                  variant='destructive'
+                  size='sm'
+                  onClick={() => confirmDeleteCampaign(campaignToDelete.id)}
+                  className='h-8 text-xs bg-red-600 hover:bg-red-700 text-white font-bold cursor-pointer'
+                >
+                  Delete Campaign
+                </Button>
+              </DialogFooter>
+            </DialogContent>
+          )}
         </Dialog>
       </Main>
     </>

@@ -21,7 +21,7 @@
     "name": "Facebook Lead Ads",
     "category": "Featured",
     "description": "Instant lead capture from Meta ads into WhatsApp automated conversation sequences.",
-    "connected": false,
+    "connected": true,
     "tag": "Meta Ads",
     "iconColor": "bg-blue-500/15 text-blue-600",
     "defaultEndpoint": "https://graph.facebook.com/v21.0/page-leads",
@@ -321,10 +321,11 @@
     "name": "Math Helper",
     "category": "Helpers",
     "description": "Perform arithmetic calculations, GST percentages, and discount calculations.",
-    "connected": true,
+    "connected": false,
     "tag": "Formatter",
     "iconColor": "bg-amber-500/15 text-amber-600",
-    "leadCount": 0
+    "leadCount": 0,
+    "apiConfig": {}
   },
   {
     "id": "date-helper",

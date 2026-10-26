@@ -507,8 +507,10 @@ export function WhatsappTemplates() {
     }
   }
 
-  // Delete Template Handler with API sync
-  const handleDeleteTemplate = async (id: string, name: string) => {
+  // Delete Template State & Handler with Modal
+  const [templateToDelete, setTemplateToDelete] = useState<TemplateItem | null>(null)
+
+  const confirmDeleteTemplate = async (id: string, name: string) => {
     try {
       await veroxApi.deleteTemplate(id)
     } catch {
@@ -516,6 +518,7 @@ export function WhatsappTemplates() {
     }
     setTemplates((prev) => prev.filter((t) => t.id !== id && t.name !== name))
     toast.info(`Template "${name}" removed from registry.`)
+    setTemplateToDelete(null)
   }
 
   // Copy Template Text
@@ -950,7 +953,7 @@ export function WhatsappTemplates() {
                         <Button
                           variant='ghost'
                           size='sm'
-                          onClick={() => handleDeleteTemplate(tmpl.id, tmpl.name)}
+                          onClick={() => setTemplateToDelete(tmpl)}
                           className='h-7 w-7 p-0 text-muted-foreground hover:text-red-600 cursor-pointer'
                           title='Delete template'
                         >
@@ -1287,6 +1290,42 @@ export function WhatsappTemplates() {
               </Button>
             </DialogFooter>
           </DialogContent>
+        </Dialog>
+
+        {/* Delete Template Confirmation Modal */}
+        <Dialog open={!!templateToDelete} onOpenChange={(open) => !open && setTemplateToDelete(null)}>
+          {templateToDelete && (
+            <DialogContent className='sm:max-w-md'>
+              <DialogHeader>
+                <DialogTitle className='flex items-center gap-2 text-red-600'>
+                  <Trash2 className='h-5 w-5' />
+                  Delete Message Template
+                </DialogTitle>
+                <DialogDescription className='text-xs'>
+                  Are you sure you want to delete template <strong className='text-foreground'>"{templateToDelete.name}"</strong>?
+                  Approved Meta templates cannot be recovered and active campaigns or flows using this template will be affected.
+                </DialogDescription>
+              </DialogHeader>
+              <DialogFooter className='gap-2 sm:gap-0'>
+                <Button
+                  variant='outline'
+                  size='sm'
+                  onClick={() => setTemplateToDelete(null)}
+                  className='h-8 text-xs cursor-pointer'
+                >
+                  Cancel
+                </Button>
+                <Button
+                  variant='destructive'
+                  size='sm'
+                  onClick={() => confirmDeleteTemplate(templateToDelete.id, templateToDelete.name)}
+                  className='h-8 text-xs bg-red-600 hover:bg-red-700 text-white font-bold cursor-pointer'
+                >
+                  Delete Template
+                </Button>
+              </DialogFooter>
+            </DialogContent>
+          )}
         </Dialog>
       </Main>
     </>

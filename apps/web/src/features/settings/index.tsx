@@ -32,6 +32,14 @@ import { Main } from '@/components/layout/main'
 import { ProfileDropdown } from '@/components/profile-dropdown'
 import { ThemeSwitch } from '@/components/theme-switch'
 import { ConfigDrawer } from '@/components/config-drawer'
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog'
 
 export interface TeamMember {
   id: string
@@ -202,6 +210,7 @@ export function Settings({
   const [invitePhone, setInvitePhone] = useState('')
   const [inviteRole, setInviteRole] = useState<'ADMIN' | 'MANAGER' | 'AGENT' | 'DEVELOPER'>('AGENT')
   const [isInviting, setIsInviting] = useState(false)
+  const [memberToDelete, setMemberToDelete] = useState<TeamMember | null>(null)
 
   // WABA testing state
   const [isTestingWaba, setIsTestingWaba] = useState(false)
@@ -406,8 +415,9 @@ export function Settings({
   }
 
   // Handle Delete Team Member
-  const handleDeleteMember = async (id: string, name: string) => {
+  const confirmDeleteMember = async (id: string, name: string) => {
     setTeamMembers((prev) => prev.filter((m) => m.id !== id))
+    setMemberToDelete(null)
 
     try {
       await veroxApi.deleteSettingsTeamMember(id)
@@ -991,7 +1001,7 @@ export function Settings({
                             id={`btn-delete-member-${member.id}`}
                             variant='ghost'
                             size='icon'
-                            onClick={() => handleDeleteMember(member.id, member.name)}
+                            onClick={() => setMemberToDelete(member)}
                             className='h-8 w-8 text-red-600 hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-950/30 cursor-pointer'
                             title='Remove Member'
                           >
@@ -1507,6 +1517,42 @@ export function Settings({
             </div>
           </div>
         )}
+
+        {/* Delete Team Member Confirmation Modal */}
+        <Dialog open={!!memberToDelete} onOpenChange={(open) => !open && setMemberToDelete(null)}>
+          {memberToDelete && (
+            <DialogContent className='sm:max-w-md'>
+              <DialogHeader>
+                <DialogTitle className='flex items-center gap-2 text-red-600'>
+                  <Trash2 className='h-5 w-5' />
+                  Remove Team Member
+                </DialogTitle>
+                <DialogDescription className='text-xs'>
+                  Are you sure you want to remove <strong className='text-foreground'>"{memberToDelete.name}"</strong> ({memberToDelete.email}) from team access?
+                  Their platform login session will be revoked and they will lose access to WhatsApp live chats and contacts.
+                </DialogDescription>
+              </DialogHeader>
+              <DialogFooter className='gap-2 sm:gap-0'>
+                <Button
+                  variant='outline'
+                  size='sm'
+                  onClick={() => setMemberToDelete(null)}
+                  className='h-8 text-xs cursor-pointer'
+                >
+                  Cancel
+                </Button>
+                <Button
+                  variant='destructive'
+                  size='sm'
+                  onClick={() => confirmDeleteMember(memberToDelete.id, memberToDelete.name)}
+                  className='h-8 text-xs bg-red-600 hover:bg-red-700 text-white font-bold cursor-pointer'
+                >
+                  Remove Member
+                </Button>
+              </DialogFooter>
+            </DialogContent>
+          )}
+        </Dialog>
       </Main>
     </>
   )

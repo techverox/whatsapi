@@ -89,6 +89,7 @@ export function Gallery() {
 
   // Preview Modal State
   const [previewItem, setPreviewItem] = useState<MediaAsset | null>(null)
+  const [assetToDelete, setAssetToDelete] = useState<MediaAsset | null>(null)
 
   const fetchMedia = useCallback(async () => {
     setIsLoading(true)
@@ -226,7 +227,7 @@ export function Gallery() {
     }
   }
 
-  const handleDelete = async (id: string, name: string) => {
+  const confirmDeleteAsset = async (id: string, name: string) => {
     try {
       const res = await veroxApi.deleteMedia(id)
       if (res && res.success) {
@@ -240,6 +241,7 @@ export function Gallery() {
       setMedia((prev) => prev.filter((m) => m.id !== id))
       toast.info('Media asset removed.')
     }
+    setAssetToDelete(null)
   }
 
   const handleDownload = (item: MediaAsset) => {
@@ -563,8 +565,8 @@ export function Gallery() {
                     <Button
                       variant='ghost'
                       size='sm'
-                      onClick={() => handleDelete(item.id, item.name)}
-                      className='h-7 w-7 p-0 text-muted-foreground hover:text-rose-600'
+                      onClick={() => setAssetToDelete(item)}
+                      className='h-7 w-7 p-0 text-muted-foreground hover:text-rose-600 cursor-pointer'
                       title='Delete Asset'
                     >
                       <Trash2 className='h-3.5 w-3.5' />
@@ -820,6 +822,42 @@ export function Gallery() {
             </Button>
           </DialogFooter>
         </DialogContent>
+      </Dialog>
+
+      {/* Delete Media Asset Confirmation Modal */}
+      <Dialog open={!!assetToDelete} onOpenChange={(open) => !open && setAssetToDelete(null)}>
+        {assetToDelete && (
+          <DialogContent className='sm:max-w-md'>
+            <DialogHeader>
+              <DialogTitle className='flex items-center gap-2 text-red-600'>
+                <Trash2 className='h-5 w-5' />
+                Delete Media Asset
+              </DialogTitle>
+              <DialogDescription className='text-xs'>
+                Are you sure you want to delete media asset <strong className='text-foreground'>"{assetToDelete.name}"</strong>?
+                This asset will be removed from local storage and Meta Cloud CDN. Any WhatsApp campaign templates referencing this media handle may fail to deliver.
+              </DialogDescription>
+            </DialogHeader>
+            <DialogFooter className='gap-2 sm:gap-0'>
+              <Button
+                variant='outline'
+                size='sm'
+                onClick={() => setAssetToDelete(null)}
+                className='h-8 text-xs cursor-pointer'
+              >
+                Cancel
+              </Button>
+              <Button
+                variant='destructive'
+                size='sm'
+                onClick={() => confirmDeleteAsset(assetToDelete.id, assetToDelete.name)}
+                className='h-8 text-xs bg-red-600 hover:bg-red-700 text-white font-bold cursor-pointer'
+              >
+                Delete Asset
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        )}
       </Dialog>
     </>
   )
